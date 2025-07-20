@@ -1,168 +1,254 @@
-.page {
-  --gray-rgb: 0, 0, 0;
-  --gray-alpha-200: rgba(var(--gray-rgb), 0.08);
-  --gray-alpha-100: rgba(var(--gray-rgb), 0.05);
+/* General page layout and colors */
+.container {
+    --gray-rgb: 0, 0, 0;
+    --gray-alpha-200: rgba(var(--gray-rgb), 0.08);
+    --gray-alpha-100: rgba(var(--gray-rgb), 0.05);
 
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
+    --button-primary-hover: #383838;
+    --button-secondary-hover: #f2f2f2;
 
-  display: grid;
-  grid-template-rows: 20px 1fr 20px;
-  align-items: center;
-  justify-items: center;
-  min-height: 100svh;
-  padding: 80px;
-  gap: 64px;
-  font-family: var(--font-geist-sans);
-}
-
-@media (prefers-color-scheme: dark) {
-  .page {
-    --gray-rgb: 255, 255, 255;
-    --gray-alpha-200: rgba(var(--gray-rgb), 0.145);
-    --gray-alpha-100: rgba(var(--gray-rgb), 0.06);
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-  }
-}
-
-.main {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  grid-row-start: 2;
-}
-
-.main ol {
-  font-family: var(--font-geist-mono);
-  padding-left: 0;
-  margin: 0;
-  font-size: 14px;
-  line-height: 24px;
-  letter-spacing: -0.01em;
-  list-style-position: inside;
-}
-
-.main li:not(:last-of-type) {
-  margin-bottom: 8px;
-}
-
-.main code {
-  font-family: inherit;
-  background: var(--gray-alpha-100);
-  padding: 2px 4px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.ctas {
-  display: flex;
-  gap: 16px;
-}
-
-.ctas a {
-  appearance: none;
-  border-radius: 128px;
-  height: 48px;
-  padding: 0 20px;
-  border: none;
-  border: 1px solid transparent;
-  transition:
-    background 0.2s,
-    color 0.2s,
-    border-color 0.2s;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  line-height: 20px;
-  font-weight: 500;
-}
-
-a.primary {
-  background: var(--foreground);
-  color: var(--background);
-  gap: 8px;
-}
-
-a.secondary {
-  border-color: var(--gray-alpha-200);
-  min-width: 158px;
-}
-
-.footer {
-  grid-row-start: 3;
-  display: flex;
-  gap: 24px;
-}
-
-.footer a {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.footer img {
-  flex-shrink: 0;
-}
-
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
-
-  .footer a:hover {
-    text-decoration: underline;
-    text-underline-offset: 4px;
-  }
-}
-
-@media (max-width: 600px) {
-  .page {
-    padding: 32px;
-    padding-bottom: 80px;
-  }
-
-  .main {
-    align-items: center;
-  }
-
-  .main ol {
-    text-align: center;
-  }
-
-  .ctas {
+    display: flex;
     flex-direction: column;
-  }
-
-  .ctas a {
-    font-size: 14px;
-    height: 40px;
-    padding: 0 16px;
-  }
-
-  a.secondary {
-    min-width: auto;
-  }
-
-  .footer {
-    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-  }
+    min-height: 100vh;
+    padding: 60px 20px; /* Increased padding for more breathing room */
+    gap: 50px; /* Increased spacing between main elements */
+    font-family: 'Inter', sans-serif; /* Modern and clear font */
+    background: linear-gradient(135deg, #6A82FB 0%, #00d9ff 100%); /* Vibrant, smooth gradient */
+    color: #FFFFFF; /* Pure white text for excellent contrast */
+    text-align: center;
+    transition: background 0.7s ease-in-out; /* Slower, more elegant background transition */
+    overflow-x: hidden; /* Prevent horizontal scroll on small screens */
 }
 
+/* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
+    .container {
+        --gray-rgb: 255, 255, 255;
+        --gray-alpha-200: rgba(var(--gray-rgb), 0.18); /* Slightly more visible in dark mode */
+        --gray-alpha-100: rgba(var(--gray-rgb), 0.08);
+
+        --button-primary-hover: #ccc;
+        --button-secondary-hover: #1a1a1a;
+        background: linear-gradient(135deg, #1A237E 0%, #00b7ff 100%); /* Deeper, richer dark mode gradient */
+    }
+}
+
+/* RTL direction for Arabic */
+.rtl {
+    direction: rtl;
+}
+
+/* Header styling */
+.heading {
+    font-size: clamp(3rem, 9vw, 5.5rem); /* Larger and more responsive heading */
+    font-weight: 900; /* Ultra bold for impact */
+    margin-bottom: 40px; /* More space below heading */
+    text-shadow: 0px 6px 12px rgba(0, 0, 0, 0.4); /* Stronger, more defined shadow */
+    line-height: 1.1; /* Tighter line height for large text */
+    letter-spacing: -0.03em; /* Slightly tighter letter spacing */
+}
+
+.floating {
+    animation: floating 5s ease-in-out infinite; /* Slower, more graceful float */
+}
+
+/* Language selector container */
+.languageContainer {
+    display: flex;
+    align-items: center;
+    gap: 20px; /* Increased gap */
+    padding: 15px 35px; /* Larger padding */
+    background: rgba(255, 255, 255, 0.25); /* More transparent, yet visible */
+    border-radius: 60px; /* Even more rounded */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25); /* Deeper, softer shadow */
+    backdrop-filter: blur(10px); /* More pronounced blur effect */
+    border: 1px solid rgba(255, 255, 255, 0.4); /* Clearer light border */
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition curve */
+}
+
+.languageContainer:hover {
+    transform: translateY(-8px); /* More pronounced lift on hover */
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4); /* Even deeper shadow */
+}
+
+.languageLabel {
+    font-size: 1.2rem; /* Slightly larger label font */
+    font-weight: 700; /* Bolder label */
+    color: #F0F0F0; /* Brighter gray for label */
+}
+
+.languageSelect {
+    appearance: none;
+    background: #4B0082; /* Deep purple for select background */
+    color: #FFFFFF;
+    padding: 10px 20px;
+    border-radius: 30px; /* More rounded */
+    border: none;
+    font-size: 1.1rem; /* Slightly larger select font */
+    cursor: pointer;
+    outline: none;
+    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.3); /* More defined inner shadow */
+    transition: background 0.4s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.languageSelect:hover {
+    background: #00eeff;
+    transform: translateY(-3px);
+}
+
+.languageSelect:focus {
+    box-shadow: 0 0 0 4px rgba(1, 225, 255, 0.6); /* More prominent focus ring */
+}
+
+/* Daily Verse Box Styles - Enhanced Card Style */
+.dailyVerseBox {
+    background: rgba(255, 255, 255, 0.15); /* Semi-transparent white, slightly more opaque */
+    border-radius: 25px; /* More rounded corners for card feel */
+    padding: 40px; /* Increased padding for content */
+    margin-bottom: 50px; /* More space below the box */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.35); /* Stronger, more dramatic shadow */
+    max-width: 800px; /* Wider max width for better readability on large screens */
+    width: 90%; /* Responsive width */
+    backdrop-filter: blur(12px); /* Even more pronounced blur */
+    border: 2px solid rgba(255, 255, 255, 0.3); /* Thicker, more visible border */
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative; /* Needed for pseudo-elements if desired */
+    overflow: hidden; /* Ensures content stays within rounded corners */
+}
+
+.dailyVerseBox::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+    transform: rotate(45deg);
+    opacity: 0.8;
+    pointer-events: none;
+    animation: subtle-pulse 6s infinite ease-in-out; /* Subtle background animation */
+}
+
+
+.dailyVerseBox:hover {
+    transform: translateY(-10px) scale(1.03); /* More significant lift and enlarge on hover */
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45); /* Even deeper shadow on hover */
+}
+
+.dailyVerseTitle {
+    font-size: clamp(2rem, 5vw, 3rem); /* Larger, more impactful title */
+    font-weight: 800; /* Bolder title */
+    color: #FFD700; /* Bright gold for emphasis */
+    margin-bottom: 25px;
+    text-shadow: 0px 3px 6px rgba(0, 0, 0, 0.3); /* Stronger shadow */
+}
+
+.dailyVerseText {
+    font-size: clamp(1.4rem, 4vw, 2.2rem); /* Larger, more readable verse text */
+    line-height: 1.9; /* More generous line height for readability */
+    margin-bottom: 20px;
+    color: #F8F8F8; /* Off-white for softer look */
+    font-family: 'Amiri', serif; /* Classic and elegant font for the verse */
+    text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2); /* Subtle text shadow */
+}
+
+.dailyVerseReference {
+    font-size: clamp(1rem, 2.8vw, 1.3rem); /* Larger reference font */
+    color: #E0E0E0; /* Lighter color for reference */
+    font-style: italic;
+    font-weight: 500;
+}
+
+/* Button Group */
+.buttonGroup {
+    display: flex;
+    flex-direction: row;
+    gap: 30px; /* Increased spacing between buttons */
+    margin-top: 30px; /* More space above buttons */
+}
+
+/* Individual Button Styles */
+.button {
+    appearance: none;
+    border-radius: 60px; /* Even more rounded buttons */
+    height: 60px; /* Taller buttons */
+    padding: 0 40px; /* Wider padding */
+    border: none;
+    transition:
+        background 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+        transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+        box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem; /* Larger font size */
+    line-height: 1;
+    font-weight: 700; /* Bolder text */
+    color: #FFFFFF;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25); /* Stronger initial shadow */
+    min-width: 180px; /* Increased minimum width */
+    letter-spacing: 0.02em; /* Slight letter spacing for appeal */
+}
+
+/* Specific button colors */
+.button:nth-child(1) { /* Search button */
+    background: linear-gradient(to right, #0026ff, #0400ff); /* Deeper, more saturated green */
+}
+
+.button:nth-child(2) { /* Read button */
+    background: linear-gradient(to right, #8A2BE2, #6A1B9A); /* Richer, deeper purple */
+}
+
+/* Button hover effects */
+.button:hover {
+    transform: translateY(-8px) scale(1.05); /* More significant lift and enlarge */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4); /* Deeper shadow on hover */
+    opacity: 1; /* Ensure full opacity on hover */
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 40px 15px;
+        gap: 40px;
+    }
+
+    .heading {
+        font-size: clamp(2.5rem, 8vw, 4rem);
+    }
+
+    .languageContainer {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 25px;
+    }
+
+    .dailyVerseBox {
+        padding: 25px;
+        margin-bottom: 35px;
+    }
+
+    .dailyVerseTitle {
+        font-size: clamp(1.6rem, 4.5vw, 2.2rem);
+    }
+
+    .dailyVerseText {
+        font-size: clamp(1.1rem, 3.8vw, 1.6rem);
+    }
+
+    .buttonGroup {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .button {
+        width: 100%;
+        max-width: 280px; /* Slightly wider max width for stacked buttons */
+        height: 55px;
+        font-size: 1.2rem;
+    }
 }
