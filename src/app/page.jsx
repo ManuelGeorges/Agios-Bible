@@ -9,8 +9,7 @@ const LanguageProvider = ({ children }) => {
     const [language, setLanguage] = useState('ar'); 
 
     useEffect(() => {
-        // Attempt to load saved language from localStorage
-        if (typeof window !== 'undefined') { // Check if window is defined (client-side)
+        if (typeof window !== 'undefined') { 
             const savedLang = localStorage.getItem('language');
             if (savedLang) {
                 setLanguage(savedLang);
@@ -32,27 +31,20 @@ const LanguageProvider = ({ children }) => {
     );
 };
 
-// Mock useRouter for Canvas environment
-// In a real Next.js app, this would be imported from 'next/navigation'
 const useRouter = () => {
     return {
         push: (path) => {
             console.log(`Navigating to: ${path}`);
-            // In a production Next.js environment, this would change the route.
-            // For this standalone React app in Canvas, we just log the action.
         },
     };
 };
 
-// Removed 'export default' from here
 function LandingPage() {
     const router = useRouter();
-    const { language, changeLanguage } = useContext(LanguageContext); // Use useContext directly for the mock
+    const { language, changeLanguage } = useContext(LanguageContext); 
     const [selectedLanguage, setSelectedLanguage] = useState(language || 'ar');
-    const [dailyVerse, setDailyVerse] = useState(null); // State for the daily verse
+    const [dailyVerse, setDailyVerse] = useState(null);
 
-    // The provided JSON data for daily verses
-    // This data would typically be fetched from src/data/dailyVerse/ar.json in a Next.js app
     const dailyVersesData = [
   { "month": 1, "day": 1, "verse": "طوبى للانقياء القلب. لانهم يعاينون الله.", "reference": "(متى ٥:٨)" },
   { "month": 1, "day": 2, "verse": "واما انا فاقول لكم احبوا اعداءكم. باركوا لاعنيكم. احسنوا الى مبغضيكم. وصلّوا لاجل الذين يسيئون اليكم ويطردونكم.", "reference": "(متى ٥:٤٤)" },
@@ -487,8 +479,6 @@ function LandingPage() {
                     <option value="fr">Français</option>
                 </select>
             </div>
-
-            {/* Daily Verse Box - Added as requested */}
             {dailyVerse && (
                 <div className={`${styles.dailyVerseBox} ${styles.floating}`}>
                     <h2 className={styles.dailyVerseTitle}>
@@ -514,9 +504,6 @@ function LandingPage() {
         </main>
     );
 }
-
-// This is the main App component that will be rendered in Canvas.
-// It wraps the LandingPage component with the necessary LanguageProvider.
 const App = () => {
     return (
         <LanguageProvider>
