@@ -1,121 +1,128 @@
-/* General page layout and colors */
+/* src/app/page.module.css */
+
+/*
+   تم نقل تعريف متغيرات CSS إلى src/app/globals.css
+   لحل مشكلة "Selector ":root" is not pure"
+*/
+
 .container {
-    --gray-rgb: 0, 0, 0;
-    --gray-alpha-200: rgba(var(--gray-rgb), 0.08);
-    --gray-alpha-100: rgba(var(--gray-rgb), 0.05);
-
-    --button-primary-hover: #383838;
-    --button-secondary-hover: #f2f2f2;
-
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 60px 20px; /* Increased padding for more breathing room */
-    gap: 50px; /* Increased spacing between main elements */
-    font-family: 'Inter', sans-serif; /* Modern and clear font */
-    background: linear-gradient(135deg, #6A82FB 0%, #00d9ff 100%); /* Vibrant, smooth gradient */
-    color: #FFFFFF; /* Pure white text for excellent contrast */
-    text-align: center;
-    transition: background 0.7s ease-in-out; /* Slower, more elegant background transition */
-    overflow-x: hidden; /* Prevent horizontal scroll on small screens */
+  /* هنا تبدأ أنماط .container مباشرة */
+  padding: 30px;
+  max-width: 1200px;
+  margin: 30px auto;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, var(--color-background-start) 0%, var(--color-background-end) 100%); /* <--- هذا يجب أن يبقى هنا لأنها خلفية الكونتينر نفسه */
+  color: var(--color-text-light);
+  text-align: center;
+  transition: background 0.7s ease-in-out;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* أضفها لتوسيط المحتوى عموديًا */
+  min-height: 100vh; /* تأكد من أن الكونتينر يأخذ الارتفاع الكامل */
+  gap: 50px;
+  border-radius: 12px; /* تأكد من وجود هذه الخصائص هنا إذا أردتها للكونتينر */
+  box-shadow: 0 8px 30px var(--color-shadow-medium);
 }
 
-/* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-    .container {
-        --gray-rgb: 255, 255, 255;
-        --gray-alpha-200: rgba(var(--gray-rgb), 0.18); /* Slightly more visible in dark mode */
-        --gray-alpha-100: rgba(var(--gray-rgb), 0.08);
-
-        --button-primary-hover: #ccc;
-        --button-secondary-hover: #1a1a1a;
-        background: linear-gradient(135deg, #1A237E 0%, #00b7ff 100%); /* Deeper, richer dark mode gradient */
-    }
-}
-
-/* RTL direction for Arabic */
+/* RTL direction for Arabic - هذا يبقى هنا لأنها فئة خاصة بهذا المكون */
 .rtl {
     direction: rtl;
 }
 
 /* Header styling */
 .heading {
-    font-size: clamp(3rem, 9vw, 5.5rem); /* Larger and more responsive heading */
-    font-weight: 900; /* Ultra bold for impact */
-    margin-bottom: 40px; /* More space below heading */
-    text-shadow: 0px 6px 12px rgba(0, 0, 0, 0.4); /* Stronger, more defined shadow */
-    line-height: 1.1; /* Tighter line height for large text */
-    letter-spacing: -0.03em; /* Slightly tighter letter spacing */
+  color: var(--color-accent-gold);
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: clamp(3rem, 9vw, 5.5rem);
+  font-weight: 900;
+  text-shadow: 0px 6px 12px var(--color-shadow-medium);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  border-bottom: 3px solid var(--color-accent-gold); /* حدود بلون ذهبي */
+  padding-bottom: 15px;
+  width: 100%;
+}
+
+/* Floating animation */
+@keyframes floating {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
 }
 
 .floating {
-    animation: floating 5s ease-in-out infinite; /* Slower, more graceful float */
+    animation: floating 6s ease-in-out infinite;
 }
 
 /* Language selector container */
 .languageContainer {
     display: flex;
     align-items: center;
-    gap: 20px; /* Increased gap */
-    padding: 15px 35px; /* Larger padding */
-    background: rgba(255, 255, 255, 0.25); /* More transparent, yet visible */
-    border-radius: 60px; /* Even more rounded */
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25); /* Deeper, softer shadow */
-    backdrop-filter: blur(10px); /* More pronounced blur effect */
-    border: 1px solid rgba(255, 255, 255, 0.4); /* Clearer light border */
-    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); /* Smoother transition curve */
+    gap: 20px;
+    padding: 15px 35px;
+    background: var(--color-card-bg);
+    border-radius: 60px;
+    box-shadow: 0 10px 25px var(--color-shadow-medium);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border-light);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .languageContainer:hover {
-    transform: translateY(-8px); /* More pronounced lift on hover */
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4); /* Even deeper shadow */
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px var(--color-shadow-medium);
 }
 
 .languageLabel {
-    font-size: 1.2rem; /* Slightly larger label font */
-    font-weight: 700; /* Bolder label */
-    color: #F0F0F0; /* Brighter gray for label */
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-text-light);
 }
 
 .languageSelect {
     appearance: none;
-    background: #4B0082; /* Deep purple for select background */
-    color: #FFFFFF;
+    background: var(--color-primary-light);
+    color: var(--color-text-light);
     padding: 10px 20px;
-    border-radius: 30px; /* More rounded */
+    border-radius: 30px;
     border: none;
-    font-size: 1.1rem; /* Slightly larger select font */
+    font-size: 1.1rem;
     cursor: pointer;
     outline: none;
-    box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.3); /* More defined inner shadow */
+    box-shadow: inset 0 3px 6px var(--color-shadow-medium);
     transition: background 0.4s ease-in-out, transform 0.3s ease-in-out;
 }
 
 .languageSelect:hover {
-    background: #00eeff;
+    background: var(--color-primary-dark);
     transform: translateY(-3px);
 }
 
 .languageSelect:focus {
-    box-shadow: 0 0 0 4px rgba(1, 225, 255, 0.6); /* More prominent focus ring */
+    box-shadow: 0 0 0 4px var(--color-accent-gold);
 }
 
 /* Daily Verse Box Styles - Enhanced Card Style */
 .dailyVerseBox {
-    background: rgba(255, 255, 255, 0.15); /* Semi-transparent white, slightly more opaque */
-    border-radius: 25px; /* More rounded corners for card feel */
-    padding: 40px; /* Increased padding for content */
-    margin-bottom: 50px; /* More space below the box */
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.35); /* Stronger, more dramatic shadow */
-    max-width: 800px; /* Wider max width for better readability on large screens */
-    width: 90%; /* Responsive width */
-    backdrop-filter: blur(12px); /* Even more pronounced blur */
-    border: 2px solid rgba(255, 255, 255, 0.3); /* Thicker, more visible border */
+    background: var(--color-card-bg);
+    border-radius: 25px;
+    padding: 40px;
+    margin-bottom: 50px;
+    box-shadow: 0 15px 30px var(--color-shadow-medium);
+    max-width: 800px;
+    width: 90%;
+    backdrop-filter: blur(12px);
+    border: 2px solid var(--color-border-light);
     transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-    position: relative; /* Needed for pseudo-elements if desired */
-    overflow: hidden; /* Ensures content stays within rounded corners */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .dailyVerseBox::before {
@@ -125,39 +132,45 @@
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
     transform: rotate(45deg);
     opacity: 0.8;
     pointer-events: none;
-    animation: subtle-pulse 6s infinite ease-in-out; /* Subtle background animation */
+    animation: subtle-pulse 6s infinite ease-in-out;
 }
 
+@keyframes subtle-pulse {
+    0% { transform: scale(1) rotate(45deg); opacity: 0.8; }
+    50% { transform: scale(1.1) rotate(45deg); opacity: 0.9; }
+    100% { transform: scale(1) rotate(45deg); opacity: 0.8; }
+}
 
 .dailyVerseBox:hover {
-    transform: translateY(-10px) scale(1.03); /* More significant lift and enlarge on hover */
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45); /* Even deeper shadow on hover */
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 20px 40px var(--color-shadow-medium);
 }
 
 .dailyVerseTitle {
-    font-size: clamp(2rem, 5vw, 3rem); /* Larger, more impactful title */
-    font-weight: 800; /* Bolder title */
-    color: #FFD700; /* Bright gold for emphasis */
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    color: var(--color-accent-gold);
     margin-bottom: 25px;
-    text-shadow: 0px 3px 6px rgba(0, 0, 0, 0.3); /* Stronger shadow */
+    text-shadow: 0px 3px 6px var(--color-shadow-light);
 }
 
 .dailyVerseText {
-    font-size: clamp(1.4rem, 4vw, 2.2rem); /* Larger, more readable verse text */
-    line-height: 1.9; /* More generous line height for readability */
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    line-height: 1.9;
     margin-bottom: 20px;
-    color: #F8F8F8; /* Off-white for softer look */
-    font-family: 'Amiri', serif; /* Classic and elegant font for the verse */
-    text-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2); /* Subtle text shadow */
+    color: var(--color-text-light);
+    font-family: 'Amiri', serif;
+    text-shadow: 0px 1px 3px var(--color-shadow-light);
+    white-space: pre-wrap;
 }
 
 .dailyVerseReference {
-    font-size: clamp(1rem, 2.8vw, 1.3rem); /* Larger reference font */
-    color: #E0E0E0; /* Lighter color for reference */
+    font-size: clamp(1rem, 2.8vw, 1.3rem);
+    color: var(--color-text-light);
     font-style: italic;
     font-weight: 500;
 }
@@ -166,16 +179,17 @@
 .buttonGroup {
     display: flex;
     flex-direction: row;
-    gap: 30px; /* Increased spacing between buttons */
-    margin-top: 30px; /* More space above buttons */
+    gap: 30px;
+    margin-top: 30px;
+    direction: rtl; /* <--- تأكد أن اتجاه الأزرار من اليمين لليسار هنا */
 }
 
 /* Individual Button Styles */
 .button {
     appearance: none;
-    border-radius: 60px; /* Even more rounded buttons */
-    height: 60px; /* Taller buttons */
-    padding: 0 40px; /* Wider padding */
+    border-radius: 60px;
+    height: 60px;
+    padding: 0 40px;
     border: none;
     transition:
         background 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
@@ -185,29 +199,47 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.3rem; /* Larger font size */
+    font-size: 1.3rem;
     line-height: 1;
-    font-weight: 700; /* Bolder text */
-    color: #FFFFFF;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25); /* Stronger initial shadow */
-    min-width: 180px; /* Increased minimum width */
-    letter-spacing: 0.02em; /* Slight letter spacing for appeal */
+    font-weight: 700;
+    color: var(--button-text-color);
+    box-shadow: 0 8px 16px var(--color-shadow-medium);
+    min-width: 180px;
+    letter-spacing: 0.02em;
 }
 
 /* Specific button colors */
 .button:nth-child(1) { /* Search button */
-    background: linear-gradient(to right, #0026ff, #0400ff); /* Deeper, more saturated green */
+    background: var(--button-bg-1);
 }
 
 .button:nth-child(2) { /* Read button */
-    background: linear-gradient(to right, #8A2BE2, #6A1B9A); /* Richer, deeper purple */
+    background: var(--button-bg-2);
 }
+
+.button:nth-child(3) { /* Maps button (if added) */
+    background: linear-gradient(to right, #28a745, #218838);
+}
+
 
 /* Button hover effects */
 .button:hover {
-    transform: translateY(-8px) scale(1.05); /* More significant lift and enlarge */
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4); /* Deeper shadow on hover */
-    opacity: 1; /* Ensure full opacity on hover */
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 15px 30px var(--color-shadow-medium);
+    opacity: 1;
+}
+
+/* Specific button hover background colors */
+.button:nth-child(1):hover {
+    background: var(--button-hover-1);
+}
+
+.button:nth-child(2):hover {
+    background: var(--button-hover-2);
+}
+
+.button:nth-child(3):hover { /* Maps button hover */
+    background: linear-gradient(to right, #218838, #1E7E34);
 }
 
 /* Media queries for responsiveness */
@@ -247,8 +279,59 @@
 
     .button {
         width: 100%;
-        max-width: 280px; /* Slightly wider max width for stacked buttons */
+        max-width: 280px;
         height: 55px;
         font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 30px 10px;
+        gap: 30px;
+    }
+
+    .heading {
+        font-size: clamp(2rem, 7vw, 3.5rem);
+        margin-bottom: 30px;
+    }
+
+    .languageContainer {
+        padding: 10px 20px;
+    }
+
+    .languageSelect {
+        font-size: 1rem;
+        padding: 8px 15px;
+    }
+
+    .dailyVerseBox {
+        padding: 20px;
+        margin-bottom: 30px;
+        width: 95%;
+    }
+
+    .dailyVerseTitle {
+        font-size: clamp(1.4rem, 4vw, 2rem);
+        margin-bottom: 15px;
+    }
+
+    .dailyVerseText {
+        font-size: clamp(1rem, 3.5vw, 1.4rem);
+        line-height: 1.7;
+    }
+
+    .dailyVerseReference {
+        font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+    }
+
+    .buttonGroup {
+        gap: 15px;
+    }
+
+    .button {
+        height: 50px;
+        font-size: 1.1rem;
+        padding: 0 30px;
     }
 }

@@ -1,29 +1,39 @@
-'use client';
+// src/context/LanguageContext.jsx
+'use client'; // هذا السطر يجب أن يكون الأول تمامًا في الملف
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const LanguageContext = createContext();
 
-export function LanguageProvider({ children }) {
-  const [language, setLanguage] = useState('ar');
+export const LanguageProvider = ({ children }) => {
+  const [language, setLanguage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const storedLanguage = localStorage.getItem('appLanguage');
+      console.log(`[LanguageContext] Initializing with storedLanguage: ${storedLanguage || 'N/A'}, defaulting to: ${storedLanguage || 'ar'}`);
+      return storedLanguage || 'ar';
+    }
+    console.log('[LanguageContext] Initializing for SSR, defaulting to: ar');
+    return 'ar';
+  });
 
   useEffect(() => {
-    const storedLang = localStorage.getItem('language');
-    if (storedLang) {
-      setLanguage(storedLang);
+    if (typeof window !== 'undefined' && language) {
+      console.log(`[LanguageContext] Language changed to "${language}". Saving to localStorage.`);
+      localStorage.setItem('appLanguage', language);
     }
-  }, []);
-
-  const changeLanguage = (lang) => {
-    localStorage.setItem('language', lang);
-    setLanguage(lang);
-  };
+  }, [language]);
 
   return (
-    <LanguageContext.Provider value={{ language, changeLanguage }}>
+    <LanguageContext.Provider value={{ language, setLanguage }}>
       {children}
     </LanguageContext.Provider>
   );
-}
+};
 
-export const useLanguage = () => useContext(LanguageContext);
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (context === undefined) {
+    throw new Error('useLanguage must be used within a LanguageProvider');
+  }
+  return context;
+};  

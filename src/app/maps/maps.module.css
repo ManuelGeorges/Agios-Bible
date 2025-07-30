@@ -1,0 +1,259 @@
+/* src/app/maps/maps.module.css */
+
+/*
+   تم نقل تعريف متغيرات CSS إلى src/app/globals.css
+   لحل مشكلة "Selector ":root" is not pure"
+*/
+
+.container {
+  padding: 30px;
+  max-width: 1200px;
+  margin: 30px auto;
+  font-family: 'Inter', Arial, sans-serif;
+  background-color: var(--bg-color-main);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px var(--shadow-medium);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.heading {
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: 2.8em;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px var(--shadow-light);
+  border-bottom: 3px solid var(--primary-color);
+  padding-bottom: 15px;
+  width: 100%;
+}
+
+.description {
+  text-align: center;
+  color: var(--text-color-primary);
+  margin-bottom: 35px;
+  line-height: 1.7;
+  font-size: 1.15em;
+  max-width: 900px;
+}
+
+.buttonsContainer {
+  margin-bottom: 25px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  padding: 15px;
+  background-color: var(--card-bg-color);
+  border-radius: 10px;
+  box-shadow: 0 4px 15px var(--shadow-light);
+  width: 100%;
+  direction: rtl; /* هذا يبقى هنا لترتيب الأزرار داخل هذه الحاوية */
+}
+
+.button {
+  padding: 14px 22px;
+  border: 1px solid var(--primary-color);
+  border-radius: 10px;
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
+  cursor: pointer;
+  font-weight: bold;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 6px var(--shadow-light);
+  font-size: 1em;
+}
+
+.button:hover {
+  background-color: var(--primary-color);
+  color: var(--text-color-secondary);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px var(--shadow-medium);
+}
+
+.button.active {
+  background-color: var(--primary-color-darker);
+  color: var(--text-color-secondary);
+  box-shadow: inset 0 3px 7px var(--shadow-dark);
+  border-color: var(--primary-color-darker);
+  transform: translateY(0);
+}
+
+.placeButtonsContainer {
+  direction: rtl; /* هذا يبقى هنا لترتيب أزرار الأماكن داخل هذه الحاوية */
+  margin-top: 25px;
+  margin-bottom: 25px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 15px;
+  background-color: var(--card-bg-color);
+  border-radius: 10px;
+  box-shadow: 0 4px 15px var(--shadow-light);
+  max-height: 250px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--secondary-color);
+  width: 100%;
+}
+
+/* تنسيق شريط التمرير لمتصفحات WebKit (Chrome, Safari) */
+.placeButtonsContainer::-webkit-scrollbar {
+  width: 10px;
+}
+
+.placeButtonsContainer::-webkit-scrollbar-track {
+  background: var(--secondary-color);
+  border-radius: 10px;
+}
+
+.placeButtonsContainer::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 10px;
+  border: 2px solid var(--secondary-color);
+}
+
+.noPlacesMessage {
+  color: var(--text-color-primary);
+  font-style: italic;
+  margin-top: 15px;
+  font-size: 1em;
+}
+
+.placeButton {
+  padding: 10px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--accent-color);
+  color: var(--text-color-secondary);
+  cursor: pointer;
+  font-size: 0.95em;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px var(--shadow-light);
+}
+
+.placeButton:hover {
+  background-color: var(--accent-color-darker);
+  color: var(--text-color-secondary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px var(--shadow-medium);
+}
+
+.mapContainer {
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  height: 600px;
+  box-shadow: 0 10px 25px var(--shadow-medium);
+  background-color: #e0e0e0;
+  position: relative;
+  width: 100%;
+  min-height: 400px;
+}
+
+.mapContainer > div {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.footerText {
+  margin-top: 30px;
+  text-align: center;
+  color: var(--text-color-primary);
+  font-size: 1em;
+  line-height: 1.5;
+}
+
+/* === استجابة التصميم للشاشات المختلفة === */
+@media (max-width: 992px) {
+  .container {
+    padding: 25px;
+  }
+  .heading {
+    font-size: 2.5em;
+  }
+  .description {
+    font-size: 1.05em;
+  }
+  .mapContainer {
+    height: 500px;
+  }
+  .placeButtonsContainer {
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 20px;
+    margin: 20px auto;
+  }
+  .heading {
+    font-size: 2.2em;
+    margin-bottom: 20px;
+  }
+  .description {
+    font-size: 1em;
+    margin-bottom: 25px;
+  }
+  .buttonsContainer {
+    gap: 8px;
+    padding: 12px;
+  }
+  .button {
+    padding: 10px 16px;
+    font-size: 0.95em;
+  }
+  .mapContainer {
+    height: 450px;
+  }
+  .placeButtonsContainer {
+    max-height: 180px;
+  }
+  .placeButton {
+    padding: 9px 14px;
+    font-size: 0.88em;
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding: 15px;
+    margin: 15px auto;
+  }
+  .heading {
+    font-size: 1.8em;
+    padding-bottom: 10px;
+  }
+  .description {
+    font-size: 0.95em;
+    margin-bottom: 20px;
+  }
+  .buttonsContainer {
+    flex-direction: column; /* الأزرار تكون عمودية على الشاشات الصغيرة جداً */
+    align-items: stretch;
+    gap: 8px;
+  }
+  .button {
+    width: 100%; /* الأزرار تأخذ عرض كامل */
+    padding: 12px;
+  }
+  .mapContainer {
+    height: 380px;
+  }
+  .placeButtonsContainer {
+    max-height: 150px;
+  }
+  .placeButton {
+    padding: 8px 12px;
+    font-size: 0.85em;
+  }
+}

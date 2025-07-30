@@ -1,53 +1,54 @@
+// src/app/bible-search/page.js
+
 'use client';
 
 import { useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
-import arabicBible from '@/data/bibles/ar_svd.json';
-import englishBible from '@/data/bibles/en_bbe.json';
-import frenchBible from '@/data/bibles/fr_apee.json';
 import { bookNames } from '@/data/bookNames';
+import styles from './page.module.css';
 
 export default function BibleSearchPage() {
   const { language } = useLanguage();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [useStemming, setUseStemming] = useState(false);
 
-  const bibles = {
-    ar: arabicBible,
-    en: englishBible,
-    fr: frenchBible,
-  };
-
-  const bible = bibles[language];
   const names = bookNames[language];
 
-  const handleSearch = () => {
-    const lowerQuery = query.toLowerCase();
-    const found = [];
+const handleSearch = async () => {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    console.log("❌ Query is empty. Skipping fetch.");
+    return;
+  }
 
-    bible.forEach((book, bookIndex) => {
-      book.chapters.forEach((chapter, chapterIndex) => {
-        chapter.forEach((verse, verseIndex) => {
-          if (verse.toLowerCase().includes(lowerQuery)) {
-            found.push({
-              book: names[bookIndex] || 'سفر غير معروف',
-              chapter: chapterIndex + 1,
-              verseNumber: verseIndex + 1,
-              verseText: verse,
-            });
-          }
-        });
-      });
-    });
+  setHasSearched(true);
+  setLoading(true);
+  setResults([]);
 
-    setResults(found);
-    setHasSearched(true);
-  };
+  try {
+const res = await fetch(`/bible/search?q=${encodeURIComponent(trimmedQuery)}&lang=${language}&stem=${useStemming}`);
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    setResults(data);
+  } catch (error) {
+    console.error('Error fetching search results:', error);
+    alert(`An error occurred during search: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   return (
-    <main style={{ padding: '2rem' }} dir={language === 'ar' ? 'rtl' : 'ltr'}>
-      <h1 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
+    <main className={styles.mainContainer} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      <h1 className={styles.pageTitle}>
         🔍 {
           language === 'ar'
             ? 'البحث في الكتاب المقدس'
@@ -57,35 +58,56 @@ export default function BibleSearchPage() {
         }
       </h1>
 
-      <input
-        type="text"
-        placeholder={
-          language === 'ar'
-            ? 'اكتب كلمة أو عبارة...'
-            : language === 'fr'
-            ? 'Entrez un mot ou une phrase...'
-            : 'Enter a word or phrase...'
-        }
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        style={{ padding: '0.5rem', width: '100%', marginBottom: '1rem' }}
-      />
+      <div className={styles.searchControls}>
+        <input
+          type="text"
+          placeholder={
+            language === 'ar'
+              ? 'اكتب كلمة أو عبارة...'
+              : language === 'fr'
+              ? 'Entrez un word or phrase...'
+              : 'Enter a word or phrase...'
+          }
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className={styles.searchInput}
+        />
 
-      <button
-        onClick={handleSearch}
-        style={{ padding: '0.5rem 1rem', marginBottom: '1rem' }}
-      >
-        {
-          language === 'ar'
-            ? 'ابحث'
-            : language === 'fr'
-            ? 'Chercher'
-            : 'Search'
-        }
-      </button>
+        <div className={styles.optionsContainer}>
+          <label className={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={useStemming}
+              onChange={(e) => setUseStemming(e.target.checked)}
+              className={styles.checkboxInput}
+            />
+            {
+              language === 'ar'
+                ? 'البحث بالجذور'
+                : language === 'fr'
+                ? 'Recherche par racines'
+                : 'Stemming Search'
+            }
+          </label>
+        </div>
 
-      {hasSearched && results.length === 0 && (
-        <p style={{ color: 'gray' }}>
+        <button
+          onClick={handleSearch}
+          className={styles.searchButton}
+          disabled={loading}
+        >
+          {loading ? (language === 'ar' ? 'جاري البحث...' : language === 'fr' ? 'Recherche en cours...' : 'Searching...') : (
+            language === 'ar'
+              ? 'ابحث'
+              : language === 'fr'
+              ? 'Chercher'
+              : 'Search'
+          )}
+        </button>
+      </div>
+
+      {hasSearched && results.length === 0 && !loading && (
+        <p className={styles.noResults}>
           🙁 {
             language === 'ar'
               ? 'لا توجد نتائج'
@@ -96,15 +118,17 @@ export default function BibleSearchPage() {
         </p>
       )}
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+      {loading && (
+        <p className={styles.loadingMessage}>
+          {language === 'ar' ? 'جاري تحميل النتائج...' : language === 'fr' ? 'Chargement des résultats...' : 'Loading results...'}
+        </p>
+      )}
+
+      <ul className={styles.resultsList}>
         {results.map((res, index) => (
           <li
             key={index}
-            style={{
-              marginBottom: '1rem',
-              borderBottom: '1px solid #ccc',
-              paddingBottom: '0.5rem',
-            }}
+            className={styles.resultItem}
           >
             <strong>
               📖 {res.book} {res.chapter}:{res.verseNumber}
