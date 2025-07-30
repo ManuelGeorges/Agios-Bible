@@ -1,0 +1,66 @@
+/* أنماط الـ Navbar المشتركة */
+.navbar {
+  position: fixed;
+  width: 100%;
+  background-color: #1e3a8a; /* لون أزرق داكن */
+  padding: 1rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem; /* مسافة بين الروابط */
+  z-index: 50;
+}
+
+.navbarTop {
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.navbarBottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+/* أنماط روابط الـ Navbar */
+.navLink {
+  color: #ffffff; /* نص أبيض */
+  text-decoration: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem; /* حواف مستديرة */
+  font-size: 1.125rem; /* حجم خط كبير نسبيًا */
+  font-weight: 600; /* خط سميك */
+  transition: background-color 0.3s ease;
+  white-space: nowrap; /* منع التفاف النص */
+}
+
+.navLink:hover {
+  background-color: #1c337a; /* لون أزرق أغمق عند التمرير */
+}
+
+/* الأنماط المتجاوبة */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0.75rem; /* تقليل الحشوة */
+    gap: 1rem; /* تقليل المسافة بين الروابط */
+  }
+
+  .navLink {
+    font-size: 1rem; /* تقليل حجم الخط */
+    padding: 0.6rem 1rem; /* تقليل الحشوة */
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0.5rem; /* تقليل الحشوة أكثر */
+    gap: 0.75rem; /* تقليل المسافة أكثر */
+  }
+
+  .navLink {
+    font-size: 0.875rem; /* حجم خط أصغر */
+    padding: 0.5rem 0.75rem; /* حشوة أصغر */
+  }
+}
