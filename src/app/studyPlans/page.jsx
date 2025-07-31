@@ -1,10 +1,12 @@
+// src/app/studyPlans/page.jsx
+
 "use client";
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import styles from './StudyPlans.module.css';
 import studyPlansData from './studyPlansData.json';
 
-// استخراج مصفوفة الخطط من كائن JSON
 const allPlans = studyPlansData.plans;
 
 export default function StudyPlansPage() {
@@ -12,7 +14,6 @@ export default function StudyPlansPage() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
-    // استخدم المصفوفة الصحيحة عند تهيئة الحالة
     setFilteredPlans(allPlans);
   }, []);
 
@@ -64,7 +65,6 @@ export default function StudyPlansPage() {
         </section>
 
         <section className={styles.plansGrid}>
-          {/* هنا يجب أن يعمل الكود بشكل صحيح الآن */}
           {filteredPlans.map((plan) => (
             <div key={plan.id} className={styles.card}>
               <div className={styles.cardImageContainer}>
@@ -84,9 +84,9 @@ export default function StudyPlansPage() {
                   </div>
                 </div>
                 <div className={styles.cardActions}>
-                  <a href="#" className={styles.cardButton}>
+                  <Link href={`/studyPlans/${plan.id}`} className={styles.cardButton}>
                     ابدأ الآن
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
