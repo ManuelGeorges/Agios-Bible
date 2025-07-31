@@ -1,0 +1,181 @@
+/*
+ * ملف أنماط خاص بصفحة خطط الدراسة
+ * يستخدم متغيرات CSS العامة لضمان التناسق مع باقي الموقع.
+ */
+
+/* Container and Layout */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  font-family: 'Amiri', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  direction: rtl;
+}
+
+/* Hero Section */
+.heroSection {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background-color: var(--color-primary-light);
+  border-radius: 12px;
+  color: var(--color-text-light);
+  box-shadow: 0 4px 15px var(--color-shadow-medium);
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--color-accent-gold);
+  margin-bottom: 0.5rem;
+}
+
+.description {
+  font-size: 1.125rem;
+  color: var(--color-text-light);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Filter Section */
+.filterSection {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.filterButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border-light);
+  background-color: transparent;
+  color: var(--color-text-light);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+}
+
+.filterButton:hover {
+  background-color: var(--color-card-bg);
+}
+
+.activeFilter {
+  background-color: var(--button-bg-1);
+  color: var(--button-text-color);
+  border-color: var(--button-bg-1);
+}
+
+.activeFilter:hover {
+  background-color: var(--button-hover-1);
+}
+
+/* Plans Grid */
+.plansGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+}
+
+/* Card Component */
+.card {
+  background-color: var(--color-card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px var(--color-shadow-light);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid var(--color-border-light);
+  backdrop-filter: blur(10px);
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 15px var(--color-shadow-medium);
+}
+
+.cardImageContainer {
+  position: relative;
+  width: 100%;
+  height: 200px;
+}
+
+.cardImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardContent {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.cardTitle {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--color-accent-gold);
+  margin-bottom: 0.5rem;
+}
+
+.cardDescription {
+  color: var(--color-text-light);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  flex-grow: 1;
+}
+
+.cardDetails {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--color-text-light);
+  border-top: 1px solid var(--color-border-light);
+  padding-top: 1rem;
+  margin-top: auto;
+}
+
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.detailValue {
+  margin-top: 0.25rem;
+  font-style: italic;
+  color: var(--color-accent-gold);
+}
+
+.cardActions {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.cardButton {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background-color: var(--button-bg-2);
+  color: var(--button-text-color);
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+  box-shadow: 0 2px 5px var(--color-shadow-light);
+}
+
+.cardButton:hover {
+  background-color: var(--button-hover-2);
+}
