@@ -1,7 +1,10 @@
+// src/app/bible/page.jsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
+import { useSearchParams } from 'next/navigation'; // إضافة هذه الـ hook
 import styles from './Bible.module.css';
 
 function convertToArabicNumber(num) {
@@ -11,7 +14,7 @@ function convertToArabicNumber(num) {
 
 export default function BiblePage() {
   const { language } = useLanguage();
-  console.log('Current language from context:', language); // Debug
+  const searchParams = useSearchParams(); // استخدام الـ hook الجديدة هنا
 
   const [bibleData, setBibleData] = useState(null);
   const [isLoadingBible, setIsLoadingBible] = useState(true);
@@ -23,21 +26,29 @@ export default function BiblePage() {
   const [copiedMessage, setCopiedMessage] = useState('');
   const [selectedVerses, setSelectedVerses] = useState(new Set());
 
+  // دالة مساعدة للحصول على اسم السفر
+  const getBookName = (index) => {
+    return bookNamesData?.[language]?.[index] || 'Unknown Book';
+  };
+
+  // دالة مساعدة للحصول على فهرس السفر بناءً على اسمه
+  const getBookIndexByName = (name) => {
+    if (!bookNamesData?.[language] || !name) return 0;
+    return bookNamesData[language].findIndex(bookName => bookName.toLowerCase() === name.toLowerCase());
+  };
+
   useEffect(() => {
     const loadBookNames = async () => {
-      console.log('Attempting to load bookNames.json'); // Debug
       try {
         const response = await fetch('/data/bookNames.json');
-        console.log('bookNames.json fetch response status:', response.status); // Debug
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status} for /data/bookNames.json`);
         }
         const data = await response.json();
-        console.log('bookNames.json data loaded:', data); // Debug
         setBookNamesData(data);
         setHasBookNamesError(false);
       } catch (error) {
-        console.error('Failed to load bookNames:', error); // Debug
+        console.error('Failed to load bookNames:', error);
         setBookNamesData({});
         setHasBookNamesError(true);
       }
@@ -49,7 +60,7 @@ export default function BiblePage() {
     const loadBible = async () => {
       setIsLoadingBible(true);
       setBibleData(null);
-      console.log(`Attempting to load Bible for language: "${language}"`); // Debug
+      
       try {
         let jsonFileName = '';
         if (language === 'ar') {
@@ -59,54 +70,68 @@ export default function BiblePage() {
         } else if (language === 'fr') {
           jsonFileName = 'fr_apee.json';
         } else {
-          console.warn(`No valid language "${language}" provided. Setting Bible data to empty.`); // Debug
           setBibleData([]);
           setIsLoadingBible(false);
           return;
         }
 
         const jsonFilePath = `/data/bibles/${jsonFileName}`;
-        console.log(`Fetching Bible data from: "${jsonFilePath}"`); // Debug
-
         const response = await fetch(jsonFilePath);
-        console.log(`Bible data fetch response status for ${jsonFileName}:`, response.status); // Debug
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status} for ${jsonFilePath}`);
         }
 
         const data = await response.json();
-        console.log(`Raw Bible data for ${jsonFileName}:`, data); // Debug
-        console.log(`Is Bible data an array for ${jsonFileName}?`, Array.isArray(data)); // Debug
-        console.log(`Bible data length for ${jsonFileName}:`, data?.length); // Debug
-
 
         if (Array.isArray(data) && data.length > 0) {
           setBibleData(data);
-          setSelectedBookIndex(0);
-          setSelectedChapterIndex(0);
+          
+          // --- التعديل هنا ---
+          // قراءة معلمات URL وتعيين الـ state الأولي
+          const bookNameFromUrl = searchParams.get('book');
+          const chapterFromUrl = searchParams.get('chapter');
+
+          let initialBookIndex = 0;
+          let initialChapterIndex = 0;
+
+          if (bookNameFromUrl && bookNamesData?.[language]) {
+            initialBookIndex = getBookIndexByName(decodeURIComponent(bookNameFromUrl));
+            if (initialBookIndex === -1) initialBookIndex = 0;
+          }
+
+          if (chapterFromUrl) {
+            initialChapterIndex = parseInt(decodeURIComponent(chapterFromUrl)) - 1;
+            if (isNaN(initialChapterIndex) || initialChapterIndex < 0 || initialChapterIndex >= data?.[initialBookIndex]?.chapters.length) {
+              initialChapterIndex = 0;
+            }
+          }
+
+          setSelectedBookIndex(initialBookIndex);
+          setSelectedChapterIndex(initialChapterIndex);
+          // ------------------
+
           setSelectedVerses(new Set());
         } else {
-          console.warn(`Fetched Bible data for "${language}" is empty or not an array as expected. Data:`, data); // Debug
           setBibleData([]);
         }
       } catch (error) {
-        console.error(`Failed to fetch bible data for "${language}":`, error); // Debug
+        console.error(`Failed to fetch bible data for "${language}":`, error);
         setBibleData(null);
       } finally {
         setIsLoadingBible(false);
-        console.log(`Loading finished for language: "${language}".`); // Debug
       }
     };
 
-    if (language && ['ar', 'en', 'fr'].includes(language)) {
+    if (language && ['ar', 'en', 'fr'].includes(language) && bookNamesData) {
       loadBible();
+    } else if (language && ['ar', 'en', 'fr'].includes(language) && !bookNamesData) {
+      // do nothing, wait for bookNamesData to load
     } else {
-      console.log('Skipping Bible load due to invalid or missing language.'); // Debug
       setIsLoadingBible(false);
       setBibleData([]);
     }
-  }, [language]);
+  }, [language, bookNamesData, searchParams]); // إضافة searchParams إلى الـ dependencies
 
   useEffect(() => {
     let timerId;
@@ -134,15 +159,9 @@ export default function BiblePage() {
   };
 
   const selectedBook = bibleData?.[selectedBookIndex] || null;
-
   const chapters = selectedBook?.chapters || [];
-
   const verses = chapters?.[selectedChapterIndex] || [];
-
-  const getBookName = (index) => {
-    return bookNamesData?.[language]?.[index] || 'Unknown Book';
-  };
-
+  
   const getChapterLabel = (index) => {
     if (language === 'ar') return `الإصحاح ${convertToArabicNumber(index + 1)}`;
     if (language === 'fr') return `Chapitre ${index + 1}`;
