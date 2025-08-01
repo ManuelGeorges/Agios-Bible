@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import styles from './StudyPlans.module.css';
+import styles from './studyPlans.module.css';
 import studyPlansData from './studyPlansData.json';
 
 const allPlans = studyPlansData.plans;
