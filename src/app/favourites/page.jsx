@@ -1,5 +1,3 @@
-// src/app/favourites/favourites.module.jsx
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,8 +15,7 @@ export default function FavouritesPage() {
   const [favourites, setFavourites] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // دالة موحدة لحفظ البيانات في Local Storage
+  
   const saveFavouritesToLocalStorage = useCallback((key, data) => {
     try {
       localStorage.setItem(key, JSON.stringify(data));
@@ -34,7 +31,6 @@ export default function FavouritesPage() {
       const key = activeTab === 'verses' ? 'favourite_verses' : 'favourite_chapters';
       const data = JSON.parse(localStorage.getItem(key)) || {};
       
-      // تحويل الكائن إلى مصفوفة لعرضه
       const favouritesArray = Object.values(data);
       setFavourites(favouritesArray);
     } catch (e) {
@@ -68,7 +64,6 @@ export default function FavouritesPage() {
       if (key && existingFavourites) {
         saveFavouritesToLocalStorage(key, existingFavourites);
         
-        // تحديث حالة favourites بعد الحذف
         const updatedFavouritesArray = Object.values(existingFavourites);
         setFavourites(updatedFavouritesArray);
       }

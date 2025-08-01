@@ -1,16 +1,36 @@
-// src/app/bible/bibleContent.jsx
-
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styles from './Bible.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
 
+// دالة لتحويل الأرقام الإنجليزية إلى عربية
 function convertToArabicNumber(num) {
   const arabicNums = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
   return num.toString().split('').map(d => arabicNums[+d]).join('');
 }
+
+// مكون الـ popup الجديد
+const VerseActionsPopup = ({ verse, onClose, onCopy, onFavourite }) => {
+  const { language } = useLanguage();
+  return (
+    <div className={styles.popupOverlay} onClick={onClose}>
+      <div className={styles.popupContent} onClick={e => e.stopPropagation()}>
+        <p className={styles.popupText}>{verse.text}</p>
+        <div className={styles.popupButtons}>
+          <button className={styles.copyButton} onClick={onCopy}>
+            📋 {language === 'ar' ? 'نسخ' : language === 'en' ? 'Copy' : 'Copier'}
+          </button>
+          <button className={styles.favouriteButton} onClick={onFavourite}>
+            ⭐ {language === 'ar' ? 'مفضلة' : language === 'en' ? 'Favorite' : 'Favori'}
+          </button>
+        </div>
+        <button className={styles.closeButton} onClick={onClose}>&times;</button>
+      </div>
+    </div>
+  );
+};
 
 export default function BibleContent() {
   const { language } = useLanguage();
@@ -25,13 +45,23 @@ export default function BibleContent() {
   const [favouriteChapters, setFavouriteChapters] = useState({});
 
   const [selectedBookIndex, setSelectedBookIndex] = useState(0);
-  const [selectedChapterIndex, setSelectedChapterIndex] = useState(0);
-  const [selectedVerses, setSelectedVerses] = useState(new Set());
+  const [isBookDropdownOpen, setIsBookDropdownOpen] = useState(false);
+  const bookDropdownRef = useRef(null);
 
+  const [selectedChapterIndex, setSelectedChapterIndex] = useState(0);
+  const [isChapterDropdownOpen, setIsChapterDropdownOpen] = useState(false);
+  const chapterDropdownRef = useRef(null);
+  
+  const [selectedVerses, setSelectedVerses] = useState(new Set());
+  
   const [copiedMessage, setCopiedMessage] = useState('');
   const [favouriteMessage, setFavouriteMessage] = useState('');
+  
+  const [popupVerse, setPopupVerse] = useState(null);
+  const touchTimeout = useRef(null);
+  const isLongPress = useRef(false);
 
-  // دالة موحدة لجلب بيانات المفضلة من Local Storage
+  // جلب المفضلة من التخزين المحلي
   const fetchFavourites = useCallback(() => {
     try {
       const verses = JSON.parse(localStorage.getItem('favourite_verses')) || {};
@@ -43,7 +73,7 @@ export default function BibleContent() {
     }
   }, []);
 
-  // دالة موحدة لحفظ بيانات المفضلة في Local Storage
+  // حفظ المفضلة في التخزين المحلي
   const saveFavourites = useCallback((verses, chapters) => {
     try {
       localStorage.setItem('favourite_verses', JSON.stringify(verses));
@@ -53,11 +83,28 @@ export default function BibleContent() {
     }
   }, []);
 
-  // جلب بيانات المفضلة عند تحميل الكومبوننت لأول مرة فقط
+  // جلب اسم السفر باللغة المختارة
+  const getBookName = useCallback((index) => {
+    return bookNamesData?.[language]?.[index] || 'Unknown Book';
+  }, [bookNamesData, language]);
+
+  // جلب اختصار اسم السفر
+  const getBookAbbreviation = useCallback((index) => {
+    return bookNamesData?.abbreviations?.[index] || '';
+  }, [bookNamesData]);
+
+  // جلب فهرس السفر من اسمه
+  const getBookIndexByName = useCallback((name) => {
+    if (!bookNamesData?.[language] || !name) return 0;
+    const index = bookNamesData[language].findIndex(bookName => bookName.toLowerCase() === name.toLowerCase());
+    return index !== -1 ? index : 0;
+  }, [bookNamesData, language]);
+
   useEffect(() => {
     fetchFavourites();
   }, [fetchFavourites]);
   
+  // إظهار رسائل التنبيه لفترة محدودة
   useEffect(() => {
     let timerId;
     if (copiedMessage || favouriteMessage) {
@@ -73,20 +120,33 @@ export default function BibleContent() {
     };
   }, [copiedMessage, favouriteMessage]);
 
-  const getBookName = (index) => {
-    return bookNamesData?.[language]?.[index] || 'Unknown Book';
-  };
+  // إغلاق القائمة المنسدلة للأسفار عند النقر خارجها
+  useEffect(() => {
+    const handleClickOutsideBook = (event) => {
+      if (bookDropdownRef.current && !bookDropdownRef.current.contains(event.target)) {
+        setIsBookDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideBook);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideBook);
+    };
+  }, []);
 
-  const getBookAbbreviation = (index) => {
-    return bookNamesData?.abbreviations?.[index] || '';
-  };
+  // إغلاق القائمة المنسدلة للإصحاحات عند النقر خارجها
+  useEffect(() => {
+    const handleClickOutsideChapter = (event) => {
+      if (chapterDropdownRef.current && !chapterDropdownRef.current.contains(event.target)) {
+        setIsChapterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutsideChapter);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideChapter);
+    };
+  }, []);
 
-  const getBookIndexByName = (name) => {
-    if (!bookNamesData?.[language] || !name) return 0;
-    const index = bookNamesData[language].findIndex(bookName => bookName.toLowerCase() === name.toLowerCase());
-    return index !== -1 ? index : 0;
-  };
-
+  // جلب أسماء الأسفار
   useEffect(() => {
     const loadBookNames = async () => {
       try {
@@ -106,6 +166,7 @@ export default function BibleContent() {
     loadBookNames();
   }, []);
 
+  // جلب بيانات الكتاب المقدس بناءً على اللغة
   useEffect(() => {
     const loadBible = async () => {
       setIsLoadingBible(true);
@@ -171,38 +232,45 @@ export default function BibleContent() {
     if (language && ['ar', 'en', 'fr'].includes(language) && bookNamesData) {
       loadBible();
     } else if (language && ['ar', 'en', 'fr'].includes(language) && !bookNamesData) {
-      // Do nothing, wait for bookNamesData to be loaded
+      // لا يوجد إجراء هنا، سيتم استدعاء loadBible() بمجرد توفر bookNamesData
     } else {
       setIsLoadingBible(false);
       setBibleData([]);
     }
-  }, [language, bookNamesData, searchParams]);
+  }, [language, bookNamesData, searchParams, getBookIndexByName]);
 
-  const handleBookChange = (e) => {
-    setSelectedBookIndex(parseInt(e.target.value));
+  // معالج النقر على السفر المخصص
+  const handleBookItemClick = (index) => {
+    setSelectedBookIndex(index);
     setSelectedChapterIndex(0);
     setSelectedVerses(new Set());
+    setIsBookDropdownOpen(false);
   };
-
-  const handleChapterChange = (e) => {
-    setSelectedChapterIndex(parseInt(e.target.value));
+  
+  // معالج النقر على الإصحاح المخصص
+  const handleChapterItemClick = (index) => {
+    setSelectedChapterIndex(index);
     setSelectedVerses(new Set());
+    setIsChapterDropdownOpen(false);
   };
 
   const selectedBook = bibleData?.[selectedBookIndex] || null;
   const chapters = selectedBook?.chapters || [];
   const verses = chapters?.[selectedChapterIndex] || [];
   
+  // دالة لجلب تسمية الإصحاح
   const getChapterLabel = (index) => {
     if (language === 'ar') return `الإصحاح ${convertToArabicNumber(index + 1)}`;
     if (language === 'fr') return `Chapitre ${index + 1}`;
     return `Chapter ${index + 1}`;
   };
 
+  // دالة لجلب رقم الآية
   const getVerseNumber = (index) => {
     return language === 'ar' ? convertToArabicNumber(index + 1) : index + 1;
   };
 
+  // دمج نص الآية مع المرجع
   const getFullVerseText = (bookIdx, chapterIdx, verseIdx, verseText) => {
     const bookName = getBookName(bookIdx);
     const chapterNumber = chapterIdx + 1;
@@ -218,6 +286,7 @@ export default function BibleContent() {
     return `${verseText} ${reference}`;
   };
 
+  // دالة لنسخ النص إلى الحافظة
   const copyTextToClipboard = async (textToCopy) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -374,6 +443,52 @@ export default function BibleContent() {
   
   const isCurrentChapterFavourite = favouriteChapters[`${selectedBookIndex}-${selectedChapterIndex}`] !== undefined;
 
+  // منطق اللمسة الواحدة واللمسة المطولة
+  const handleVerseTouchStart = (e, verseKey, verseText) => {
+      e.stopPropagation();
+      isLongPress.current = false;
+      touchTimeout.current = setTimeout(() => {
+          isLongPress.current = true;
+          setPopupVerse({ key: verseKey, text: verseText });
+      }, 500); // 500ms for a long press
+  };
+
+  const handleVerseTouchEnd = (e, verseKey) => {
+      e.stopPropagation();
+      clearTimeout(touchTimeout.current);
+      if (!isLongPress.current) {
+          // This is a single tap
+          handleVerseSelection(verseKey);
+      }
+      isLongPress.current = false;
+  };
+
+  const handleClosePopup = () => {
+      setPopupVerse(null);
+  };
+  
+  const handleCopyPopup = () => {
+    if (popupVerse) {
+        const [bookIdx, chapterIdx, verseIdx] = popupVerse.key.split('-').map(Number);
+        const textToCopy = getFullVerseText(bookIdx, chapterIdx, verseIdx, popupVerse.text);
+        copyTextToClipboard(textToCopy);
+    }
+    handleClosePopup();
+  };
+
+  const handleFavouritePopup = () => {
+    if (popupVerse) {
+        const [bookIdx, chapterIdx, verseIdx] = popupVerse.key.split('-').map(Number);
+        handleFavouriteSingleVerse(popupVerse.text, verseIdx);
+    }
+    handleClosePopup();
+  };
+  
+  // لضمان عدم حدوث conflict بين أحداث اللمس والنقر
+  const isTouchDevice = () => {
+      if (typeof window === 'undefined') return false;
+      return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+  };
 
   if (isLoadingBible || bookNamesData === null) {
     return (
@@ -406,8 +521,9 @@ export default function BibleContent() {
         }
       </h1>
       <div className={styles.controls}>
-        <div className={styles.selectGroup}>
-          <label htmlFor="book-select" className={styles.label}>
+        {/* قائمة منسدلة مخصصة لاختيار السفر */}
+        <div className={styles.customSelectWrapper} ref={bookDropdownRef}>
+          <label className={styles.label}>
             📖 {
               language === 'ar'
                 ? 'اختر السفر:'
@@ -416,21 +532,29 @@ export default function BibleContent() {
                 : 'Choisir un livre:'
             }
           </label>
-          <select
-            id="book-select"
-            value={selectedBookIndex}
-            onChange={handleBookChange}
-            className={styles.selectBox}
+          <div
+            className={`${styles.selectTrigger} ${isBookDropdownOpen ? styles.active : ''}`}
+            onClick={() => setIsBookDropdownOpen(!isBookDropdownOpen)}
           >
+            <span>{getBookName(selectedBookIndex)}</span>
+            <div className={styles.arrow}></div>
+          </div>
+          <ul className={`${styles.dropdownMenu} ${isBookDropdownOpen ? styles.open : ''}`}>
             {bibleData?.map((book, index) => (
-              <option key={index} value={index}>
+              <li
+                key={index}
+                className={`${styles.dropdownItem} ${selectedBookIndex === index ? styles.selected : ''}`}
+                onClick={() => handleBookItemClick(index)}
+              >
                 {getBookName(index)}
-              </option>
-            )) || <option value="">{language === 'ar' ? 'لا توجد أسفار متاحة' : 'No books available'}</option>}
-          </select>
+              </li>
+            ))}
+          </ul>
         </div>
-        <div className={styles.selectGroup}>
-          <label htmlFor="chapter-select" className={styles.label}>
+        
+        {/* قائمة منسدلة مخصصة لاختيار الإصحاح */}
+        <div className={styles.customSelectWrapper} ref={chapterDropdownRef}>
+          <label className={styles.label}>
             🔢 {
               language === 'ar'
                 ? 'اختر الإصحاح:'
@@ -439,18 +563,24 @@ export default function BibleContent() {
                 : 'Choisir un chapitre:'
             }
           </label>
-          <select
-            id="chapter-select"
-            value={selectedChapterIndex}
-            onChange={handleChapterChange}
-            className={styles.selectBox}
+          <div
+            className={`${styles.selectTrigger} ${isChapterDropdownOpen ? styles.active : ''}`}
+            onClick={() => setIsChapterDropdownOpen(!isChapterDropdownOpen)}
           >
+            <span>{getChapterLabel(selectedChapterIndex)}</span>
+            <div className={styles.arrow}></div>
+          </div>
+          <ul className={`${styles.dropdownMenu} ${isChapterDropdownOpen ? styles.open : ''}`}>
             {chapters?.map((_, index) => (
-              <option key={index} value={index}>
+              <li
+                key={index}
+                className={`${styles.dropdownItem} ${selectedChapterIndex === index ? styles.selected : ''}`}
+                onClick={() => handleChapterItemClick(index)}
+              >
                 {getChapterLabel(index)}
-              </option>
-            )) || <option value="">{language === 'ar' ? 'لا توجد إصحاحات متاحة' : 'No chapters available'}</option>}
-          </select>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -496,19 +626,25 @@ export default function BibleContent() {
           {isCurrentChapterFavourite ? (language === 'ar' ? 'إزالة الإصحاح' : 'Remove Chapter') : (language === 'ar' ? 'أضف الإصحاح' : 'Add Chapter')} ⭐
         </button>
         
-        <ul className={styles.verseList}>
+        <div className={styles.verseContainer}>
           {verses?.map((verse, index) => {
             const verseKey = `${selectedBookIndex}-${selectedChapterIndex}-${index}`;
             const isSelected = selectedVerses.has(verseKey);
             const isFavourite = favouriteVerses[verseKey] !== undefined;
 
             return (
-                <li
-                key={index}
-                className={`${styles.verseItem} ${isSelected ? styles.selectedVerse : ''} ${isFavourite ? styles.favouriteVerse : ''}`}
-                onClick={() => handleVerseSelection(verseKey)}
+              <span 
+                key={index} 
+                className={`${styles.singleVerse} ${isSelected ? styles.selectedVerse : ''} ${isFavourite ? styles.favouriteVerse : ''}`}
+                // أحداث اللمس للشاشات الصغيرة
+                onTouchStart={(e) => isTouchDevice() && handleVerseTouchStart(e, verseKey, verse)}
+                onTouchEnd={(e) => isTouchDevice() && handleVerseTouchEnd(e, verseKey)}
+                // حدث النقر للشاشات الكبيرة
+                onClick={(e) => !isTouchDevice() && handleVerseSelection(verseKey)}
+              >
+                <div 
+                  className={styles.verseNumberAndText}
                 >
-                <div className={styles.verseContent}>
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -519,8 +655,9 @@ export default function BibleContent() {
                   <strong className={styles.verseNumber}>
                     {getVerseNumber(index)}.
                   </strong>{' '}
-                  {verse}
+                  {verse}{' '}
                 </div>
+
                 <div className={styles.verseActions}>
                   <button
                     onClick={(e) => {
@@ -543,13 +680,22 @@ export default function BibleContent() {
                     📋
                   </button>
                 </div>
-              </li>
+              </span>
             );
-          }) || <li className={styles.noVersesMessage}>
+          }) || <div className={styles.noVersesMessage}>
             {language === 'ar' ? 'لا توجد آيات متاحة لهذا الإصحاح أو السفر.' : 'No verses available for this chapter or book.'}
-          </li>}
-        </ul>
+          </div>}
+        </div>
       </div>
+      
+      {popupVerse && (
+        <VerseActionsPopup 
+            verse={popupVerse} 
+            onClose={handleClosePopup}
+            onCopy={handleCopyPopup}
+            onFavourite={handleFavouritePopup}
+        />
+      )}
     </div>
   );
 }
