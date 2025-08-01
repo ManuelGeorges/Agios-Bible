@@ -109,7 +109,7 @@
 .verseItem:hover {
   transform: translateY(-3px);
   box-shadow: 0 6px 15px var(--color-shadow-medium);
-  background-color: rgba(255, 255, 255, 0.15); /* Slightly brighter for hover effect */
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .verseContent {
@@ -144,18 +144,25 @@
   height: 1.2rem;
   flex-shrink: 0;
   cursor: pointer;
-  accent-color: var(--color-accent-gold); /* Style checkbox itself */
+  accent-color: var(--color-accent-gold);
 }
 
-.copyButton {
-  background-color: var(--button-bg-1);
-  color: var(--button-text-color);
-  border: none;
+.verseActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.copyButton,
+.favouriteButton {
+  background-color: transparent;
+  color: var(--color-accent-gold);
+  border: 1px solid var(--color-accent-gold);
   border-radius: 5px;
   padding: 0.7rem 1rem;
   cursor: pointer;
   font-size: 1.2rem;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  transition: all 0.3s ease;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -163,46 +170,65 @@
   margin-top: 0.2rem;
 }
 
-.copyButton:hover {
-  background-color: var(--button-hover-1);
+.copyButton:hover,
+.favouriteButton:hover {
+  background-color: var(--color-accent-gold);
+  color: var(--color-primary-dark);
   transform: scale(1.05);
 }
 
-.copyButton:active {
+.copyButton:active,
+.favouriteButton:active {
   transform: scale(0.98);
 }
 
-.copySelectedButton {
-  background-color: var(--button-bg-2);
-  color: var(--button-text-color);
-  border: none;
+.actionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 800px;
+}
+
+.copySelectedButton,
+.favouriteSelectedButton {
+  background-color: var(--color-card-bg);
+  color: var(--color-text-light);
+  border: 2px solid var(--color-accent-gold);
   border-radius: 8px;
   padding: 1rem 1.5rem;
   cursor: pointer;
   font-size: 1.2rem;
   font-weight: bold;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  margin-bottom: 2rem;
-  box-shadow: 0 4px 10px var(--color-shadow-medium);
+  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 250px;
+  text-align: center;
 }
 
-.copySelectedButton:hover {
-  background-color: var(--button-hover-2);
+.copySelectedButton:hover,
+.favouriteSelectedButton:hover {
+  background-color: var(--color-accent-gold);
+  color: var(--color-primary-dark);
   transform: translateY(-2px);
   box-shadow: 0 6px 15px var(--color-shadow-medium);
 }
 
-.copySelectedButton:active {
+.copySelectedButton:active,
+.favouriteSelectedButton:active {
   transform: translateY(0);
 }
 
 .selectedVerse {
-  background-color: rgba(255, 215, 0, 0.1); /* Light gold tint for selection */
+  background-color: rgba(255, 215, 0, 0.1);
   border: 2px solid var(--color-accent-gold);
   box-shadow: 0 6px 15px rgba(255, 215, 0, 0.2);
 }
 
-.copiedMessage {
+.copiedMessage,
+.favouriteMessage {
   position: fixed;
   bottom: 20px;
   left: 50%;
@@ -218,7 +244,8 @@
   animation: fadeOut 2s forwards;
 }
 
-.copiedMessageArabic {
+.copiedMessageArabic,
+.favouriteMessageArabic {
   font-family: 'Amiri', serif;
 }
 
@@ -278,14 +305,26 @@
     min-width: 1.5em;
   }
 
-  .copyButton {
-    align-self: flex-end;
+  .verseActions {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 0.5rem;
     margin-top: 0.5rem;
+  }
+
+  .copyButton,
+  .favouriteButton {
     padding: 0.6rem 0.9rem;
     font-size: 1.1rem;
   }
 
-  .copySelectedButton {
+  .actionButtons {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .copySelectedButton,
+  .favouriteSelectedButton {
     padding: 0.8rem 1.2rem;
     font-size: 1.1rem;
   }
@@ -320,4 +359,37 @@
   .verseNumber {
     min-width: 1.2em;
   }
+}
+
+.favouriteChapterButton {
+  background-color: var(--primary-color-light);
+  color: var(--text-color-dark);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.favouriteChapterButton:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+.favouriteChapterButton.isFavourite {
+  background-color: var(--accent-color);
+  color: #fff;
+}
+
+.favouriteChapterButton.isFavourite:hover {
+  background-color: var(--accent-color-dark);
+}
+.ar .favouriteChapterButton {
+  font-family: 'Amiri', serif;
 }

@@ -1,11 +1,11 @@
-// src/app/bible/BibleContent.jsx
+// src/app/bible/bibleContent.jsx
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import styles from './Bible.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
-import styles from './Bible.module.css';
 
 function convertToArabicNumber(num) {
   const arabicNums = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
@@ -21,20 +21,73 @@ export default function BibleContent() {
   const [bookNamesData, setBookNamesData] = useState(null);
   const [hasBookNamesError, setHasBookNamesError] = useState(false);
 
+  const [favouriteVerses, setFavouriteVerses] = useState({});
+  // حالة جديدة للإصحاحات المفضلة
+  const [favouriteChapters, setFavouriteChapters] = useState({});
+
   const [selectedBookIndex, setSelectedBookIndex] = useState(0);
   const [selectedChapterIndex, setSelectedChapterIndex] = useState(0);
-  const [copiedMessage, setCopiedMessage] = useState('');
   const [selectedVerses, setSelectedVerses] = useState(new Set());
 
-  // الدالة المساعدة getBookName
+  const [copiedMessage, setCopiedMessage] = useState('');
+  const [favouriteMessage, setFavouriteMessage] = useState('');
+
+  // جلب بيانات المفضلة للآيات والإصحاحات
+  useEffect(() => {
+    const fetchFavourites = async () => {
+      try {
+        const [versesResponse, chaptersResponse] = await Promise.all([
+          fetch('/data/favourite/verses.json'),
+          fetch('/data/favourite/chapters.json')
+        ]);
+
+        const versesData = versesResponse.ok ? await versesResponse.json() : [];
+        const chaptersData = chaptersResponse.ok ? await chaptersResponse.json() : [];
+
+        const versesMap = {};
+        versesData.forEach(v => versesMap[v.verseKey] = v);
+        setFavouriteVerses(versesMap);
+
+        const chaptersMap = {};
+        chaptersData.forEach(c => chaptersMap[c.chapterKey] = c);
+        setFavouriteChapters(chaptersMap);
+
+      } catch (error) {
+        console.error('Failed to fetch favorites:', error);
+        setFavouriteVerses({});
+        setFavouriteChapters({});
+      }
+    };
+    fetchFavourites();
+  }, []);
+  
+  useEffect(() => {
+    let timerId;
+    if (copiedMessage || favouriteMessage) {
+      timerId = setTimeout(() => {
+        setCopiedMessage('');
+        setFavouriteMessage('');
+      }, 2000);
+    }
+    return () => {
+      if (timerId) {
+        clearTimeout(timerId);
+      }
+    };
+  }, [copiedMessage, favouriteMessage]);
+
   const getBookName = (index) => {
     return bookNamesData?.[language]?.[index] || 'Unknown Book';
   };
 
-  // الدالة المساعدة getBookIndexByName
+  const getBookAbbreviation = (index) => {
+    return bookNamesData?.abbreviations?.[index] || '';
+  };
+
   const getBookIndexByName = (name) => {
     if (!bookNamesData?.[language] || !name) return 0;
-    return bookNamesData[language].findIndex(bookName => bookName.toLowerCase() === name.toLowerCase());
+    const index = bookNamesData[language].findIndex(bookName => bookName.toLowerCase() === name.toLowerCase());
+    return index !== -1 ? index : 0;
   };
 
   useEffect(() => {
@@ -95,7 +148,6 @@ export default function BibleContent() {
 
           if (bookNameFromUrl && bookNamesData?.[language]) {
             initialBookIndex = getBookIndexByName(decodeURIComponent(bookNameFromUrl));
-            if (initialBookIndex === -1) initialBookIndex = 0;
           }
 
           if (chapterFromUrl) {
@@ -122,26 +174,12 @@ export default function BibleContent() {
     if (language && ['ar', 'en', 'fr'].includes(language) && bookNamesData) {
       loadBible();
     } else if (language && ['ar', 'en', 'fr'].includes(language) && !bookNamesData) {
-      // الانتظار حتى يتم تحميل bookNamesData
+      // Do nothing, wait for bookNamesData to be loaded
     } else {
       setIsLoadingBible(false);
       setBibleData([]);
     }
   }, [language, bookNamesData, searchParams]);
-
-  useEffect(() => {
-    let timerId;
-    if (copiedMessage) {
-      timerId = setTimeout(() => {
-        setCopiedMessage('');
-      }, 2000);
-    }
-    return () => {
-      if (timerId) {
-        clearTimeout(timerId);
-      }
-    };
-  }, [copiedMessage]);
 
   const handleBookChange = (e) => {
     setSelectedBookIndex(parseInt(e.target.value));
@@ -176,8 +214,6 @@ export default function BibleContent() {
     let reference;
     if (language === 'ar') {
       reference = `(${bookName} ${convertToArabicNumber(chapterNumber)}:${convertToArabicNumber(verseNumber)})`;
-    } else if (language === 'fr') {
-      reference = `(${bookName} ${chapterNumber}:${verseNumber})`;
     } else {
       reference = `(${bookName} ${chapterNumber}:${verseNumber})`;
     }
@@ -187,7 +223,17 @@ export default function BibleContent() {
 
   const copyTextToClipboard = async (textToCopy) => {
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = textToCopy;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      
       setCopiedMessage(
         language === 'ar' ? 'تم النسخ!' : language === 'en' ? 'Copied!' : 'Copié!'
       );
@@ -198,10 +244,134 @@ export default function BibleContent() {
       );
     }
   };
-
-  const handleCopySingleVerse = (verse, verseIndex) => {
-    const textToCopy = getFullVerseText(selectedBookIndex, selectedChapterIndex, verseIndex, verse);
+  
+  const handleCopySingleVerse = (verse, index) => {
+    const textToCopy = getFullVerseText(selectedBookIndex, selectedChapterIndex, index, verse);
     copyTextToClipboard(textToCopy);
+  };
+
+  // دالة جديدة لإضافة إصحاح كامل للمفضلة
+  const handleFavouriteChapter = async () => {
+    const chapterKey = `${selectedBookIndex}-${selectedChapterIndex}`;
+    const isFavourite = favouriteChapters[chapterKey] !== undefined;
+
+    if (isFavourite) {
+      // إذا كان الإصحاح موجودًا، نقوم بحذفه
+      try {
+        const response = await fetch('/api/favourite', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyToDelete: chapterKey, type: 'chapter' }),
+        });
+        if (response.ok) {
+          setFavouriteChapters(prevFavourites => {
+            const newFavourites = { ...prevFavourites };
+            delete newFavourites[chapterKey];
+            return newFavourites;
+          });
+          setFavouriteMessage(language === 'ar' ? 'تم حذف الإصحاح من المفضلة!' : 'Chapter removed from favorites!');
+        } else {
+          setFavouriteMessage(language === 'ar' ? 'فشل الحذف!' : 'Failed to remove!');
+        }
+      } catch (error) {
+        console.error('Error deleting chapter:', error);
+        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
+      }
+    } else {
+      // إذا كان الإصحاح غير موجود، نقوم بإضافته
+      const chapterData = {
+        type: 'chapter',
+        chapterKey,
+        text: verses.map((v, i) => {
+          let verseNumber = language === 'ar' ? convertToArabicNumber(i + 1) : i + 1;
+          return `${verseNumber}. ${v}`;
+        }).join('\n'), // جمع كل الآيات في نص واحد
+        bookName: getBookName(selectedBookIndex),
+        bookNameAbbrev: getBookAbbreviation(selectedBookIndex),
+        chapter: selectedChapterIndex,
+        language: language,
+      };
+
+      try {
+        const response = await fetch('/api/favourite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chapterData),
+        });
+        if (response.ok) {
+          setFavouriteChapters(prevFavourites => ({
+            ...prevFavourites,
+            [chapterKey]: chapterData,
+          }));
+          setFavouriteMessage(language === 'ar' ? 'تم إضافة الإصحاح إلى المفضلة!' : 'Chapter added to favorites!');
+        } else {
+          setFavouriteMessage(language === 'ar' ? 'فشل الإضافة!' : 'Failed to add!');
+        }
+      } catch (error) {
+        console.error('Error adding chapter:', error);
+        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
+      }
+    }
+  };
+
+
+  const handleFavouriteSingleVerse = async (verse, verseIndex) => {
+    const verseKey = `${selectedBookIndex}-${selectedChapterIndex}-${verseIndex}`;
+    const isFavourite = favouriteVerses[verseKey] !== undefined;
+    
+    if (isFavourite) {
+      try {
+        const response = await fetch('/api/favourite', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keyToDelete: verseKey, type: 'verse' }),
+        });
+        if (response.ok) {
+          setFavouriteVerses(prevFavourites => {
+            const newFavourites = { ...prevFavourites };
+            delete newFavourites[verseKey];
+            return newFavourites;
+          });
+          setFavouriteMessage(language === 'ar' ? 'تم الحذف من المفضلة!' : 'Removed from favorites!');
+        } else {
+          setFavouriteMessage(language === 'ar' ? 'فشل الحذف!' : 'Failed to remove!');
+        }
+      } catch (error) {
+        console.error('Error deleting verse:', error);
+        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
+      }
+    } else {
+      const verseData = {
+        type: 'verse',
+        verseKey,
+        text: verse,
+        bookName: getBookName(selectedBookIndex),
+        bookNameAbbrev: getBookAbbreviation(selectedBookIndex),
+        chapter: selectedChapterIndex,
+        verseIndex: verseIndex,
+        language: language,
+      };
+
+      try {
+        const response = await fetch('/api/favourite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(verseData),
+        });
+        if (response.ok) {
+          setFavouriteVerses(prevFavourites => ({
+            ...prevFavourites,
+            [verseKey]: verseData,
+          }));
+          setFavouriteMessage(language === 'ar' ? 'تم الإضافة إلى المفضلة!' : 'Added to favorites!');
+        } else {
+          setFavouriteMessage(language === 'ar' ? 'فشل الإضافة!' : 'Failed to add!');
+        }
+      } catch (error) {
+        console.error('Error adding verse:', error);
+        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
+      }
+    }
   };
 
   const handleVerseSelection = (verseKey) => {
@@ -238,6 +408,72 @@ export default function BibleContent() {
     setSelectedVerses(new Set());
   };
 
+  const handleFavouriteSelectedVerses = async () => {
+    if (selectedVerses.size === 0) return;
+    
+    let messages = [];
+
+    for (const key of Array.from(selectedVerses)) {
+      const isFavourite = favouriteVerses[key] !== undefined;
+      const [bookIdx, chapterIdx, verseIdx] = key.split('-').map(Number);
+
+      if (isFavourite) {
+        try {
+          const response = await fetch('/api/favourite', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyToDelete: key, type: 'verse' }),
+          });
+          if (response.ok) {
+            setFavouriteVerses(prevFavourites => {
+              const newFavourites = { ...prevFavourites };
+              delete newFavourites[key];
+              return newFavourites;
+            });
+            messages.push('deleted');
+          }
+        } catch (error) {
+          console.error('Error deleting verse:', error);
+        }
+      } else {
+        const verseData = {
+          type: 'verse',
+          verseKey: key,
+          text: verses[verseIdx],
+          bookName: getBookName(bookIdx),
+          bookNameAbbrev: getBookAbbreviation(bookIdx),
+          chapter: chapterIdx,
+          verseIndex: verseIdx,
+          language: language,
+        };
+        try {
+          const response = await fetch('/api/favourite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(verseData),
+          });
+          if (response.ok) {
+            setFavouriteVerses(prevFavourites => ({
+              ...prevFavourites,
+              [key]: verseData,
+            }));
+            messages.push('added');
+          }
+        } catch (error) {
+          console.error('Error adding verse:', error);
+        }
+      }
+    }
+    
+    setFavouriteMessage(
+      language === 'ar' ? `تم تحديث المفضلة (${convertToArabicNumber(selectedVerses.size)} آية)!` : `Favorites updated (${selectedVerses.size} Verses)!`
+    );
+    setSelectedVerses(new Set());
+  };
+  
+  const isCurrentChapterFavourite = favouriteChapters[`${selectedBookIndex}-${selectedChapterIndex}`] !== undefined;
+
+
   if (isLoadingBible || bookNamesData === null) {
     return (
       <div className={styles.loadingMessage}>
@@ -268,7 +504,6 @@ export default function BibleContent() {
             : 'Étude de la Bible'
         }
       </h1>
-
       <div className={styles.controls}>
         <div className={styles.selectGroup}>
           <label htmlFor="book-select" className={styles.label}>
@@ -287,13 +522,12 @@ export default function BibleContent() {
             className={styles.selectBox}
           >
             {bibleData?.map((book, index) => (
-                <option key={index} value={index}>
-                    {getBookName(index)}
-                </option>
+              <option key={index} value={index}>
+                {getBookName(index)}
+              </option>
             )) || <option value="">{language === 'ar' ? 'لا توجد أسفار متاحة' : 'No books available'}</option>}
           </select>
         </div>
-
         <div className={styles.selectGroup}>
           <label htmlFor="chapter-select" className={styles.label}>
             🔢 {
@@ -311,37 +545,61 @@ export default function BibleContent() {
             className={styles.selectBox}
           >
             {chapters?.map((_, index) => (
-                <option key={index} value={index}>
-                    {getChapterLabel(index)}
-                </option>
+              <option key={index} value={index}>
+                {getChapterLabel(index)}
+              </option>
             )) || <option value="">{language === 'ar' ? 'لا توجد إصحاحات متاحة' : 'No chapters available'}</option>}
           </select>
         </div>
       </div>
 
       {copiedMessage && (
-        <div className={`${styles.copiedMessage} ${language === 'ar' ? styles.copiedMessageArabic : ''}`}>
+        <div className={`${styles.messageBox} ${styles.copiedMessage}`}>
           {copiedMessage}
         </div>
       )}
 
+      {favouriteMessage && (
+        <div className={`${styles.messageBox} ${styles.favouriteMessage}`}>
+          {favouriteMessage}
+        </div>
+      )}
+
       {selectedVerses.size > 0 && (
-        <button
-          onClick={handleCopySelectedVerses}
-          className={styles.copySelectedButton}
-        >
-          {language === 'ar' ? `نسخ ${convertToArabicNumber(selectedVerses.size)} آية مختارة` : `Copy ${selectedVerses.size} Selected Verses`}
-        </button>
+        <div className={styles.actionButtons}>
+          <button
+            onClick={handleCopySelectedVerses}
+            className={styles.copySelectedButton}
+          >
+            {language === 'ar' ? `نسخ ${convertToArabicNumber(selectedVerses.size)} آية مختارة` : `Copy ${selectedVerses.size} Selected Verses`}
+          </button>
+          <button
+            onClick={handleFavouriteSelectedVerses}
+            className={styles.favouriteSelectedButton}
+          >
+            {language === 'ar' ? `تحديث المفضلة (${convertToArabicNumber(selectedVerses.size)} آية)` : `Update Favorites (${selectedVerses.size} Verses)`}
+          </button>
+        </div>
       )}
 
       <div>
         <h2 className={styles.chapterTitle}>
           📜 {getBookName(selectedBookIndex)} {getChapterLabel(selectedChapterIndex)}
         </h2>
+        
+        <button
+          onClick={handleFavouriteChapter}
+          className={`${styles.favouriteChapterButton} ${isCurrentChapterFavourite ? styles.isFavourite : ''}`}
+          title={isCurrentChapterFavourite ? (language === 'ar' ? 'إزالة الإصحاح من المفضلة' : 'Remove Chapter from Favorites') : (language === 'ar' ? 'أضف الإصحاح للمفضلة' : 'Add Chapter to Favorites')}
+        >
+          {isCurrentChapterFavourite ? (language === 'ar' ? 'إزالة الإصحاح' : 'Remove Chapter') : (language === 'ar' ? 'أضف الإصحاح' : 'Add Chapter')} ⭐
+        </button>
+        
         <ul className={styles.verseList}>
           {verses?.map((verse, index) => {
             const verseKey = `${selectedBookIndex}-${selectedChapterIndex}-${index}`;
             const isSelected = selectedVerses.has(verseKey);
+            const isFavourite = favouriteVerses[verseKey] !== undefined;
 
             return (
               <li
@@ -362,16 +620,28 @@ export default function BibleContent() {
                   </strong>{' '}
                   {verse}
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopySingleVerse(verse, index);
-                  }}
-                  className={styles.copyButton}
-                  title={language === 'ar' ? 'نسخ الآية' : language === 'en' ? 'Copy Verse' : 'Copier le verset'}
-                >
-                  📋
-                </button>
+                <div className={styles.verseActions}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleFavouriteSingleVerse(verse, index);
+                    }}
+                    className={`${styles.favouriteButton} ${isFavourite ? styles.isFavourite : ''}`}
+                    title={language === 'ar' ? (isFavourite ? 'إزالة من المفضلة' : 'أضف للمفضلة') : (isFavourite ? 'Remove from Favorites' : 'Add to Favorites')}
+                  >
+                    ⭐
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopySingleVerse(verse, index);
+                    }}
+                    className={styles.copyButton}
+                    title={language === 'ar' ? 'نسخ الآية' : language === 'en' ? 'Copy Verse' : 'Copier le verset'}
+                  >
+                    📋
+                  </button>
+                </div>
               </li>
             );
           }) || <li className={styles.noVersesMessage}>

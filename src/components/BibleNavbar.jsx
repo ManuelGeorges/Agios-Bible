@@ -18,7 +18,7 @@ export default function BibleNavbar() {
             <path d="M15.5 14H14.71L14.25 13.59C15.41 12.09 16.17 10.15 16.17 8.08C16.17 3.63 12.54 0 8.08 0C3.63 0 0 3.63 0 8.08C0 12.54 3.63 16.17 8.08 16.17C10.15 16.17 12.09 15.41 13.59 14.25L14 14.71V15.5L19.5 21L21 19.5L15.5 14ZM8.08 14C4.75 14 2 11.25 2 8.08C2 4.75 4.75 2 8.08 2C11.25 2 14 4.75 14 8.08C14 11.25 11.25 14 8.08 14Z"></path>
           </svg>
         </Link>
-        <Link href="/bible/favorites" className={styles.navLink} aria-label="المفضلة">
+        <Link href="/favourites" className={styles.navLink} aria-label="المفضلة">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={styles.navIcon}>
             <path d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.08C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.03L12 21.35Z"></path>
           </svg>
