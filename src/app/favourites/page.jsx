@@ -1,8 +1,8 @@
-
+// src/app/favourites/favourites.module.jsx
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import styles from './favourites.module.css';
 
@@ -17,54 +17,61 @@ export default function FavouritesPage() {
   const [favourites, setFavourites] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  useEffect(() => {
-    const fetchFavourites = async () => {
-      setIsLoading(true);
-      setError('');
-      try {
-        const filePath = activeTab === 'verses'
-          ? '/data/favourites/verses.json'
-          : '/data/favourites/chapters.json';
-        const response = await fetch(filePath);
-        if (!response.ok) {
-          if (response.status === 404) {
-            setFavourites([]);
-            return;
-          }
-          throw new Error(`Failed to load ${filePath}`);
-        }
-        const data = await response.json();
-        setFavourites(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error(e);
-        setError(language === 'ar' ? 'فشل تحميل المفضلة.' : 'Failed to load favorites.');
-        setFavourites([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    fetchFavourites();
+  // دالة موحدة لحفظ البيانات في Local Storage
+  const saveFavouritesToLocalStorage = useCallback((key, data) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  }, []);
+
+  const fetchFavourites = useCallback(() => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const key = activeTab === 'verses' ? 'favourite_verses' : 'favourite_chapters';
+      const data = JSON.parse(localStorage.getItem(key)) || {};
+      
+      // تحويل الكائن إلى مصفوفة لعرضه
+      const favouritesArray = Object.values(data);
+      setFavourites(favouritesArray);
+    } catch (e) {
+      console.error(e);
+      setError(language === 'ar' ? 'فشل تحميل المفضلة.' : 'Failed to load favorites.');
+      setFavourites([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [activeTab, language]);
 
-  const handleRemove = async (itemToRemove) => {
+  useEffect(() => {
+    fetchFavourites();
+  }, [activeTab, fetchFavourites]);
+
+  const handleRemove = (itemToRemove) => {
     try {
-      const endpoint = '/api/favourite';
-      const verseKey = itemToRemove.verseKey;
-      
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verseKeyToDelete: verseKey }),
-      });
+      let key;
+      let existingFavourites;
 
-      if (!response.ok) {
-        throw new Error('Failed to delete item from server.');
+      if (itemToRemove.type === 'verse') {
+        key = 'favourite_verses';
+        existingFavourites = JSON.parse(localStorage.getItem(key)) || {};
+        delete existingFavourites[itemToRemove.verseKey];
+      } else if (itemToRemove.type === 'chapter') {
+        key = 'favourite_chapters';
+        existingFavourites = JSON.parse(localStorage.getItem(key)) || {};
+        delete existingFavourites[itemToRemove.chapterKey];
       }
-
-      setFavourites(prevFavourites => prevFavourites.filter(item => item.verseKey !== verseKey));
-
+      
+      if (key && existingFavourites) {
+        saveFavouritesToLocalStorage(key, existingFavourites);
+        
+        // تحديث حالة favourites بعد الحذف
+        const updatedFavouritesArray = Object.values(existingFavourites);
+        setFavourites(updatedFavouritesArray);
+      }
     } catch (e) {
       console.error('Failed to remove item:', e);
       setError(language === 'ar' ? 'فشل حذف العنصر.' : 'Failed to remove item.');
@@ -138,7 +145,7 @@ export default function FavouritesPage() {
       {!isLoading && !error && favourites.length > 0 && (
         <ul className={styles.favouritesList}>
           {favourites.map((item) => (
-            <li key={item.verseKey || `${item.bookName}-${item.chapter}`} className={styles.favouriteItem}>
+            <li key={item.verseKey || item.chapterKey} className={styles.favouriteItem}>
               <div className={styles.favouriteContent}>
                 {item.text}
                 <span className={styles.favouriteReference}>

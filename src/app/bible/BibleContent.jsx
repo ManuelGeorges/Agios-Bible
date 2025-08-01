@@ -1,4 +1,3 @@
-
 // src/app/bible/bibleContent.jsx
 
 'use client';
@@ -32,29 +31,25 @@ export default function BibleContent() {
   const [copiedMessage, setCopiedMessage] = useState('');
   const [favouriteMessage, setFavouriteMessage] = useState('');
 
-  // دالة موحدة لجلب بيانات المفضلة، تم تعديلها لاستدعاء الـ API
-  const fetchFavourites = useCallback(async () => {
+  // دالة موحدة لجلب بيانات المفضلة من Local Storage
+  const fetchFavourites = useCallback(() => {
     try {
-      const response = await fetch('/api/favourite', { cache: 'no-store' });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch favorites from API');
-      }
-
-      const { verses: versesData, chapters: chaptersData } = await response.json();
-
-      const versesMap = {};
-      versesData.forEach(v => versesMap[v.verseKey] = v);
-      setFavouriteVerses(versesMap);
-
-      const chaptersMap = {};
-      chaptersData.forEach(c => chaptersMap[c.chapterKey] = c);
-      setFavouriteChapters(chaptersMap);
-
+      const verses = JSON.parse(localStorage.getItem('favourite_verses')) || {};
+      const chapters = JSON.parse(localStorage.getItem('favourite_chapters')) || {};
+      setFavouriteVerses(verses);
+      setFavouriteChapters(chapters);
     } catch (error) {
-      console.error('Failed to fetch favorites:', error);
-      setFavouriteVerses({});
-      setFavouriteChapters({});
+      console.error('Failed to load favorites from localStorage:', error);
+    }
+  }, []);
+
+  // دالة موحدة لحفظ بيانات المفضلة في Local Storage
+  const saveFavourites = useCallback((verses, chapters) => {
+    try {
+      localStorage.setItem('favourite_verses', JSON.stringify(verses));
+      localStorage.setItem('favourite_chapters', JSON.stringify(chapters));
+    } catch (error) {
+      console.error('Failed to save favorites to localStorage:', error);
     }
   }, []);
 
@@ -252,32 +247,14 @@ export default function BibleContent() {
     copyTextToClipboard(textToCopy);
   };
 
-  const handleFavouriteChapter = async () => {
+  const handleFavouriteChapter = () => {
     const chapterKey = `${selectedBookIndex}-${selectedChapterIndex}`;
     const isFavourite = favouriteChapters[chapterKey] !== undefined;
-
+    
+    let newFavouriteChapters = { ...favouriteChapters };
     if (isFavourite) {
-      try {
-        const response = await fetch('/api/favourite', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keyToDelete: chapterKey, type: 'chapter' }),
-        });
-        if (response.ok) {
-          // تحديث الحالة مباشرة بعد النجاح
-          setFavouriteChapters(prevFavourites => {
-            const newFavourites = { ...prevFavourites };
-            delete newFavourites[chapterKey];
-            return newFavourites;
-          });
-          setFavouriteMessage(language === 'ar' ? 'تم حذف الإصحاح من المفضلة!' : 'Chapter removed from favorites!');
-        } else {
-          setFavouriteMessage(language === 'ar' ? 'فشل الحذف!' : 'Failed to remove!');
-        }
-      } catch (error) {
-        console.error('Error deleting chapter:', error);
-        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
-      }
+      delete newFavouriteChapters[chapterKey];
+      setFavouriteMessage(language === 'ar' ? 'تم حذف الإصحاح من المفضلة!' : 'Chapter removed from favorites!');
     } else {
       const chapterData = {
         type: 'chapter',
@@ -291,57 +268,22 @@ export default function BibleContent() {
         chapter: selectedChapterIndex,
         language: language,
       };
-
-      try {
-        const response = await fetch('/api/favourite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(chapterData),
-        });
-        if (response.ok) {
-          // تحديث الحالة مباشرة بعد النجاح
-          setFavouriteChapters(prevFavourites => ({
-            ...prevFavourites,
-            [chapterKey]: chapterData,
-          }));
-          setFavouriteMessage(language === 'ar' ? 'تم إضافة الإصحاح إلى المفضلة!' : 'Chapter added to favorites!');
-        } else {
-          setFavouriteMessage(language === 'ar' ? 'فشل الإضافة!' : 'Failed to add!');
-        }
-      } catch (error) {
-        console.error('Error adding chapter:', error);
-        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
-      }
+      newFavouriteChapters[chapterKey] = chapterData;
+      setFavouriteMessage(language === 'ar' ? 'تم إضافة الإصحاح إلى المفضلة!' : 'Chapter added to favorites!');
     }
+    
+    setFavouriteChapters(newFavouriteChapters);
+    saveFavourites(favouriteVerses, newFavouriteChapters);
   };
 
-
-  const handleFavouriteSingleVerse = async (verse, verseIndex) => {
+  const handleFavouriteSingleVerse = (verse, verseIndex) => {
     const verseKey = `${selectedBookIndex}-${selectedChapterIndex}-${verseIndex}`;
     const isFavourite = favouriteVerses[verseKey] !== undefined;
     
+    let newFavouriteVerses = { ...favouriteVerses };
     if (isFavourite) {
-      try {
-        const response = await fetch('/api/favourite', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keyToDelete: verseKey, type: 'verse' }),
-        });
-        if (response.ok) {
-          // تحديث الحالة مباشرة بعد النجاح
-          setFavouriteVerses(prevFavourites => {
-            const newFavourites = { ...prevFavourites };
-            delete newFavourites[verseKey];
-            return newFavourites;
-          });
-          setFavouriteMessage(language === 'ar' ? 'تم الحذف من المفضلة!' : 'Removed from favorites!');
-        } else {
-          setFavouriteMessage(language === 'ar' ? 'فشل الحذف!' : 'Failed to remove!');
-        }
-      } catch (error) {
-        console.error('Error deleting verse:', error);
-        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
-      }
+      delete newFavouriteVerses[verseKey];
+      setFavouriteMessage(language === 'ar' ? 'تم الحذف من المفضلة!' : 'Removed from favorites!');
     } else {
       const verseData = {
         type: 'verse',
@@ -353,28 +295,12 @@ export default function BibleContent() {
         verseIndex: verseIndex,
         language: language,
       };
-
-      try {
-        const response = await fetch('/api/favourite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(verseData),
-        });
-        if (response.ok) {
-          // تحديث الحالة مباشرة بعد النجاح
-          setFavouriteVerses(prevFavourites => ({
-            ...prevFavourites,
-            [verseKey]: verseData,
-          }));
-          setFavouriteMessage(language === 'ar' ? 'تم الإضافة إلى المفضلة!' : 'Added to favorites!');
-        } else {
-          setFavouriteMessage(language === 'ar' ? 'فشل الإضافة!' : 'Failed to add!');
-        }
-      } catch (error) {
-        console.error('Error adding verse:', error);
-        setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
-      }
+      newFavouriteVerses[verseKey] = verseData;
+      setFavouriteMessage(language === 'ar' ? 'تم الإضافة إلى المفضلة!' : 'Added to favorites!');
     }
+    
+    setFavouriteVerses(newFavouriteVerses);
+    saveFavourites(newFavouriteVerses, favouriteChapters);
   };
 
   const handleVerseSelection = (verseKey) => {
@@ -411,29 +337,17 @@ export default function BibleContent() {
     setSelectedVerses(new Set());
   };
 
-  const handleFavouriteSelectedVerses = async () => {
+  const handleFavouriteSelectedVerses = () => {
     if (selectedVerses.size === 0) return;
     
-    let allPromises = [];
+    let newFavouriteVerses = { ...favouriteVerses };
 
     for (const key of Array.from(selectedVerses)) {
       const isFavourite = favouriteVerses[key] !== undefined;
       const [bookIdx, chapterIdx, verseIdx] = key.split('-').map(Number);
 
       if (isFavourite) {
-        allPromises.push(
-          fetch('/api/favourite', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keyToDelete: key, type: 'verse' }),
-          }).then(() => {
-            setFavouriteVerses(prevFavourites => {
-              const newFavourites = { ...prevFavourites };
-              delete newFavourites[key];
-              return newFavourites;
-            });
-          }).catch(error => console.error('Error deleting verse:', error))
-        );
+        delete newFavouriteVerses[key];
       } else {
         const verseData = {
           type: 'verse',
@@ -445,22 +359,12 @@ export default function BibleContent() {
           verseIndex: verseIdx,
           language: language,
         };
-        allPromises.push(
-          fetch('/api/favourite', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(verseData),
-          }).then(() => {
-            setFavouriteVerses(prevFavourites => ({
-              ...prevFavourites,
-              [key]: verseData,
-            }));
-          }).catch(error => console.error('Error adding verse:', error))
-        );
+        newFavouriteVerses[key] = verseData;
       }
     }
     
-    await Promise.all(allPromises);
+    setFavouriteVerses(newFavouriteVerses);
+    saveFavourites(newFavouriteVerses, favouriteChapters);
     
     setFavouriteMessage(
       language === 'ar' ? `تم تحديث المفضلة (${convertToArabicNumber(selectedVerses.size)} آية)!` : `Favorites updated (${selectedVerses.size} Verses)!`
