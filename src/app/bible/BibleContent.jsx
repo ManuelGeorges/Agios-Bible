@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // تمت إضافة useCallback
 import styles from './Bible.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
@@ -22,7 +22,6 @@ export default function BibleContent() {
   const [hasBookNamesError, setHasBookNamesError] = useState(false);
 
   const [favouriteVerses, setFavouriteVerses] = useState({});
-  // حالة جديدة للإصحاحات المفضلة
   const [favouriteChapters, setFavouriteChapters] = useState({});
 
   const [selectedBookIndex, setSelectedBookIndex] = useState(0);
@@ -32,34 +31,36 @@ export default function BibleContent() {
   const [copiedMessage, setCopiedMessage] = useState('');
   const [favouriteMessage, setFavouriteMessage] = useState('');
 
-  // جلب بيانات المفضلة للآيات والإصحاحات
-  useEffect(() => {
-    const fetchFavourites = async () => {
-      try {
-        const [versesResponse, chaptersResponse] = await Promise.all([
-          fetch('/data/favourite/verses.json'),
-          fetch('/data/favourite/chapters.json')
-        ]);
+  // دالة موحدة لجلب بيانات المفضلة، تم تغليفها بـ useCallback
+  const fetchFavourites = useCallback(async () => {
+    try {
+      const [versesResponse, chaptersResponse] = await Promise.all([
+        fetch('/data/favourite/verses.json', { cache: 'no-store' }),
+        fetch('/data/favourite/chapters.json', { cache: 'no-store' })
+      ]);
 
-        const versesData = versesResponse.ok ? await versesResponse.json() : [];
-        const chaptersData = chaptersResponse.ok ? await chaptersResponse.json() : [];
+      const versesData = versesResponse.ok ? await versesResponse.json() : [];
+      const chaptersData = chaptersResponse.ok ? await chaptersResponse.json() : [];
 
-        const versesMap = {};
-        versesData.forEach(v => versesMap[v.verseKey] = v);
-        setFavouriteVerses(versesMap);
+      const versesMap = {};
+      versesData.forEach(v => versesMap[v.verseKey] = v);
+      setFavouriteVerses(versesMap);
 
-        const chaptersMap = {};
-        chaptersData.forEach(c => chaptersMap[c.chapterKey] = c);
-        setFavouriteChapters(chaptersMap);
+      const chaptersMap = {};
+      chaptersData.forEach(c => chaptersMap[c.chapterKey] = c);
+      setFavouriteChapters(chaptersMap);
 
-      } catch (error) {
-        console.error('Failed to fetch favorites:', error);
-        setFavouriteVerses({});
-        setFavouriteChapters({});
-      }
-    };
-    fetchFavourites();
+    } catch (error) {
+      console.error('Failed to fetch favorites:', error);
+      setFavouriteVerses({});
+      setFavouriteChapters({});
+    }
   }, []);
+
+  // جلب بيانات المفضلة عند تحميل الكومبوننت لأول مرة فقط
+  useEffect(() => {
+    fetchFavourites();
+  }, [fetchFavourites]);
   
   useEffect(() => {
     let timerId;
@@ -250,13 +251,11 @@ export default function BibleContent() {
     copyTextToClipboard(textToCopy);
   };
 
-  // دالة جديدة لإضافة إصحاح كامل للمفضلة
   const handleFavouriteChapter = async () => {
     const chapterKey = `${selectedBookIndex}-${selectedChapterIndex}`;
     const isFavourite = favouriteChapters[chapterKey] !== undefined;
 
     if (isFavourite) {
-      // إذا كان الإصحاح موجودًا، نقوم بحذفه
       try {
         const response = await fetch('/api/favourite', {
           method: 'DELETE',
@@ -264,6 +263,7 @@ export default function BibleContent() {
           body: JSON.stringify({ keyToDelete: chapterKey, type: 'chapter' }),
         });
         if (response.ok) {
+          // تحديث الحالة مباشرة بعد النجاح
           setFavouriteChapters(prevFavourites => {
             const newFavourites = { ...prevFavourites };
             delete newFavourites[chapterKey];
@@ -278,14 +278,13 @@ export default function BibleContent() {
         setFavouriteMessage(language === 'ar' ? 'حدث خطأ!' : 'An error occurred!');
       }
     } else {
-      // إذا كان الإصحاح غير موجود، نقوم بإضافته
       const chapterData = {
         type: 'chapter',
         chapterKey,
         text: verses.map((v, i) => {
           let verseNumber = language === 'ar' ? convertToArabicNumber(i + 1) : i + 1;
           return `${verseNumber}. ${v}`;
-        }).join('\n'), // جمع كل الآيات في نص واحد
+        }).join('\n'),
         bookName: getBookName(selectedBookIndex),
         bookNameAbbrev: getBookAbbreviation(selectedBookIndex),
         chapter: selectedChapterIndex,
@@ -299,6 +298,7 @@ export default function BibleContent() {
           body: JSON.stringify(chapterData),
         });
         if (response.ok) {
+          // تحديث الحالة مباشرة بعد النجاح
           setFavouriteChapters(prevFavourites => ({
             ...prevFavourites,
             [chapterKey]: chapterData,
@@ -327,6 +327,7 @@ export default function BibleContent() {
           body: JSON.stringify({ keyToDelete: verseKey, type: 'verse' }),
         });
         if (response.ok) {
+          // تحديث الحالة مباشرة بعد النجاح
           setFavouriteVerses(prevFavourites => {
             const newFavourites = { ...prevFavourites };
             delete newFavourites[verseKey];
@@ -359,6 +360,7 @@ export default function BibleContent() {
           body: JSON.stringify(verseData),
         });
         if (response.ok) {
+          // تحديث الحالة مباشرة بعد النجاح
           setFavouriteVerses(prevFavourites => ({
             ...prevFavourites,
             [verseKey]: verseData,
@@ -411,30 +413,26 @@ export default function BibleContent() {
   const handleFavouriteSelectedVerses = async () => {
     if (selectedVerses.size === 0) return;
     
-    let messages = [];
+    let allPromises = [];
 
     for (const key of Array.from(selectedVerses)) {
       const isFavourite = favouriteVerses[key] !== undefined;
       const [bookIdx, chapterIdx, verseIdx] = key.split('-').map(Number);
 
       if (isFavourite) {
-        try {
-          const response = await fetch('/api/favourite', {
+        allPromises.push(
+          fetch('/api/favourite', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ keyToDelete: key, type: 'verse' }),
-          });
-          if (response.ok) {
+          }).then(() => {
             setFavouriteVerses(prevFavourites => {
               const newFavourites = { ...prevFavourites };
               delete newFavourites[key];
               return newFavourites;
             });
-            messages.push('deleted');
-          }
-        } catch (error) {
-          console.error('Error deleting verse:', error);
-        }
+          }).catch(error => console.error('Error deleting verse:', error))
+        );
       } else {
         const verseData = {
           type: 'verse',
@@ -446,24 +444,22 @@ export default function BibleContent() {
           verseIndex: verseIdx,
           language: language,
         };
-        try {
-          const response = await fetch('/api/favourite', {
+        allPromises.push(
+          fetch('/api/favourite', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(verseData),
-          });
-          if (response.ok) {
+          }).then(() => {
             setFavouriteVerses(prevFavourites => ({
               ...prevFavourites,
               [key]: verseData,
             }));
-            messages.push('added');
-          }
-        } catch (error) {
-          console.error('Error adding verse:', error);
-        }
+          }).catch(error => console.error('Error adding verse:', error))
+        );
       }
     }
+    
+    await Promise.all(allPromises);
     
     setFavouriteMessage(
       language === 'ar' ? `تم تحديث المفضلة (${convertToArabicNumber(selectedVerses.size)} آية)!` : `Favorites updated (${selectedVerses.size} Verses)!`
@@ -602,11 +598,11 @@ export default function BibleContent() {
             const isFavourite = favouriteVerses[verseKey] !== undefined;
 
             return (
-              <li
+                <li
                 key={index}
-                className={`${styles.verseItem} ${isSelected ? styles.selectedVerse : ''}`}
+                className={`${styles.verseItem} ${isSelected ? styles.selectedVerse : ''} ${isFavourite ? styles.favouriteVerse : ''}`}
                 onClick={() => handleVerseSelection(verseKey)}
-              >
+                >
                 <div className={styles.verseContent}>
                   <input
                     type="checkbox"

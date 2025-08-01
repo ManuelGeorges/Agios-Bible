@@ -393,3 +393,16 @@
 .ar .favouriteChapterButton {
   font-family: 'Amiri', serif;
 }
+
+.favouriteVerse {
+  background-color: rgb(73, 72, 56); 
+  border-left: 5px solid #ffca28;
+  padding-left: 10px;
+}
+
+.ar .favouriteVerse {
+  border-right: 5px solid #ffca28; 
+  border-left: none;
+  padding-right: 10px;
+  padding-left: 0;
+}

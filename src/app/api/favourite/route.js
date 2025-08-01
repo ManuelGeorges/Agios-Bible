@@ -23,6 +23,12 @@ async function getFavouritesFileContent(filePath) {
   }
 }
 
+// دالة مساعدة لتحديث الملف وارجاع المحتوى الجديد
+async function updateAndGetFile(filePath, updatedData) {
+  await fs.writeFile(filePath, JSON.stringify(updatedData, null, 2));
+  return updatedData;
+}
+
 export async function POST(request) {
   try {
     const newFavouriteItem = await request.json();
@@ -39,15 +45,24 @@ export async function POST(request) {
 
     if (!isExisting) {
       favourites.push(newFavouriteItem);
-      await fs.writeFile(filePath, JSON.stringify(favourites, null, 2));
+      // إرجاع المحتوى الكامل بعد التحديث
+      const updatedData = await updateAndGetFile(filePath, favourites);
+      return new Response(JSON.stringify(updatedData), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
-    return new Response(JSON.stringify({ message: 'Item added to favorites successfully' }), {
+    // إرجاع المحتوى الحالي إذا كان موجوداً بالفعل
+    return new Response(JSON.stringify(favourites), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
       },
     });
+    
   } catch (error) {
     console.error('Failed to add item:', error);
     return new Response(JSON.stringify({ error: 'Failed to add item' }), {
@@ -75,9 +90,10 @@ export async function DELETE(request) {
       updatedFavourites = favourites.filter(item => item.verseKey !== keyToDelete);
     }
 
-    await fs.writeFile(filePath, JSON.stringify(updatedFavourites, null, 2));
+    // إرجاع المحتوى الكامل بعد التحديث
+    const updatedData = await updateAndGetFile(filePath, updatedFavourites);
 
-    return new Response(JSON.stringify({ message: 'Item deleted successfully' }), {
+    return new Response(JSON.stringify(updatedData), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

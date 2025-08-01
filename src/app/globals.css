@@ -42,9 +42,9 @@
         --color-shadow-light: rgba(0, 0, 0, 0.3);
         --color-shadow-medium: rgba(0, 0, 0, 0.5);
 
-        --button-bg-1: #4A607A; /* أزرق باهت لزر وضع الظلام */
+        --button-bg-1: #4A607A; 
         --button-hover-1: #3A4B5F;
-        --button-bg-2: #6A4A7A; /* بنفسجي باهت لزر وضع الظلام */
+        --button-bg-2: #6A4A7A;
         --button-hover-2: #5A3A6A;
     }
 }
@@ -54,14 +54,12 @@ body {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    /* تطبيق الخلفية العامة للجسم من متغيرات :root */
     background: linear-gradient(135deg, var(--color-background-start) 0%, var(--color-background-end) 100%);
-    color: var(--color-text-light); /* تطبيق اللون العام للنص */
-    min-height: 100vh; /* تأكد أن الجسم يأخذ الارتفاع الكامل */
+    color: var(--color-text-light); 
+    min-height: 100vh; 
 }
 
-/* --- استيراد الخطوط --- */
-/* يرجى التأكد من أن هذه الروابط صحيحة وتعمل */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
 

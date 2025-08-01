@@ -1,18 +1,20 @@
 [
   {
-    "verseKey": "0-0-0",
-    "text": "في البدء خلق الله السموات والارض.",
-    "bookName": "تكوين",
-    "chapter": 0,
-    "verseIndex": 0,
-    "language": "ar"
-  },
-  {
     "verseKey": "0-0-1",
     "text": "وكانت الارض خربة وخالية وعلى وجه الغمر ظلمة وروح الله يرف على وجه المياه.",
     "bookName": "تكوين",
     "chapter": 0,
     "verseIndex": 1,
+    "language": "ar"
+  },
+  {
+    "type": "verse",
+    "verseKey": "0-0-0",
+    "text": "في البدء خلق الله السموات والارض.",
+    "bookName": "تكوين",
+    "bookNameAbbrev": "",
+    "chapter": 0,
+    "verseIndex": 0,
     "language": "ar"
   }
 ]
