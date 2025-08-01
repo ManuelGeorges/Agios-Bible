@@ -1,8 +1,9 @@
+
 // src/app/bible/bibleContent.jsx
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react'; // تمت إضافة useCallback
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Bible.module.css';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSearchParams } from 'next/navigation';
@@ -31,16 +32,16 @@ export default function BibleContent() {
   const [copiedMessage, setCopiedMessage] = useState('');
   const [favouriteMessage, setFavouriteMessage] = useState('');
 
-  // دالة موحدة لجلب بيانات المفضلة، تم تغليفها بـ useCallback
+  // دالة موحدة لجلب بيانات المفضلة، تم تعديلها لاستدعاء الـ API
   const fetchFavourites = useCallback(async () => {
     try {
-      const [versesResponse, chaptersResponse] = await Promise.all([
-        fetch('/data/favourite/verses.json', { cache: 'no-store' }),
-        fetch('/data/favourite/chapters.json', { cache: 'no-store' })
-      ]);
+      const response = await fetch('/api/favourite', { cache: 'no-store' });
 
-      const versesData = versesResponse.ok ? await versesResponse.json() : [];
-      const chaptersData = chaptersResponse.ok ? await chaptersResponse.json() : [];
+      if (!response.ok) {
+        throw new Error('Failed to fetch favorites from API');
+      }
+
+      const { verses: versesData, chapters: chaptersData } = await response.json();
 
       const versesMap = {};
       versesData.forEach(v => versesMap[v.verseKey] = v);

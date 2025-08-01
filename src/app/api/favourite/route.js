@@ -2,110 +2,119 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
+import { NextResponse } from 'next/server';
 
-const versesFilePath = path.join(process.cwd(), 'public/data/favourites/verses.json');
-const chaptersFilePath = path.join(process.cwd(), 'public/data/favourites/chapters.json');
+// تحديد مسارات الملفات
+// تأكد أن هذا المسار هو الصحيح داخل مشروعك (مثلا: db/favourites)
+const favouritesDir = path.join(process.cwd(), 'db/favourites');
+const versesFilePath = path.join(favouritesDir, 'verses.json');
+const chaptersFilePath = path.join(favouritesDir, 'chapters.json');
 
-async function getFavouritesFileContent(filePath) {
+// دالة مساعدة لقراءة الملفات
+async function readFavouritesFile(filePath) {
   try {
     const fileContent = await fs.readFile(filePath, 'utf-8');
-    if (!fileContent.trim()) {
-      return [];
-    }
     return JSON.parse(fileContent);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, '[]', 'utf-8');
+      // إذا كان الملف غير موجود، رجّع مصفوفة فارغة
+      console.warn(`File not found: ${filePath}. Returning empty array.`);
       return [];
     }
+    console.error(`Error reading file ${filePath}:`, error);
     throw error;
   }
 }
 
-// دالة مساعدة لتحديث الملف وارجاع المحتوى الجديد
-async function updateAndGetFile(filePath, updatedData) {
-  await fs.writeFile(filePath, JSON.stringify(updatedData, null, 2));
-  return updatedData;
-}
-
-export async function POST(request) {
+// دالة مساعدة لكتابة الملفات
+async function writeFavouritesFile(filePath, data) {
   try {
-    const newFavouriteItem = await request.json();
-    const isChapter = newFavouriteItem.type === 'chapter';
-    const filePath = isChapter ? chaptersFilePath : versesFilePath;
-    const favourites = await getFavouritesFileContent(filePath);
-
-    let isExisting;
-    if (isChapter) {
-      isExisting = favourites.some(item => item.chapterKey === newFavouriteItem.chapterKey);
-    } else {
-      isExisting = favourites.some(item => item.verseKey === newFavouriteItem.verseKey);
-    }
-
-    if (!isExisting) {
-      favourites.push(newFavouriteItem);
-      // إرجاع المحتوى الكامل بعد التحديث
-      const updatedData = await updateAndGetFile(filePath, favourites);
-      return new Response(JSON.stringify(updatedData), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    }
-
-    // إرجاع المحتوى الحالي إذا كان موجوداً بالفعل
-    return new Response(JSON.stringify(favourites), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
+    const jsonString = JSON.stringify(data, null, 2);
+    await fs.writeFile(filePath, jsonString, 'utf-8');
   } catch (error) {
-    console.error('Failed to add item:', error);
-    return new Response(JSON.stringify({ error: 'Failed to add item' }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    console.error(`Error writing to file ${filePath}:`, error);
+    throw error;
   }
 }
 
-export async function DELETE(request) {
+// دالة GET: لجلب بيانات المفضلة
+export async function GET() {
   try {
-    const { keyToDelete, type } = await request.json();
-    
-    const isChapter = type === 'chapter';
-    const filePath = isChapter ? chaptersFilePath : versesFilePath;
-    
-    const favourites = await getFavouritesFileContent(filePath);
+    const verses = await readFavouritesFile(versesFilePath);
+    const chapters = await readFavouritesFile(chaptersFilePath);
 
-    let updatedFavourites;
-    if (isChapter) {
-      updatedFavourites = favourites.filter(item => item.chapterKey !== keyToDelete);
+    // إرجاع كائن يحتوي على بيانات الآيات والإصحاحات
+    return NextResponse.json({ verses, chapters }, { status: 200 });
+  } catch (error) {
+    console.error('Failed to get favourites:', error);
+    return NextResponse.json({ error: 'Failed to retrieve favourites' }, { status: 500 });
+  }
+}
+
+// دالة POST: لإضافة آية أو إصحاح جديد للمفضلة
+export async function POST(req) {
+  // الكود الخاص بـ POST يظل كما هو
+  try {
+    const newFavourite = await req.json();
+    let filePath;
+    let dataArray;
+
+    if (newFavourite.type === 'verse') {
+      filePath = versesFilePath;
+      dataArray = await readFavouritesFile(filePath);
+      // إضافة العنصر الجديد مع التأكد من عدم وجود تكرار
+      const existingIndex = dataArray.findIndex(item => item.verseKey === newFavourite.verseKey);
+      if (existingIndex === -1) {
+        dataArray.push(newFavourite);
+      } else {
+        dataArray[existingIndex] = newFavourite;
+      }
+    } else if (newFavourite.type === 'chapter') {
+      filePath = chaptersFilePath;
+      dataArray = await readFavouritesFile(filePath);
+      // إضافة العنصر الجديد مع التأكد من عدم وجود تكرار
+      const existingIndex = dataArray.findIndex(item => item.chapterKey === newFavourite.chapterKey);
+      if (existingIndex === -1) {
+        dataArray.push(newFavourite);
+      } else {
+        dataArray[existingIndex] = newFavourite;
+      }
     } else {
-      updatedFavourites = favourites.filter(item => item.verseKey !== keyToDelete);
+      return NextResponse.json({ error: 'Invalid favourite type' }, { status: 400 });
     }
 
-    // إرجاع المحتوى الكامل بعد التحديث
-    const updatedData = await updateAndGetFile(filePath, updatedFavourites);
-
-    return new Response(JSON.stringify(updatedData), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    await writeFavouritesFile(filePath, dataArray);
+    return NextResponse.json({ message: 'Favourite added successfully' }, { status: 201 });
   } catch (error) {
-    console.error('Failed to delete item:', error);
-    return new Response(JSON.stringify({ error: 'Failed to delete item' }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    console.error('Failed to add favourite:', error);
+    return NextResponse.json({ error: 'Failed to add favourite' }, { status: 500 });
+  }
+}
+
+// دالة DELETE: لحذف آية أو إصحاح من المفضلة
+export async function DELETE(req) {
+  // الكود الخاص بـ DELETE يظل كما هو
+  try {
+    const { keyToDelete, type } = await req.json();
+    let filePath;
+    let dataArray;
+
+    if (type === 'verse') {
+      filePath = versesFilePath;
+      dataArray = await readFavouritesFile(filePath);
+      dataArray = dataArray.filter(item => item.verseKey !== keyToDelete);
+    } else if (type === 'chapter') {
+      filePath = chaptersFilePath;
+      dataArray = await readFavouritesFile(filePath);
+      dataArray = dataArray.filter(item => item.chapterKey !== keyToDelete);
+    } else {
+      return NextResponse.json({ error: 'Invalid favourite type' }, { status: 400 });
+    }
+
+    await writeFavouritesFile(filePath, dataArray);
+    return NextResponse.json({ message: 'Favourite removed successfully' }, { status: 200 });
+  } catch (error) {
+    console.error('Failed to delete favourite:', error);
+    return NextResponse.json({ error: 'Failed to delete favourite' }, { status: 500 });
   }
 }
