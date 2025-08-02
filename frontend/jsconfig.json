@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["frontend/src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.json"]
+}

@@ -1,0 +1,337 @@
+/* src/app/page.module.css */
+
+/*
+   تم نقل تعريف متغيرات CSS إلى src/app/globals.css
+   لحل مشكلة "Selector ":root" is not pure"
+*/
+
+.container {
+  /* هنا تبدأ أنماط .container مباشرة */
+  padding: 30px;
+  max-width: 1200px;
+  margin: 30px auto;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, var(--color-background-start) 0%, var(--color-background-end) 100%); /* <--- هذا يجب أن يبقى هنا لأنها خلفية الكونتينر نفسه */
+  color: var(--color-text-light);
+  text-align: center;
+  transition: background 0.7s ease-in-out;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* أضفها لتوسيط المحتوى عموديًا */
+  min-height: 100vh; /* تأكد من أن الكونتينر يأخذ الارتفاع الكامل */
+  gap: 50px;
+  border-radius: 12px; /* تأكد من وجود هذه الخصائص هنا إذا أردتها للكونتينر */
+  box-shadow: 0 8px 30px var(--color-shadow-medium);
+}
+
+/* RTL direction for Arabic - هذا يبقى هنا لأنها فئة خاصة بهذا المكون */
+.rtl {
+    direction: rtl;
+}
+
+/* Header styling */
+.heading {
+  color: var(--color-accent-gold);
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: clamp(3rem, 9vw, 5.5rem);
+  font-weight: 900;
+  text-shadow: 0px 6px 12px var(--color-shadow-medium);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  border-bottom: 3px solid var(--color-accent-gold); /* حدود بلون ذهبي */
+  padding-bottom: 15px;
+  width: 100%;
+}
+
+/* Floating animation */
+@keyframes floating {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+}
+
+.floating {
+    animation: floating 6s ease-in-out infinite;
+}
+
+/* Language selector container */
+.languageContainer {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px 35px;
+    background: var(--color-card-bg);
+    border-radius: 60px;
+    box-shadow: 0 10px 25px var(--color-shadow-medium);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--color-border-light);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.languageContainer:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 35px var(--color-shadow-medium);
+}
+
+.languageLabel {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-text-light);
+}
+
+.languageSelect {
+    appearance: none;
+    background: var(--color-primary-light);
+    color: var(--color-text-light);
+    padding: 10px 20px;
+    border-radius: 30px;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    outline: none;
+    box-shadow: inset 0 3px 6px var(--color-shadow-medium);
+    transition: background 0.4s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.languageSelect:hover {
+    background: var(--color-primary-dark);
+    transform: translateY(-3px);
+}
+
+.languageSelect:focus {
+    box-shadow: 0 0 0 4px var(--color-accent-gold);
+}
+
+/* Daily Verse Box Styles - Enhanced Card Style */
+.dailyVerseBox {
+    background: var(--color-card-bg);
+    border-radius: 25px;
+    padding: 40px;
+    margin-bottom: 50px;
+    box-shadow: 0 15px 30px var(--color-shadow-medium);
+    max-width: 800px;
+    width: 90%;
+    backdrop-filter: blur(12px);
+    border: 2px solid var(--color-border-light);
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.dailyVerseBox::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+    transform: rotate(45deg);
+    opacity: 0.8;
+    pointer-events: none;
+    animation: subtle-pulse 6s infinite ease-in-out;
+}
+
+@keyframes subtle-pulse {
+    0% { transform: scale(1) rotate(45deg); opacity: 0.8; }
+    50% { transform: scale(1.1) rotate(45deg); opacity: 0.9; }
+    100% { transform: scale(1) rotate(45deg); opacity: 0.8; }
+}
+
+.dailyVerseBox:hover {
+    transform: translateY(-10px) scale(1.03);
+    box-shadow: 0 20px 40px var(--color-shadow-medium);
+}
+
+.dailyVerseTitle {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    color: var(--color-accent-gold);
+    margin-bottom: 25px;
+    text-shadow: 0px 3px 6px var(--color-shadow-light);
+}
+
+.dailyVerseText {
+    font-size: clamp(1.4rem, 4vw, 2.2rem);
+    line-height: 1.9;
+    margin-bottom: 20px;
+    color: var(--color-text-light);
+    font-family: 'Amiri', serif;
+    text-shadow: 0px 1px 3px var(--color-shadow-light);
+    white-space: pre-wrap;
+}
+
+.dailyVerseReference {
+    font-size: clamp(1rem, 2.8vw, 1.3rem);
+    color: var(--color-text-light);
+    font-style: italic;
+    font-weight: 500;
+}
+
+/* Button Group */
+.buttonGroup {
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    margin-top: 30px;
+    direction: rtl; /* <--- تأكد أن اتجاه الأزرار من اليمين لليسار هنا */
+}
+
+/* Individual Button Styles */
+.button {
+    appearance: none;
+    border-radius: 60px;
+    height: 60px;
+    padding: 0 40px;
+    border: none;
+    transition:
+        background 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+        transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1),
+        box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--button-text-color);
+    box-shadow: 0 8px 16px var(--color-shadow-medium);
+    min-width: 180px;
+    letter-spacing: 0.02em;
+}
+
+/* Specific button colors */
+.button:nth-child(1) { /* Search button */
+    background: var(--button-bg-1);
+}
+
+.button:nth-child(2) { /* Read button */
+    background: var(--button-bg-2);
+}
+
+.button:nth-child(3) { /* Maps button (if added) */
+    background: linear-gradient(to right, #28a745, #218838);
+}
+
+
+/* Button hover effects */
+.button:hover {
+    transform: translateY(-8px) scale(1.05);
+    box-shadow: 0 15px 30px var(--color-shadow-medium);
+    opacity: 1;
+}
+
+/* Specific button hover background colors */
+.button:nth-child(1):hover {
+    background: var(--button-hover-1);
+}
+
+.button:nth-child(2):hover {
+    background: var(--button-hover-2);
+}
+
+.button:nth-child(3):hover { /* Maps button hover */
+    background: linear-gradient(to right, #218838, #1E7E34);
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+    .container {
+        padding: 40px 15px;
+        gap: 40px;
+    }
+
+    .heading {
+        font-size: clamp(2.5rem, 8vw, 4rem);
+    }
+
+    .languageContainer {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 25px;
+    }
+
+    .dailyVerseBox {
+        padding: 25px;
+        margin-bottom: 35px;
+    }
+
+    .dailyVerseTitle {
+        font-size: clamp(1.6rem, 4.5vw, 2.2rem);
+    }
+
+    .dailyVerseText {
+        font-size: clamp(1.1rem, 3.8vw, 1.6rem);
+    }
+
+    .buttonGroup {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .button {
+        width: 100%;
+        max-width: 280px;
+        height: 55px;
+        font-size: 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 30px 10px;
+        gap: 30px;
+    }
+
+    .heading {
+        font-size: clamp(2rem, 7vw, 3.5rem);
+        margin-bottom: 30px;
+    }
+
+    .languageContainer {
+        padding: 10px 20px;
+    }
+
+    .languageSelect {
+        font-size: 1rem;
+        padding: 8px 15px;
+    }
+
+    .dailyVerseBox {
+        padding: 20px;
+        margin-bottom: 30px;
+        width: 95%;
+    }
+
+    .dailyVerseTitle {
+        font-size: clamp(1.4rem, 4vw, 2rem);
+        margin-bottom: 15px;
+    }
+
+    .dailyVerseText {
+        font-size: clamp(1rem, 3.5vw, 1.4rem);
+        line-height: 1.7;
+    }
+
+    .dailyVerseReference {
+        font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+    }
+
+    .buttonGroup {
+        gap: 15px;
+    }
+
+    .button {
+        height: 50px;
+        font-size: 1.1rem;
+        padding: 0 30px;
+    }
+}
