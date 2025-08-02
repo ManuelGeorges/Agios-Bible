@@ -419,13 +419,13 @@ export default function BibleSearchPage() {
               onChange={(e) => { setSelectedTestament(e.target.value); setSelectedBookIndex(''); setSelectedChapter(''); }}
               dir={dir}
             />
-            <CustomSelect
-              label="السفر"
-              options={[{ value: '', label: 'كل الأسفار' }, ...availableBooks.map((bookName, index) => ({ value: allBooks.indexOf(bookName), label: bookName }))]}
-              value={selectedBookIndex}
-              onChange={(e) => { setSelectedBookIndex(e.target.value); setSelectedChapter(''); }}
-              dir={dir}
-            />
+          <CustomSelect
+            label="السفر"
+            options={[{ value: '', label: 'كل الأسفار' }, ...availableBooks.map(book => ({ value: allBooks.indexOf(book), label: book.name }))]}
+            value={selectedBookIndex}
+            onChange={(e) => { setSelectedBookIndex(e.target.value); setSelectedChapter(''); }}
+            dir={dir}
+          />
             <CustomSelect
               label="الأصحاح"
               options={[{ value: '', label: 'كل الأصحاحات' }, ...availableChapters.map(chapterIndex => ({ value: chapterIndex, label: convertToArabicNumber(chapterIndex + 1) }))]}
