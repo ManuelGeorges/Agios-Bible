@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -12,7 +11,6 @@ function convertToArabicNumber(num) {
 function CustomSelect({ label, options, value, onChange, dir }) {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef(null);
-
   const selectedLabel = options.find(opt => opt.value.toString() === value.toString())?.label || `اختر ${label}`;
 
   const handleToggle = () => setIsOpen(!isOpen);
@@ -64,7 +62,7 @@ function CustomSelect({ label, options, value, onChange, dir }) {
 export default function BibleSearchPage() {
   const [inputTerm, setInputTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState('literal'); 
+  const [searchType, setSearchType] = useState('literal');
   const [bibleData, setBibleData] = useState(null);
   const [bookNamesData, setBookNamesData] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
@@ -136,7 +134,6 @@ export default function BibleSearchPage() {
   const handleFavouriteSingleVerse = (verse) => {
     const verseKey = `${verse.book_index}-${verse.chapter}-${verse.verse}`;
     const isFavourite = favouriteVerses[verseKey] !== undefined;
-
     let newFavouriteVerses = { ...favouriteVerses };
     if (isFavourite) {
       delete newFavouriteVerses[verseKey];
@@ -153,7 +150,6 @@ export default function BibleSearchPage() {
       };
       setFavouriteMessage(language === 'ar' ? 'تم الإضافة إلى المفضلة!' : 'Added to favorites!');
     }
-
     setFavouriteVerses(newFavouriteVerses);
     saveFavourites(newFavouriteVerses);
     setTimeout(() => setFavouriteMessage(''), 2000);
@@ -189,17 +185,14 @@ export default function BibleSearchPage() {
 
   const handleVerseTouchEnd = (verseKey) => {
     if (!isSmallScreen) return;
-    
     if (pressTimer) {
       clearTimeout(pressTimer);
       setPressTimer(null);
     }
-    
     if (didHoldRef.current) {
         didHoldRef.current = false;
         return;
     }
-
     if (isMobileSelectionMode) {
       handleVerseSelection(verseKey);
     }
@@ -207,14 +200,12 @@ export default function BibleSearchPage() {
   
   const handleCopySelectedVerses = () => {
     if (selectedVerses.size === 0) return;
-    
     const compiledText = searchResults
       .filter(verse => selectedVerses.has(`${verse.book_index}-${verse.chapter}-${verse.verse}`))
       .map(verse => {
         const reference = `(${verse.book} ${language === 'ar' ? convertToArabicNumber(verse.chapter + 1) : verse.chapter + 1}:${language === 'ar' ? convertToArabicNumber(verse.verse + 1) : verse.verse + 1})`;
         return `${verse.text} ${reference}`;
       }).join('\n\n');
-    
     copyTextToClipboard(compiledText);
     setSelectedVerses(new Set());
     setIsMobileSelectionMode(false);
@@ -222,10 +213,8 @@ export default function BibleSearchPage() {
   
   const handleFavouriteSelectedVerses = () => {
     if (selectedVerses.size === 0) return;
-    
     let newFavouriteVerses = { ...favouriteVerses };
     const selectedResults = searchResults.filter(verse => selectedVerses.has(`${verse.book_index}-${verse.chapter}-${verse.verse}`));
-    
     selectedResults.forEach(verse => {
       const verseKey = `${verse.book_index}-${verse.chapter}-${verse.verse}`;
       newFavouriteVerses[verseKey] = {
@@ -238,7 +227,6 @@ export default function BibleSearchPage() {
         language: language,
       };
     });
-    
     setFavouriteVerses(newFavouriteVerses);
     saveFavourites(newFavouriteVerses);
     setFavouriteMessage(language === 'ar' ? `تم إضافة ${selectedResults.length} آية إلى المفضلة!` : `Added ${selectedResults.length} verses to favorites!`);
@@ -249,19 +237,16 @@ export default function BibleSearchPage() {
   
   const handleCopyAllResults = () => {
     if (searchResults.length === 0) return;
-    
     const compiledText = searchResults
       .map(verse => {
         const reference = `(${verse.book} ${language === 'ar' ? convertToArabicNumber(verse.chapter + 1) : verse.chapter + 1}:${language === 'ar' ? convertToArabicNumber(verse.verse + 1) : verse.verse + 1})`;
         return `${verse.text} ${reference}`;
       }).join('\n\n');
-      
     copyTextToClipboard(compiledText);
   };
   
   const handleFavouriteAllResults = () => {
     if (searchResults.length === 0) return;
-    
     let newFavouriteVerses = { ...favouriteVerses };
     searchResults.forEach(verse => {
       const verseKey = `${verse.book_index}-${verse.chapter}-${verse.verse}`;
@@ -275,7 +260,6 @@ export default function BibleSearchPage() {
         language: language,
       };
     });
-    
     setFavouriteVerses(newFavouriteVerses);
     saveFavourites(newFavouriteVerses);
     setFavouriteMessage(language === 'ar' ? `تم إضافة ${searchResults.length} آية إلى المفضلة!` : `Added ${searchResults.length} verses to favorites!`);
@@ -286,21 +270,19 @@ export default function BibleSearchPage() {
     const fetchData = async () => {
       try {
         const [bibleResponse, bookNamesResponse] = await Promise.all([
-          fetch(`/data/bibles/ar_svd.json`),
-          fetch(`/data/bookNames.json`)
+          fetch('/data/bibles/ar_svd.json'),
+          fetch('/data/bookNames.json')
         ]);
         
         if (!bibleResponse.ok || !bookNamesResponse.ok) {
           throw new Error('فشل في جلب البيانات من المسارات المحلية.');
         }
-
         const bibleJson = await bibleResponse.json();
         const bookNamesJson = await bookNamesResponse.json();
         
         setBibleData(bibleJson);
         setBookNamesData(bookNamesJson);
         
-        // Corrected logic to include the `testament` property
         const flattenedVerses = bibleJson.flatMap((book, bookIndex) => 
           book.chapters.flatMap((chapter, chapterIndex) =>
             chapter.map((verseText, verseIndex) => ({
@@ -309,15 +291,14 @@ export default function BibleSearchPage() {
               book_index: bookIndex,
               chapter: chapterIndex,
               verse: verseIndex,
-              testament: book.testament, // This is the corrected line
+              testament: book.testament,
             }))
           )
         );
         setAllVerses(flattenedVerses);
-        
         setIsLoading(false);
       } catch (err) {
-        setError('فشل في جلب البيانات. تأكد من وجود ملفات البيانات في المسار /data/bibles/ و /data/.');
+        setError('فشل في جلب البيانات. تأكد من وجود ملفات البيانات في المسار public/data/bibles/ و public/data/.');
         setIsLoading(false);
         console.error(err);
       }
@@ -344,19 +325,15 @@ export default function BibleSearchPage() {
   useEffect(() => {
     if (searchQuery.length > 0 && allVerses.length > 0) {
       let filteredVerses = allVerses;
-
       if (selectedTestament) {
         filteredVerses = filteredVerses.filter(verse => verse.testament === selectedTestament);
       }
-
       if (selectedBookIndex !== '') {
         filteredVerses = filteredVerses.filter(verse => verse.book_index.toString() === selectedBookIndex.toString());
       }
-
       if (selectedChapter !== '') {
         filteredVerses = filteredVerses.filter(verse => verse.chapter.toString() === selectedChapter.toString());
       }
-      
       const results = filteredVerses.filter(verse => verse.text.includes(searchQuery));
       setSearchResults(results);
     } else {
@@ -377,23 +354,20 @@ export default function BibleSearchPage() {
       </span>
     );
   };
+  
   const allBooks = bookNamesData ? bookNamesData[language] : [];
-const availableBooks = allBooks.filter((_, index) => {
-  if (!selectedTestament) return true;
-
-  const isOldTestament = index >= 0 && index <= 38;
-  
-  const isNewTestament = index >= 39 && index <= 65;
-
-  if (selectedTestament === 'OT') {
-    return isOldTestament;
-  }
-  if (selectedTestament === 'NT') {
-    return isNewTestament;
-  }
-  
-  return true;
-});
+  const availableBooks = allBooks.filter((_, index) => {
+    if (!selectedTestament || !bibleData) return true;
+    const isOldTestament = index >= 0 && index <= 38;
+    const isNewTestament = index >= 39 && index <= 65;
+    if (selectedTestament === 'OT') {
+      return isOldTestament;
+    }
+    if (selectedTestament === 'NT') {
+      return isNewTestament;
+    }
+    return true;
+  });
 
   const availableChapters = selectedBookIndex !== '' && bibleData ? bibleData[selectedBookIndex].chapters.map((_, index) => index) : [];
 
