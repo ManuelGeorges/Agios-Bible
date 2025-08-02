@@ -13,7 +13,7 @@ export default function BibleNavbar() {
             <path d="M19 12H17V10H19V12ZM19 14H17V16H19V14ZM21 4H3C1.89543 4 1 4.89543 1 6V18C1 19.1046 1.89543 20 3 20H21C22.1046 20 23 19.1046 23 18V6C23 4.89543 22.1046 4 21 4ZM21 6V8H3V6H21ZM3 18V10H21V18H3Z"></path>
           </svg>
         </Link>
-        <Link href="/bible/search" className={styles.navLink} aria-label="Search">
+        <Link href="/search" className={styles.navLink} aria-label="Search">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={styles.navIcon}>
             <path d="M15.5 14H14.71L14.25 13.59C15.41 12.09 16.17 10.15 16.17 8.08C16.17 3.63 12.54 0 8.08 0C3.63 0 0 3.63 0 8.08C0 12.54 3.63 16.17 8.08 16.17C10.15 16.17 12.09 15.41 13.59 14.25L14 14.71V15.5L19.5 21L21 19.5L15.5 14ZM8.08 14C4.75 14 2 11.25 2 8.08C2 4.75 4.75 2 8.08 2C11.25 2 14 4.75 14 8.08C14 11.25 11.25 14 8.08 14Z"></path>
           </svg>
