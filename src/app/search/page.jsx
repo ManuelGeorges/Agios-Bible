@@ -81,6 +81,8 @@ export default function BibleSearchPage() {
   const [isMobileSelectionMode, setIsMobileSelectionMode] = useState(false);
   const [pressTimer, setPressTimer] = useState(null);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
+  // useRef to prevent immediate deselection after a long press on mobile
+  const didHoldRef = useRef(false);
 
   const fetchFavourites = useCallback(() => {
     try {
@@ -164,7 +166,6 @@ export default function BibleSearchPage() {
       } else {
         newSelection.add(verseKey);
       }
-      // Check if any verse is still selected
       if (newSelection.size === 0) {
         setIsMobileSelectionMode(false);
       }
@@ -173,36 +174,51 @@ export default function BibleSearchPage() {
   };
 
   const handleVerseTouchStart = (verseKey) => {
-    // Only for small screens
+    // This handler initiates a long-press timer.
+    // If a long press is successful, it will set `isMobileSelectionMode` and select the verse.
     if (!isSmallScreen) return;
-
+    // Reset the flag for a new touch interaction
+    didHoldRef.current = false; 
     setPressTimer(
       setTimeout(() => {
         setIsMobileSelectionMode(true);
         setSelectedVerses(new Set([verseKey]));
+        // Set the flag to indicate a successful long press
+        didHoldRef.current = true;
+        setPressTimer(null);
       }, 500)
     );
   };
 
   const handleVerseTouchEnd = (verseKey) => {
-    // Only for small screens
+    // This handler fires when the user lifts their finger.
+    // It clears the timer for short taps and prevents immediate deselection after a long press.
     if (!isSmallScreen) return;
 
     if (pressTimer) {
       clearTimeout(pressTimer);
+      setPressTimer(null);
     }
 
+    // If the touch end is part of a long press (didHoldRef is true),
+    // we do nothing here because the selection was already handled by the timer.
+    if (didHoldRef.current) {
+      didHoldRef.current = false; // Reset the flag
+      return;
+    }
+    
+    // If we're already in multi-select mode (from a previous long press),
+    // a subsequent short tap will toggle the verse selection.
     if (isMobileSelectionMode) {
       handleVerseSelection(verseKey);
     }
   };
 
   const handleVerseClick = (verseKey) => {
-    // For large screens, and for small screens if already in selection mode
+    // This handler manages selection on large screens (non-touch)
+    // or when already in multi-select mode on small screens.
     if (!isSmallScreen || isMobileSelectionMode) {
       handleVerseSelection(verseKey);
-    } else {
-      // If not in selection mode on mobile, a normal click should not select
     }
   };
   
@@ -350,7 +366,7 @@ export default function BibleSearchPage() {
       }
 
       if (selectedBookIndex !== '') {
-        filteredVerses = filteredVerses.filter(verse => verse.book_index.toString() === selectedBookIndex.toString());
+Verses = filteredVerses.filter(verse => verse.book_index.toString() === selectedBookIndex.toString());
       }
 
       if (selectedChapter !== '') {
