@@ -174,50 +174,37 @@ export default function BibleSearchPage() {
   };
 
   const handleVerseTouchStart = (verseKey) => {
-    // This handler initiates a long-press timer.
-    // If a long press is successful, it will set `isMobileSelectionMode` and select the verse.
     if (!isSmallScreen) return;
-    // Reset the flag for a new touch interaction
-    didHoldRef.current = false; 
+    didHoldRef.current = false; // Reset on every new touch
     setPressTimer(
       setTimeout(() => {
         setIsMobileSelectionMode(true);
         setSelectedVerses(new Set([verseKey]));
-        // Set the flag to indicate a successful long press
-        didHoldRef.current = true;
+        didHoldRef.current = true; // Flag indicates a long press succeeded
         setPressTimer(null);
       }, 500)
     );
   };
 
   const handleVerseTouchEnd = (verseKey) => {
-    // This handler fires when the user lifts their finger.
-    // It clears the timer for short taps and prevents immediate deselection after a long press.
     if (!isSmallScreen) return;
-
+    
+    // Clear the timer if it exists (i.e., this was a short tap)
     if (pressTimer) {
       clearTimeout(pressTimer);
       setPressTimer(null);
     }
-
-    // If the touch end is part of a long press (didHoldRef is true),
-    // we do nothing here because the selection was already handled by the timer.
-    if (didHoldRef.current) {
-      didHoldRef.current = false; // Reset the flag
-      return;
-    }
     
-    // If we're already in multi-select mode (from a previous long press),
-    // a subsequent short tap will toggle the verse selection.
-    if (isMobileSelectionMode) {
-      handleVerseSelection(verseKey);
+    // If a long press was just completed, the selection is already handled.
+    // We do nothing here to prevent immediate deselection.
+    if (didHoldRef.current) {
+        didHoldRef.current = false;
+        return;
     }
-  };
 
-  const handleVerseClick = (verseKey) => {
-    // This handler manages selection on large screens (non-touch)
-    // or when already in multi-select mode on small screens.
-    if (!isSmallScreen || isMobileSelectionMode) {
+    // Now, for a short tap (not a long press)
+    // If we are already in selection mode, a short tap should toggle the verse.
+    if (isMobileSelectionMode) {
       handleVerseSelection(verseKey);
     }
   };
@@ -485,13 +472,20 @@ Verses = filteredVerses.filter(verse => verse.book_index.toString() === selected
                     const verseKey = `${verse.book_index}-${verse.chapter}-${verse.verse}`;
                     const isFavourite = favouriteVerses[verseKey] !== undefined;
                     const isSelected = selectedVerses.has(verseKey);
+                    
+                    const verseProps = {};
+                    if (isSmallScreen) {
+                      verseProps.onTouchStart = () => handleVerseTouchStart(verseKey);
+                      verseProps.onTouchEnd = () => handleVerseTouchEnd(verseKey);
+                    } else {
+                      verseProps.onClick = () => handleVerseSelection(verseKey);
+                    }
+                    
                     return (
                       <div
                         key={verseKey}
                         className={`${styles.verseItem} ${isSelected ? styles.selectedVerse : ''} ${isFavourite ? styles.isFavourite : ''}`}
-                        onClick={() => handleVerseClick(verseKey)}
-                        onTouchStart={() => handleVerseTouchStart(verseKey)}
-                        onTouchEnd={() => handleVerseTouchEnd(verseKey)}
+                        {...verseProps}
                       >
                         <div className={styles.verseHeader}>
                           {!isSmallScreen && (
