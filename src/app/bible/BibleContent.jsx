@@ -83,22 +83,24 @@ export default function BibleContent() {
     }
   }, []);
 
-  // جلب اسم السفر باللغة المختارة
+  // ----------------- بداية التعديل -----------------
+  // دالة لجلب اسم السفر باللغة المختارة من الكائن
   const getBookName = useCallback((index) => {
-    return bookNamesData?.[language]?.[index] || 'Unknown Book';
+    return bookNamesData?.[language]?.[index]?.name || 'Unknown Book';
   }, [bookNamesData, language]);
+
+  // دالة لجلب فهرس السفر من اسمه (تم التعديل لتتناسب مع صيغة الكائن)
+  const getBookIndexByName = useCallback((name) => {
+    if (!bookNamesData?.[language] || !name) return 0;
+    const index = bookNamesData[language].findIndex(book => book.name?.toLowerCase() === name.toLowerCase());
+    return index !== -1 ? index : 0;
+  }, [bookNamesData, language]);
+  // ----------------- نهاية التعديل -----------------
 
   // جلب اختصار اسم السفر
   const getBookAbbreviation = useCallback((index) => {
     return bookNamesData?.abbreviations?.[index] || '';
   }, [bookNamesData]);
-
-  // جلب فهرس السفر من اسمه
-  const getBookIndexByName = useCallback((name) => {
-    if (!bookNamesData?.[language] || !name) return 0;
-    const index = bookNamesData[language].findIndex(bookName => bookName.toLowerCase() === name.toLowerCase());
-    return index !== -1 ? index : 0;
-  }, [bookNamesData, language]);
 
   useEffect(() => {
     fetchFavourites();
@@ -540,15 +542,17 @@ export default function BibleContent() {
             <div className={styles.arrow}></div>
           </div>
           <ul className={`${styles.dropdownMenu} ${isBookDropdownOpen ? styles.open : ''}`}>
-            {bibleData?.map((book, index) => (
+            {/* ----------------- بداية التعديل ----------------- */}
+            {bookNamesData?.[language]?.map((book, index) => (
               <li
                 key={index}
                 className={`${styles.dropdownItem} ${selectedBookIndex === index ? styles.selected : ''}`}
                 onClick={() => handleBookItemClick(index)}
               >
-                {getBookName(index)}
+                {book.name} {/* هنا تم إضافة .name لعرض اسم السفر فقط */}
               </li>
             ))}
+            {/* ----------------- نهاية التعديل ----------------- */}
           </ul>
         </div>
         

@@ -166,17 +166,6 @@ function LandingPage() {
                 )
             )}
 
-            <div className={styles.buttonGroup}>
-                <button onClick={goToSearch} className={`${styles.button} ${styles.floating}`}>
-                    {getText('ابحث', 'Search', 'Chercher')}
-                </button>
-                <button onClick={goToBible} className={`${styles.button} ${styles.floating}`}>
-                    {getText('اقرأ', 'Read', 'Lire')}
-                </button>
-                <button onClick={() => router.push('/maps')} className={`${styles.button} ${styles.floating}`}>
-                    {getText('الخرائط', 'Maps', 'Cartes')}
-                </button>
-            </div>
         </main>
     );
 }
