@@ -73,7 +73,6 @@ function LandingPage() {
             const currentDay = today.getDate();
 
             try {
-                // *** هذا هو السطر الذي تم تعديله ***
                 const module = await import(`../data/dailyVerses/${selectedLanguage}.json`);
                 dailyVersesData = module.default;
             } catch (error) {
@@ -127,24 +126,8 @@ function LandingPage() {
     return (
         <main className={`${styles.container} ${selectedLanguage === 'ar' ? styles.rtl : ''}`}>
             <h1 className={`${styles.heading} ${styles.floating}`}>
-                {getText('مرحبًا بك في تطبيق دراسة الكتاب المقدس', 'Welcome to the Bible Study App', 'Bienvenue dans l\'application d\'étude de la Bible')}
+                {getText('مرحباً بك في تطبيق Agios', 'Welcome to the Bible Study App', 'Bienvenue dans l\'application d\'étude de la Bible')}
             </h1>
-
-            <div className={`${styles.languageContainer} ${styles.floating}`}>
-                <label htmlFor="language" className={styles.languageLabel}>
-                    {getText('اختر اللغة:', 'Choose Language:', 'Choisissez la langue :')}
-                </label>
-                <select
-                    id="language"
-                    value={selectedLanguage}
-                    onChange={handleChange}
-                    className={`${styles.languageSelect} ${styles.floating}`}
-                >
-                    <option value="ar">العربية</option>
-                    <option value="en">English</option>
-                    <option value="fr">Français</option>
-                </select>
-            </div>
 
             {isLoadingVerse ? (
                 <div className={`${styles.dailyVerseBox} ${styles.floating}`}>
