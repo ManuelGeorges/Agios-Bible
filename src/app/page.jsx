@@ -199,31 +199,98 @@ const LandingPage = () => {
         return { daysDone, totalDays, percent };
     }, []);
 
-    const fetchDailyContent = useCallback(async () => {
-        if (!allBookNames || Object.keys(allBookNames).length === 0) return;
+// Cache داخل نفس جلسة التطبيق لمنع إعادة تحميل نفس المحتوى
+const dailyContentCache = new globalThis.Map();
+const dailyContentPromises = new globalThis.Map();
+
+const fetchDailyContent = useCallback(async () => {
+    if (!allBookNames || Object.keys(allBookNames).length === 0) return;
+
+    const { month, day } = getCairoDateInfo();
+    const cacheKey = `${language}-${month}-${day}`;
+
+    // لو المحتوى موجود بالفعل في الذاكرة، استخدمه فورًا
+    if (dailyContentCache.has(cacheKey)) {
+        const cached = dailyContentCache.get(cacheKey);
+
+        setDailyVerse(cached.verse);
+        setDailyQuestion(cached.question);
+        setIsDailyLoading(false);
+
+        return;
+    }
+
+    // لو فيه تحميل شغال بالفعل لنفس المحتوى، استخدم نفس الـ Promise
+    if (dailyContentPromises.has(cacheKey)) {
         setIsDailyLoading(true);
-        const { month, day } = getCairoDateInfo();
 
         try {
-            // 1. جلب مراجع آية اليوم بمهلة زمنية
-            const verseRefsRes = await fetchWithTimeout('/data/dailyVerses.json', { timeout: 3000 });
-            if (!verseRefsRes.ok) throw new Error("Daily verses file not found");
+            const result = await dailyContentPromises.get(cacheKey);
+
+            if (result) {
+                setDailyVerse(result.verse);
+                setDailyQuestion(result.question);
+            }
+        } catch (e) {
+            console.error("Daily content shared fetch error:", e);
+        } finally {
+            setIsDailyLoading(false);
+        }
+
+        return;
+    }
+
+    setIsDailyLoading(true);
+
+    const loadPromise = (async () => {
+        try {
+            // 1. جلب مراجع آية اليوم
+            const verseRefsRes = await fetchWithTimeout(
+                '/data/dailyVerses.json',
+                { timeout: 3000 }
+            );
+
+            if (!verseRefsRes.ok) {
+                throw new Error("Daily verses file not found");
+            }
+
             const verseRefs = await verseRefsRes.json();
-            const todayRef = verseRefs.find(v => Number(v.month) === month && Number(v.day) === day);
+
+            const todayRef = verseRefs.find(
+                v =>
+                    Number(v.month) === month &&
+                    Number(v.day) === day
+            );
 
             const folder = FOLDER_MAP[language] || 'arabic';
 
-            // 2. تحميل الأسئلة اليومية من R2 عبر Manager
-            const questFile = `dailyQuestions_${language}.json`;
-            try {
-                const questData = await languageManager.getFile(folder, questFile);
-                if (questData) {
-                    const todayQuest = questData.find(q => Number(q.month) === month && Number(q.day) === day);
-                    setDailyQuestion(todayQuest);
-                }
-            } catch (e) { console.error("Questions R2 fetch error:", e); }
+            let todayQuestion = null;
+            let todayVerse = null;
 
-            // 3. تحميل الآية من الكتاب المقدس من R2 عبر Manager
+            // 2. تحميل السؤال اليومي
+            const questFile = `dailyQuestions_${language}.json`;
+
+            try {
+                const questData = await languageManager.getFile(
+                    folder,
+                    questFile
+                );
+
+                if (questData) {
+                    todayQuestion = questData.find(
+                        q =>
+                            Number(q.month) === month &&
+                            Number(q.day) === day
+                    ) || null;
+                }
+            } catch (e) {
+                console.error(
+                    "Questions R2 fetch error:",
+                    e
+                );
+            }
+
+            // 3. تحميل آية اليوم
             if (todayRef) {
                 const bibleFileMap = {
                     ar: 'ar_svd_no_tashkeel.json',
@@ -231,51 +298,124 @@ const LandingPage = () => {
                     fr: 'fr_segond.json',
                     de: 'de_luther.json'
                 };
+
                 const bibleFile = bibleFileMap[language];
 
                 if (bibleFile) {
                     try {
-                        const bibleData = await languageManager.getFile(folder, bibleFile);
-                        if (bibleData) {
-                            const bibleBook = bibleData.find(b =>
-                                (b.abbrev && b.abbrev.toUpperCase() === todayRef.book.toUpperCase()) ||
-                                (b.book_id && b.book_id.toUpperCase() === todayRef.book.toUpperCase())
+                        const bibleData =
+                            await languageManager.getFile(
+                                folder,
+                                bibleFile
                             );
 
-                            const bookInfo = allBookNames[language]?.find(b => b.book_id === todayRef.book) ||
-                                            allBookNames['en']?.find(b => b.book_id === todayRef.book);
+                        if (bibleData) {
+                            const bibleBook = bibleData.find(
+                                b =>
+                                    (
+                                        b.abbrev &&
+                                        b.abbrev.toUpperCase() ===
+                                        todayRef.book.toUpperCase()
+                                    ) ||
+                                    (
+                                        b.book_id &&
+                                        b.book_id.toUpperCase() ===
+                                        todayRef.book.toUpperCase()
+                                    )
+                            );
 
-                            if (bibleBook && bibleBook.chapters[todayRef.chapter - 1]) {
-                                const verseText = bibleBook.chapters[todayRef.chapter - 1][todayRef.verse - 1];
+                            const bookInfo =
+                                allBookNames[language]?.find(
+                                    b =>
+                                        b.book_id ===
+                                        todayRef.book
+                                ) ||
+                                allBookNames['en']?.find(
+                                    b =>
+                                        b.book_id ===
+                                        todayRef.book
+                                );
+
+                            if (
+                                bibleBook &&
+                                bibleBook.chapters[
+                                    todayRef.chapter - 1
+                                ]
+                            ) {
+                                const verseText =
+                                    bibleBook.chapters[
+                                        todayRef.chapter - 1
+                                    ][
+                                        todayRef.verse - 1
+                                    ];
+
                                 if (verseText) {
-                                    setDailyVerse({
+                                    todayVerse = {
                                         verse: verseText,
-                                        reference: `${bookInfo?.name} ${todayRef.chapter}:${todayRef.verse}`,
+                                        reference:
+                                            `${bookInfo?.name} ${todayRef.chapter}:${todayRef.verse}`,
                                         month,
                                         day,
                                         bookId: todayRef.book,
                                         chapter: todayRef.chapter,
                                         verseNum: todayRef.verse
-                                    });
+                                    };
                                 }
                             }
                         }
-                    } catch (e) { console.error("Bible R2 fetch error:", e); }
+                    } catch (e) {
+                        console.error(
+                            "Bible R2 fetch error:",
+                            e
+                        );
+                    }
                 }
             }
-        } catch (e) {
-            console.error("Home Fetch Error (Slow Connection?):", e);
+
+            const result = {
+                verse: todayVerse,
+                question: todayQuestion
+            };
+
+            // حفظ النتيجة في الذاكرة
+            dailyContentCache.set(cacheKey, result);
+
+            return result;
+
         } finally {
-            setIsDailyLoading(false);
+            // إزالة الـ Promise بعد انتهاء التحميل
+            dailyContentPromises.delete(cacheKey);
         }
-    }, [language, allBookNames]);
+    })();
 
-    useEffect(() => {
-        if (allBookNames && Object.keys(allBookNames).length > 0) {
-            fetchDailyContent();
+    // تسجيل الـ Promise فورًا لمنع duplicate requests
+    dailyContentPromises.set(cacheKey, loadPromise);
+
+    try {
+        const result = await loadPromise;
+
+        if (result) {
+            setDailyVerse(result.verse);
+            setDailyQuestion(result.question);
         }
-    }, [fetchDailyContent, allBookNames]);
+    } catch (e) {
+        console.error(
+            "Home Daily Content Fetch Error:",
+            e
+        );
+    } finally {
+        setIsDailyLoading(false);
+    }
+}, [language, allBookNames]);
 
+useEffect(() => {
+    if (
+        allBookNames &&
+        Object.keys(allBookNames).length > 0
+    ) {
+        fetchDailyContent();
+    }
+}, [fetchDailyContent, allBookNames]);
     useEffect(() => {
         setMounted(true);
         checkTimeBadges();

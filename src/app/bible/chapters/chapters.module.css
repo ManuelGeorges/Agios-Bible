@@ -1,111 +1,900 @@
 .container {
-    min-height: 100vh;
-    padding: 20px 16px;
-    background: var(--color-bg-primary);
-    /* direction: rtl;  تمت إزالتها ليتبع اتجاه اللغة */
-    display: flex;
-    flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+
+  padding:
+    calc(20px + var(--safe-top, 0px))
+    16px
+    calc(40px + var(--safe-bottom, 0px));
+
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      var(--color-accent-soft),
+      transparent 38%
+    ),
+    linear-gradient(
+      145deg,
+      var(--color-bg-start),
+      var(--color-bg-end)
+    );
+
+  display: flex;
+  flex-direction: column;
+
+  position: relative;
+  overflow: hidden;
 }
+
+
+/* ============================================================
+   AMBIENT BACKGROUND
+   ============================================================ */
+
+.container::before {
+  content: '';
+
+  position: fixed;
+
+  width: 320px;
+  height: 320px;
+
+  top: -160px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  background:
+    radial-gradient(
+      circle,
+      var(--color-accent),
+      transparent 68%
+    );
+
+  opacity: 0.07;
+
+  filter: blur(30px);
+
+  pointer-events: none;
+
+  z-index: 0;
+}
+
+
+/* ============================================================
+   HEADER
+   ============================================================ */
 
 .header {
-    display: flex;
-    justify-content: center; /* Centered */
-    align-items: center;
-    margin-bottom: 24px;
-    padding-top: env(safe-area-inset-top, 20px);
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+
+  margin-bottom: 26px;
+
+  padding-top: 4px;
+
+  position: relative;
+  z-index: 1;
 }
+
+
+/* ============================================================
+   BOOK INFO
+   ============================================================ */
 
 .bookInfo {
-    display: flex;
-    flex-direction: column; /* Stack icon and title */
-    align-items: center;
-    gap: 16px;
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  gap: 15px;
+
+  position: relative;
 }
+
+
+/* ============================================================
+   BOOK ICON
+   ============================================================ */
 
 .iconWrapper {
-    width: 64px;
-    height: 64px;
-    border-radius: 20px;
-    background: hsla(var(--book-hue), 85%, 40%, 0.1);
-    color: hsl(var(--book-hue), 85%, 40%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 16px -4px hsla(var(--book-hue), 85%, 40%, 0.2);
+  width: 72px;
+  height: 72px;
+
+  border-radius: 23px;
+
+  background:
+    linear-gradient(
+      145deg,
+      hsla(var(--book-hue), 85%, 50%, 0.16),
+      hsla(var(--book-hue), 85%, 50%, 0.055)
+    );
+
+  color:
+    hsl(var(--book-hue), 80%, 46%);
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid
+    hsla(var(--book-hue), 75%, 50%, 0.15);
+
+  box-shadow:
+    0 14px 35px
+    hsla(var(--book-hue), 80%, 40%, 0.12),
+
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.35);
+
+  position: relative;
+
+  transition:
+    transform 0.25s var(--transition-smooth),
+    box-shadow 0.25s ease;
 }
+
+
+/* Icon inner glow */
+
+.iconWrapper::before {
+  content: '';
+
+  position: absolute;
+
+  inset: 1px;
+
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.20),
+      transparent 45%
+    );
+
+  pointer-events: none;
+}
+
+
+.iconWrapper:active {
+  transform:
+    scale(0.94);
+}
+
+
+/* ============================================================
+   DARK ICON
+   ============================================================ */
 
 :global([data-theme='dark']) .iconWrapper {
-    background: hsla(var(--book-hue), 90%, 75%, 0.15);
-    color: hsl(var(--book-hue), 90%, 75%);
-    box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.4);
+  background:
+    linear-gradient(
+      145deg,
+      hsla(var(--book-hue), 90%, 65%, 0.17),
+      hsla(var(--book-hue), 90%, 65%, 0.055)
+    );
+
+  color:
+    hsl(var(--book-hue), 90%, 72%);
+
+  border-color:
+    hsla(var(--book-hue), 80%, 70%, 0.16);
+
+  box-shadow:
+    0 16px 40px
+    rgba(0, 0, 0, 0.35),
+
+    0 0 25px
+    hsla(var(--book-hue), 90%, 65%, 0.07),
+
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.06);
 }
+
+
+/* ============================================================
+   GOLD ICON
+   ============================================================ */
+
+:global([data-theme='gold']) .iconWrapper {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(212, 175, 55, 0.20),
+      rgba(212, 175, 55, 0.045)
+    );
+
+  color:
+    #e6c85c;
+
+  border-color:
+    rgba(212, 175, 55, 0.28);
+
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.60),
+    0 0 28px rgba(212, 175, 55, 0.08),
+    inset 0 1px 0 rgba(255, 245, 190, 0.12);
+}
+
+
+/* ============================================================
+   TITLE
+   ============================================================ */
 
 .title {
-    font-size: 2rem;
-    font-weight: 900;
-    margin: 0;
-    color: var(--color-text-primary);
-    text-align: center;
+  font-size:
+    clamp(1.75rem, 6vw, 2.15rem);
+
+  font-weight:
+    900;
+
+  margin:
+    0;
+
+  color:
+    var(--color-text-primary);
+
+  text-align:
+    center;
+
+  line-height:
+    1.15;
+
+  letter-spacing:
+    -0.5px;
+
+  position:
+    relative;
 }
+
+
+/* Gold title */
+
+:global([data-theme='gold']) .title {
+  background:
+    linear-gradient(
+      180deg,
+      #b9912e 0%,
+      #f5df86 35%,
+      #fff6c9 52%,
+      #d4af37 75%,
+      #8c6719 100%
+    );
+
+  -webkit-background-clip:
+    text;
+
+  background-clip:
+    text;
+
+  -webkit-text-fill-color:
+    transparent;
+
+  filter:
+    drop-shadow(
+      0 3px 5px
+      rgba(0, 0, 0, 0.7)
+    );
+}
+
+
+/* ============================================================
+   SUBTITLE
+   ============================================================ */
 
 .subtitle {
-    font-size: 1.1rem;
-    color: var(--color-text-secondary);
-    font-weight: 700;
-    margin-bottom: 32px;
-    text-align: center; /* Centered */
+  font-size:
+    1rem;
+
+  color:
+    var(--color-text-secondary);
+
+  font-weight:
+    600;
+
+  margin:
+    -2px auto 30px;
+
+  text-align:
+    center;
+
+  line-height:
+    1.65;
+
+  max-width:
+    520px;
+
+  opacity:
+    0.9;
+
+  position:
+    relative;
 }
+
+
+/* ============================================================
+   CHAPTER GRID
+   ============================================================ */
 
 .chaptersGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
-    gap: 12px;
-    padding-bottom: 40px;
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fill,
+      minmax(68px, 1fr)
+    );
+
+  gap:
+    12px;
+
+  padding:
+    4px 2px 45px;
+
+  position:
+    relative;
+
+  z-index:
+    1;
 }
+
+
+/* ============================================================
+   CHAPTER CARD
+   ============================================================ */
 
 .chapterItem {
-    aspect-ratio: 1;
-    background: var(--color-card-bg);
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    cursor: pointer;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.04);
+  aspect-ratio:
+    1;
+
+  min-width:
+    0;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.78),
+      rgba(255, 255, 255, 0.52)
+    );
+
+  border-radius:
+    19px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  font-size:
+    1.18rem;
+
+  font-weight:
+    800;
+
+  color:
+    var(--color-text-primary);
+
+  border:
+    1px solid
+    var(--color-border);
+
+  cursor:
+    pointer;
+
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  box-shadow:
+    0 7px 20px
+    rgba(15, 23, 42, 0.055),
+
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.65);
+
+  transition:
+    transform 0.22s var(--transition-bounce),
+    background 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    color 0.22s ease;
+
+  -webkit-tap-highlight-color:
+    transparent;
 }
+
+
+/* Top glass reflection */
+
+.chapterItem::before {
+  content:
+    '';
+
+  position:
+    absolute;
+
+  inset:
+    0;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.20),
+      transparent 42%
+    );
+
+  pointer-events:
+    none;
+}
+
+
+/* Tiny accent glow */
+
+.chapterItem::after {
+  content:
+    '';
+
+  position:
+    absolute;
+
+  width:
+    45px;
+
+  height:
+    45px;
+
+  top:
+    -25px;
+
+  right:
+    -25px;
+
+  border-radius:
+    50%;
+
+  background:
+    hsl(
+      var(--book-hue),
+      85%,
+      55%
+    );
+
+  opacity:
+    0.055;
+
+  filter:
+    blur(10px);
+
+  pointer-events:
+    none;
+}
+
+
+/* ============================================================
+   DESKTOP HOVER
+   ============================================================ */
+
+@media (hover: hover) {
+
+  .chapterItem:hover {
+    transform:
+      translateY(-3px);
+
+    border-color:
+      hsla(
+        var(--book-hue),
+        70%,
+        50%,
+        0.28
+      );
+
+    box-shadow:
+      0 12px 28px
+      hsla(
+        var(--book-hue),
+        70%,
+        35%,
+        0.10
+      ),
+
+      inset 0 1px 0
+      rgba(255, 255, 255, 0.7);
+  }
+
+  .iconWrapper:hover {
+    transform:
+      translateY(-3px);
+  }
+}
+
+
+/* ============================================================
+   ACTIVE / PRESS
+   ============================================================ */
 
 .chapterItem:active {
-    transform: scale(0.9);
-    background: hsl(var(--book-hue), 85%, 40%);
-    color: white;
-    border-color: hsl(var(--book-hue), 85%, 40%);
+  transform:
+    scale(0.91);
+
+  background:
+    linear-gradient(
+      145deg,
+      hsl(
+        var(--book-hue),
+        85%,
+        48%
+      ),
+      hsl(
+        var(--book-hue),
+        80%,
+        38%
+      )
+    );
+
+  color:
+    #ffffff;
+
+  border-color:
+    hsl(
+      var(--book-hue),
+      85%,
+      45%
+    );
+
+  box-shadow:
+    0 8px 22px
+    hsla(
+      var(--book-hue),
+      80%,
+      40%,
+      0.25
+    );
+
+  transition:
+    transform 0.08s ease;
 }
+
+
+/* ============================================================
+   DARK CHAPTER CARDS
+   ============================================================ */
 
 :global([data-theme='dark']) .chapterItem {
-    background: #1e293b;
-    border-color: #334155;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(30, 41, 59, 0.82),
+      rgba(15, 23, 42, 0.88)
+    );
+
+  border-color:
+    rgba(148, 163, 184, 0.10);
+
+  box-shadow:
+    0 9px 24px
+    rgba(0, 0, 0, 0.24),
+
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.045);
 }
+
+
+:global([data-theme='dark']) .chapterItem::before {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.055),
+      transparent 42%
+    );
+}
+
+
+:global([data-theme='dark']) .chapterItem:hover {
+  border-color:
+    hsla(
+      var(--book-hue),
+      80%,
+      70%,
+      0.24
+    );
+
+  box-shadow:
+    0 14px 30px
+    rgba(0, 0, 0, 0.35),
+
+    0 0 20px
+    hsla(
+      var(--book-hue),
+      80%,
+      65%,
+      0.055
+    );
+}
+
 
 :global([data-theme='dark']) .chapterItem:active {
-    background: hsl(var(--book-hue), 90%, 75%);
-    color: #000;
-    border-color: hsl(var(--book-hue), 90%, 75%);
+  background:
+    linear-gradient(
+      145deg,
+      hsl(
+        var(--book-hue),
+        90%,
+        72%
+      ),
+      hsl(
+        var(--book-hue),
+        80%,
+        60%
+      )
+    );
+
+  color:
+    #020617;
+
+  border-color:
+    hsl(
+      var(--book-hue),
+      90%,
+      70%
+    );
 }
+
+
+/* ============================================================
+   GOLD CHAPTER CARDS
+   ============================================================ */
+
+:global([data-theme='gold']) .chapterItem {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(25, 22, 13, 0.92),
+      rgba(7, 7, 6, 0.96)
+    );
+
+  color:
+    #f8edc5;
+
+  border-color:
+    rgba(212, 175, 55, 0.17);
+
+  box-shadow:
+    0 12px 30px
+    rgba(0, 0, 0, 0.55),
+
+    inset 0 1px 0
+    rgba(255, 244, 180, 0.035);
+}
+
+
+:global([data-theme='gold']) .chapterItem::before {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 244, 180, 0.075),
+      transparent 40%
+    );
+}
+
+
+:global([data-theme='gold']) .chapterItem::after {
+  background:
+    #d4af37;
+
+  opacity:
+    0.045;
+}
+
+
+@media (hover: hover) {
+
+  :global([data-theme='gold']) .chapterItem:hover {
+    transform:
+      translateY(-3px);
+
+    color:
+      #fff4bb;
+
+    border-color:
+      rgba(212, 175, 55, 0.38);
+
+    box-shadow:
+      0 18px 40px
+      rgba(0, 0, 0, 0.65),
+
+      0 0 25px
+      rgba(212, 175, 55, 0.055),
+
+      inset 0 1px 0
+      rgba(255, 245, 190, 0.06);
+  }
+}
+
+
+:global([data-theme='gold']) .chapterItem:active {
+  background:
+    linear-gradient(
+      145deg,
+      #8f6b20,
+      #d4af37 40%,
+      #f5dc7b 58%,
+      #9b741e
+    );
+
+  color:
+    #080808;
+
+  border-color:
+    #d4af37;
+
+  box-shadow:
+    0 10px 30px
+    rgba(212, 175, 55, 0.18);
+}
+
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
 
 @media (max-width: 480px) {
-    .chaptersGrid {
-        grid-template-columns: repeat(4, 1fr);
-    }
+
+  .container {
+    padding-left:
+      14px;
+
+    padding-right:
+      14px;
+  }
+
+  .header {
+    margin-bottom:
+      22px;
+  }
+
+  .iconWrapper {
+    width:
+      66px;
+
+    height:
+      66px;
+
+    border-radius:
+      21px;
+  }
+
+  .title {
+    font-size:
+      1.8rem;
+  }
+
+  .subtitle {
+    font-size:
+      0.94rem;
+
+    margin-bottom:
+      24px;
+  }
+
+  .chaptersGrid {
+    grid-template-columns:
+      repeat(4, 1fr);
+
+    gap:
+      10px;
+
+    padding-left:
+      1px;
+
+    padding-right:
+      1px;
+  }
+
+  .chapterItem {
+    border-radius:
+      17px;
+
+    font-size:
+      1.08rem;
+  }
 }
 
+
+/* ============================================================
+   VERY SMALL DEVICES
+   ============================================================ */
+
+@media (max-width: 360px) {
+
+  .container {
+    padding-left:
+      11px;
+
+    padding-right:
+      11px;
+  }
+
+  .chaptersGrid {
+    gap:
+      8px;
+  }
+
+  .chapterItem {
+    border-radius:
+      15px;
+
+    font-size:
+      1rem;
+  }
+
+  .title {
+    font-size:
+      1.65rem;
+  }
+}
+
+
+/* ============================================================
+   TABLET / DESKTOP
+   ============================================================ */
+
 @media (min-width: 768px) {
-    .container {
-        max-width: 600px;
-        margin: 0 auto;
-    }
+
+  .container {
+    max-width:
+      620px;
+
+    margin:
+      0 auto;
+
+    padding-left:
+      22px;
+
+    padding-right:
+      22px;
+  }
+
+  .chaptersGrid {
+    grid-template-columns:
+      repeat(
+        auto-fill,
+        minmax(72px, 1fr)
+      );
+
+    gap:
+      13px;
+  }
+
+  .chapterItem {
+    border-radius:
+      20px;
+  }
+}
+
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .chapterItem,
+  .iconWrapper {
+    transition:
+      none !important;
+  }
 }

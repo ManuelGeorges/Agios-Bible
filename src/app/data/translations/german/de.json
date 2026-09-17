@@ -383,7 +383,7 @@
     "status_analyzing": "Wort wird linguistisch analysiert...",
     "status_searching": "Suche in der Heiligen Schrift...",
     "warning_static_word": "Warnung: Statisches Wort oder Eigenname",
-    "warning_static_word_desc": "Dieses Wort hat im Arabischen keine tatsächlichen Ableitungen. Es wurde nur nach direkten Vorkommen gesucht.",
+    "warning_static_word_desc": "Dieses Wort hat im Arabischen keine tatsächlichen Ableitungen. Es wurde nur nach direkten Vorkommen gesuchten.",
     "ai_verified": "Linguistisch verifiziert durch den intelligenten Agios-Assistenten",
     "toggle_derivatives_hide": "Wurzeloptionen ausblenden ▲",
     "toggle_derivatives_show": "Suchwörter anpassen ▼",
@@ -463,7 +463,7 @@
     "invite_friend": "Freund zur App einladen",
     "delete_account": "Konto löschen",
     "delete_confirm": "Bist du sicher, dass du dein Konto dauerhaft löschen möchtest?",
-    "version": "Agios App - Version 2.5.0",
+    "version": "Agios App - Version 2.6.2",
     "share_title": "Agios App",
     "share_text": "Lade die Agios-App herunter und lies die Bibel auf eine neue Weise!",
     "share_dialog": "App mit Freunden teilen",
@@ -745,6 +745,22 @@
     },
     "history": [
       {
+        "version": "2.6.2",
+        "date": "Aktuelles Update",
+        "title": "Umfassende Leistungs-, Design- und KI-Verbesserungen",
+        "features": [
+          "Extreme App-Verlangsamung behoben, funktioniert jetzt schnell in allen Netzwerken",
+          "Radikale Design- und Farbumstellungen für besseren Augenkomfort",
+          "Verbesserungen am Bibelausgabe-Design und der Buch-/Kapitelauswahl",
+          "Kopieren von arabischen Versen mit Diakritika hinzugefügt",
+          "Verbesserte KI-Analyse und Antwortgeschwindigkeit",
+          "Wesentliche Audio-Bibel-Erweiterungen mit Textsynchronisation"
+        ],
+        "fixes": [
+          "Mehrere von Benutzern gemeldete Fehler und Probleme behoben"
+        ]
+      },
+      {
         "version": "2.5.0",
         "date": "Aktuelles Update",
         "title": "Umfassendes Profil-Update & allgemeine Verbesserungen",
@@ -763,7 +779,7 @@
         "title": "Umfassende Verbesserungen & wichtige Korrekturen",
         "features": [
           "Radikale Fehlerbehebung und Verbesserung der Karten für ein besseres Erkundungسرlebnis",
-          "Erhebliche Absicherung der App und Daten zur Gewährleistung höchster Privatsphäre",
+          "Erhebliche Absicherung der App and Daten zur Gewährleistung höchster Privatsphäre",
           "Verbesserte KI-Leistung für Reaktionsfähigkeit auch bei schwacher Internetverbindung",
           "Möglichkeit zur getrennten Auswahl von Buch und Kapitel für einfachere Navigation hinzugefügt",
           "Vollständiges Protokoll aller Benutzerlesungen zur Verfolgung des geistlichen Wachstums hinzugefügt",

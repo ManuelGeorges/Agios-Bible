@@ -130,10 +130,35 @@ const Settings = () => {
       setFontSize(size)
       document.documentElement.style.setProperty('--bible-font-size', size + 'px')
 
-      const savedFont = localStorage.getItem('bibleFontFamily') || (currentLang === 'ar' ? 'Cairo' : 'Inter')
-      setFontFamily(savedFont)
-      const selectedFont = fontOptions.find(f => f.id === savedFont) || fontOptions[0]
-      document.documentElement.style.setProperty('--bible-font-family', selectedFont.value)
+      // Each language has its own saved font
+      const fontStorageKey = `bibleFontFamily_${currentLang}`;
+      const defaultFont = currentLang === 'ar' ? 'Cairo' : 'Inter';
+
+      const savedFont = localStorage.getItem(fontStorageKey);
+
+      const savedFontOption = fontOptions.find(
+        f => f.id === savedFont
+      );
+
+      const isFontCompatible =
+        savedFontOption &&
+        (
+          currentLang === 'ar'
+            ? savedFontOption.lang === 'ar'
+            : savedFontOption.lang === 'latin'
+        );
+
+      const finalFont = isFontCompatible ? savedFont : defaultFont;
+
+      setFontFamily(finalFont)
+
+      const selectedFont =
+        fontOptions.find(f => f.id === finalFont) || fontOptions[0]
+
+      document.documentElement.style.setProperty(
+        '--bible-font-family',
+        selectedFont.value
+      )
 
       const savedWeight = localStorage.getItem('bibleFontWeight') || '400'
       const weight = parseInt(savedWeight)
@@ -167,7 +192,9 @@ const Settings = () => {
         setNotifications(JSON.parse(savedNotifications))
       }
     }
+
     initSettings()
+
     return () => unsubscribeAuth()
   }, [currentLang])
 
@@ -189,21 +216,26 @@ const Settings = () => {
 
   const handleMasterToggle = async () => {
     const nextState = !masterNotifications
+
     if (nextState) {
       let perms = await LocalNotifications.checkPermissions()
+
       if (perms.display === 'denied') {
         setShowPermissionModal(true)
         return
       }
+
       if (perms.display !== 'granted') {
         perms = await LocalNotifications.requestPermissions()
       }
+
       if (perms.display !== 'granted') {
         setMasterNotifications(false)
         localStorage.setItem('masterNotifications', 'false')
         return
       }
     }
+
     setMasterNotifications(nextState)
     localStorage.setItem('masterNotifications', nextState.toString())
 
@@ -218,53 +250,103 @@ const Settings = () => {
     if (!masterNotifications) return;
 
     const updated = { ...notifications, [key]: value };
-    setNotifications(updated);
 
-    localStorage.setItem('notificationSettings', JSON.stringify(updated));
+    setNotifications(updated)
 
-    if (Capacitor.isNativePlatform() && window.AgiosScannerNative?.updateSettings) {
-        window.AgiosScannerNative.updateSettings(JSON.stringify(updated), masterNotifications);
+    localStorage.setItem(
+      'notificationSettings',
+      JSON.stringify(updated)
+    );
+
+    if (
+      Capacitor.isNativePlatform() &&
+      window.AgiosScannerNative?.updateSettings
+    ) {
+        window.AgiosScannerNative.updateSettings(
+          JSON.stringify(updated),
+          masterNotifications
+        );
     }
 
-    await syncNotifications();
+    await syncNotifications()
   };
 
   const updateFontSize = (size) => {
     const newSize = Math.max(10, Math.min(40, size))
+
     setFontSize(newSize)
-    localStorage.setItem('bibleFontSize', newSize.toString())
-    document.documentElement.style.setProperty('--bible-font-size', newSize + 'px')
+
+    localStorage.setItem(
+      'bibleFontSize',
+      newSize.toString()
+    )
+
+    document.documentElement.style.setProperty(
+      '--bible-font-size',
+      newSize + 'px'
+    )
+
     window.dispatchEvent(new Event('storage'))
   }
 
   const updateFontWeight = (weight) => {
     const newWeight = Math.max(300, Math.min(900, weight))
+
     setFontWeight(newWeight)
-    localStorage.setItem('bibleFontWeight', newWeight.toString())
-    document.documentElement.style.setProperty('--bible-font-weight', newWeight.toString())
+
+    localStorage.setItem(
+      'bibleFontWeight',
+      newWeight.toString()
+    )
+
+    document.documentElement.style.setProperty(
+      '--bible-font-weight',
+      newWeight.toString()
+    )
+
     window.dispatchEvent(new Event('storage'))
   }
 
   const updateFontFamily = (id) => {
     setFontFamily(id)
-    localStorage.setItem('bibleFontFamily', id)
-    const selectedFont = fontOptions.find(f => f.id === id) || fontOptions[0]
-    document.documentElement.style.setProperty('--bible-font-family', selectedFont.value)
+
+    // Save font separately for each language
+    localStorage.setItem(
+      `bibleFontFamily_${currentLang}`,
+      id
+    )
+
+    const selectedFont =
+      fontOptions.find(f => f.id === id) || fontOptions[0]
+
+    document.documentElement.style.setProperty(
+      '--bible-font-family',
+      selectedFont.value
+    )
+
     window.dispatchEvent(new Event('storage'))
   }
 
   const toggleVerseLayout = () => {
     const nextState = !versePerLine
+
     setVersePerLine(nextState)
-    localStorage.setItem('versePerLine', nextState.toString())
+
+    localStorage.setItem(
+      'versePerLine',
+      nextState.toString()
+    )
+
     window.dispatchEvent(new Event('storage'))
   }
 
   const openSystemSettings = async () => {
     setShowPermissionModal(false)
+
     try {
       if (Capacitor.isNativePlatform()) {
         const { NativeSettingsCustom } = Capacitor.Plugins
+
         if (NativeSettingsCustom) {
           await NativeSettingsCustom.openAppSettings()
         }
@@ -276,76 +358,113 @@ const Settings = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
-      router.push('/');
+      await signOut(auth)
+      router.push('/')
     } catch (error) {
-      console.error("Logout Error:", error);
+      console.error("Logout Error:", error)
     }
   };
 
   const handleDeleteAccount = async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
+    const currentUser = auth.currentUser
 
-    const lastSignInTime = new Date(currentUser.metadata.lastSignInTime).getTime();
-    const now = new Date().getTime();
-    const isFreshSession = (now - lastSignInTime) < (5 * 60 * 1000);
+    if (!currentUser) return
+
+    const lastSignInTime =
+      new Date(currentUser.metadata.lastSignInTime).getTime()
+
+    const now = new Date().getTime()
+
+    const isFreshSession =
+      (now - lastSignInTime) < (5 * 60 * 1000)
 
     if (!isFreshSession) {
-      alert(strings.settings.account.fresh_login_required);
-      return;
+      alert(strings.settings.account.fresh_login_required)
+      return
     }
 
-    const confirmed = window.confirm(strings.settings.account.delete_confirm);
+    const confirmed =
+      window.confirm(strings.settings.account.delete_confirm)
 
     if (confirmed) {
       try {
-        const userId = currentUser.uid;
-        const userDocRef = doc(db, 'users', userId);
-        await deleteDoc(userDocRef);
-        await deleteUser(currentUser);
-        alert(strings.settings.account.delete_success);
-        router.push('/intro');
+        const userId = currentUser.uid
+        const userDocRef = doc(db, 'users', userId)
+
+        await deleteDoc(userDocRef)
+        await deleteUser(currentUser)
+
+        alert(strings.settings.account.delete_success)
+
+        router.push('/intro')
       } catch (error) {
-        console.error("Error deleting user:", error);
+        console.error("Error deleting user:", error)
+
         if (error.code === 'auth/requires-recent-login') {
-          alert(strings.settings.account.reauth_required);
+          alert(strings.settings.account.reauth_required)
         } else {
-          alert(strings.settings.account.delete_error);
+          alert(strings.settings.account.delete_error)
         }
       }
     }
   };
 
   const currentFontValue = useMemo(() => {
-    return fontOptions.find(f => f.id === fontFamily)?.value || fontOptions[0].value
+    return (
+      fontOptions.find(f => f.id === fontFamily)?.value ||
+      fontOptions[0].value
+    )
   }, [fontFamily]);
 
   const filteredFonts = useMemo(() => {
-    return fontOptions.filter(f => currentLang === 'ar' ? f.lang === 'ar' : f.lang === 'latin')
+    return fontOptions.filter(
+      f => currentLang === 'ar'
+        ? f.lang === 'ar'
+        : f.lang === 'latin'
+    )
   }, [currentLang]);
 
-  const isGoldUnlocked = userData?.inventory?.includes('theme_gold');
+  const isGoldUnlocked =
+    userData?.inventory?.includes('theme_gold');
 
   if (!mounted) return null;
 
   return (
     <div className={styles.container} dir={dir}>
-      <h1 className={styles.title}>{strings.settings.title}</h1>
+      <h1 className={styles.title}>
+        {strings.settings.title}
+      </h1>
 
       {/* Language Section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          <Languages size={22} className={styles.iconPrimary} /> {strings.settings.language}
+          <Languages
+            size={22}
+            className={styles.iconPrimary}
+          />
+          {strings.settings.language}
         </h2>
+
         <div className={styles.fontOptionsList}>
           {languages.map(lang => (
             <button
               key={lang.id}
-              className={`${styles.fontChip} ${currentLang === lang.id ? styles.activeChip : ''}`}
+              className={`${styles.fontChip} ${
+                currentLang === lang.id
+                  ? styles.activeChip
+                  : ''
+              }`}
               onClick={() => changeLanguage(lang.id)}
             >
-              <span style={{ marginRight: dir === 'rtl' ? '0' : '8px', marginLeft: dir === 'rtl' ? '8px' : '0' }}>{lang.flag}</span>
+              <span
+                style={{
+                  marginRight: dir === 'rtl' ? '0' : '8px',
+                  marginLeft: dir === 'rtl' ? '8px' : '0'
+                }}
+              >
+                {lang.flag}
+              </span>
+
               {lang.name}
             </button>
           ))}
@@ -354,56 +473,96 @@ const Settings = () => {
 
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          <Palette size={22} className={styles.iconPrimary} /> {strings.settings.appearance.title}
+          <Palette
+            size={22}
+            className={styles.iconPrimary}
+          />
+          {strings.settings.appearance.title}
         </h2>
+
         <div className={styles.themeGrid}>
           <div
-            className={`${styles.themeOption} ${theme === 'light' ? styles.active : ''}`}
+            className={`${styles.themeOption} ${
+              theme === 'light' ? styles.active : ''
+            }`}
             onClick={() => setTheme('light')}
           >
-            <div className={`${styles.themeCircle} ${styles.light}`}>
+            <div
+              className={`${styles.themeCircle} ${styles.light}`}
+            >
               <Sun size={24} />
             </div>
-            <span className={styles.themeLabel}>{strings.settings.appearance.light}</span>
+
+            <span className={styles.themeLabel}>
+              {strings.settings.appearance.light}
+            </span>
           </div>
 
           <div
-            className={`${styles.themeOption} ${theme === 'dark' ? styles.active : ''}`}
+            className={`${styles.themeOption} ${
+              theme === 'dark' ? styles.active : ''
+            }`}
             onClick={() => setTheme('dark')}
           >
-            <div className={`${styles.themeCircle} ${styles.dark}`}>
+            <div
+              className={`${styles.themeCircle} ${styles.dark}`}
+            >
               <Moon size={24} />
             </div>
-            <span className={styles.themeLabel}>{strings.settings.appearance.dark}</span>
+
+            <span className={styles.themeLabel}>
+              {strings.settings.appearance.dark}
+            </span>
           </div>
 
           {isGoldUnlocked && (
             <div
-              className={`${styles.themeOption} ${theme === 'gold' ? styles.active : ''}`}
+              className={`${styles.themeOption} ${
+                theme === 'gold' ? styles.active : ''
+              }`}
               onClick={() => setTheme('gold')}
             >
-              <div className={`${styles.themeCircle} ${styles.gold}`}>
+              <div
+                className={`${styles.themeCircle} ${styles.gold}`}
+              >
                 <Crown size={24} />
               </div>
-              <span className={styles.themeLabel}>{strings.shop?.items?.theme_gold?.name}</span>
+
+              <span className={styles.themeLabel}>
+                {strings.shop?.items?.theme_gold?.name}
+              </span>
             </div>
           )}
 
           <div
-            className={`${styles.themeOption} ${theme === 'system' ? styles.active : ''}`}
+            className={`${styles.themeOption} ${
+              theme === 'system' ? styles.active : ''
+            }`}
             onClick={() => setTheme('system')}
           >
-            <div className={`${styles.themeCircle} ${styles.system}`}>
+            <div
+              className={`${styles.themeCircle} ${styles.system}`}
+            >
               <Monitor size={24} />
             </div>
-            <span className={styles.themeLabel}>{strings.settings.appearance.system}</span>
+
+            <span className={styles.themeLabel}>
+              {strings.settings.appearance.system}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className={styles.section} id="text-settings">
+      <div
+        className={styles.section}
+        id="text-settings"
+      >
         <h2 className={styles.sectionTitle}>
-          <BookOpen size={22} className={styles.iconPrimary} /> {strings.settings.bible.title}
+          <BookOpen
+            size={22}
+            className={styles.iconPrimary}
+          />
+          {strings.settings.bible.title}
         </h2>
 
         {parallelLanguage === null && (
@@ -411,18 +570,26 @@ const Settings = () => {
             <div className={styles.settingInfo}>
               <div className={styles.textContainer}>
                 <span className={styles.settingLabel}>
-                  <LayoutList size={20} className={styles.iconPrimary} />
+                  <LayoutList
+                    size={20}
+                    className={styles.iconPrimary}
+                  />
                   {strings.settings.bible.verse_per_line}
                 </span>
-                <p className={styles.subText}>{strings.settings.bible.verse_per_line_desc}</p>
+
+                <p className={styles.subText}>
+                  {strings.settings.bible.verse_per_line_desc}
+                </p>
               </div>
             </div>
+
             <label className={styles.switch}>
               <input
                 type="checkbox"
                 checked={versePerLine}
                 onChange={toggleVerseLayout}
               />
+
               <span className={styles.sliderRound}></span>
             </label>
           </div>
@@ -433,111 +600,189 @@ const Settings = () => {
             <div className={styles.settingInfo}>
               <div className={styles.textContainer}>
                 <span className={styles.settingLabel}>
-                  <Type size={20} className={styles.iconPrimary} />
+                  <Type
+                    size={20}
+                    className={styles.iconPrimary}
+                  />
                   {strings.settings.bible.show_tashkeel}
                 </span>
-                <p className={styles.subText}>{strings.settings.bible.show_tashkeel_desc}</p>
+
+                <p className={styles.subText}>
+                  {strings.settings.bible.show_tashkeel_desc}
+                </p>
               </div>
             </div>
+
             <label className={styles.switch}>
               <input
                 type="checkbox"
                 checked={useTashkeel}
                 onChange={toggleTashkeel}
               />
+
               <span className={styles.sliderRound}></span>
             </label>
           </div>
         )}
 
         {isNative && (
-            <>
-                <div className={styles.settingItem}>
-                  <div className={styles.settingInfo}>
-                    <div className={styles.textContainer}>
-                      <span className={styles.settingLabel}>
-                        <Zap size={20} className={styles.iconPrimary} />
-                        {strings.settings.bible.keep_app_awake}
-                      </span>
-                      <p className={styles.subText}>{strings.settings.bible.keep_app_awake_desc}</p>
-                    </div>
-                  </div>
-                  <label className={styles.switch}>
-                    <input
-                      type="checkbox"
-                      checked={keepAppAwake}
-                      onChange={toggleKeepAppAwake}
+          <>
+            <div className={styles.settingItem}>
+              <div className={styles.settingInfo}>
+                <div className={styles.textContainer}>
+                  <span className={styles.settingLabel}>
+                    <Zap
+                      size={20}
+                      className={styles.iconPrimary}
                     />
-                    <span className={styles.sliderRound}></span>
-                  </label>
+                    {strings.settings.bible.keep_app_awake}
+                  </span>
+
+                  <p className={styles.subText}>
+                    {strings.settings.bible.keep_app_awake_desc}
+                  </p>
+                </div>
+              </div>
+
+              <label className={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={keepAppAwake}
+                  onChange={toggleKeepAppAwake}
+                />
+
+                <span className={styles.sliderRound}></span>
+              </label>
+            </div>
+
+            {!keepAppAwake && (
+              <div
+                className={styles.settingItem}
+                style={{
+                  borderTop: '1px solid var(--color-border)',
+                  paddingTop: '15px'
+                }}
+              >
+                <div className={styles.settingInfo}>
+                  <div className={styles.textContainer}>
+                    <span className={styles.settingLabel}>
+                      <Book
+                        size={20}
+                        className={styles.iconPrimary}
+                      />
+                      {strings.settings.bible.keep_bible_awake}
+                    </span>
+
+                    <p className={styles.subText}>
+                      {strings.settings.bible.keep_bible_awake_desc}
+                    </p>
+                  </div>
                 </div>
 
-                {!keepAppAwake && (
-                    <div className={styles.settingItem} style={{ borderTop: '1px solid var(--color-border)', paddingTop: '15px' }}>
-                      <div className={styles.settingInfo}>
-                        <div className={styles.textContainer}>
-                          <span className={styles.settingLabel}>
-                            <Book size={20} className={styles.iconPrimary} />
-                            {strings.settings.bible.keep_bible_awake}
-                          </span>
-                          <p className={styles.subText}>{strings.settings.bible.keep_bible_awake_desc}</p>
-                        </div>
-                      </div>
-                      <label className={styles.switch}>
-                        <input
-                          type="checkbox"
-                          checked={keepBibleAwake}
-                          onChange={toggleKeepBibleAwake}
-                        />
-                        <span className={styles.sliderRound}></span>
-                      </label>
-                    </div>
-                )}
-            </>
+                <label className={styles.switch}>
+                  <input
+                    type="checkbox"
+                    checked={keepBibleAwake}
+                    onChange={toggleKeepBibleAwake}
+                  />
+
+                  <span className={styles.sliderRound}></span>
+                </label>
+              </div>
+            )}
+          </>
         )}
 
         <div className={styles.fontControlGroup}>
-          <div className={styles.settingInfo} style={{ marginBottom: '15px' }}>
+          <div
+            className={styles.settingInfo}
+            style={{ marginBottom: '15px' }}
+          >
             <span className={styles.settingLabel}>
-              <Columns size={20} className={styles.iconPrimary} />
+              <Columns
+                size={20}
+                className={styles.iconPrimary}
+              />
               {strings.settings.bible.parallel_language}
             </span>
-            <p className={styles.subText}>{strings.settings.bible.parallel_language_desc}</p>
+
+            <p className={styles.subText}>
+              {strings.settings.bible.parallel_language_desc}
+            </p>
           </div>
+
           <div className={styles.fontOptionsList}>
             <button
-              className={`${styles.fontChip} ${parallelLanguage === null ? styles.activeChip : ''}`}
+              className={`${styles.fontChip} ${
+                parallelLanguage === null
+                  ? styles.activeChip
+                  : ''
+              }`}
               onClick={() => changeParallelLanguage(null)}
             >
               {strings.settings.bible.none}
             </button>
-            {languages.filter(l => l.id !== currentLang).map(lang => (
-              <button
-                key={lang.id}
-                className={`${styles.fontChip} ${parallelLanguage === lang.id ? styles.activeChip : ''}`}
-                onClick={() => changeParallelLanguage(lang.id)}
-              >
-                <span style={{ marginRight: dir === 'rtl' ? '0' : '8px', marginLeft: dir === 'rtl' ? '8px' : '0' }}>{lang.flag}</span>
-                {lang.name}
-              </button>
-            ))}
+
+            {languages
+              .filter(l => l.id !== currentLang)
+              .map(lang => (
+                <button
+                  key={lang.id}
+                  className={`${styles.fontChip} ${
+                    parallelLanguage === lang.id
+                      ? styles.activeChip
+                      : ''
+                  }`}
+                  onClick={() =>
+                    changeParallelLanguage(lang.id)
+                  }
+                >
+                  <span
+                    style={{
+                      marginRight:
+                        dir === 'rtl' ? '0' : '8px',
+                      marginLeft:
+                        dir === 'rtl' ? '8px' : '0'
+                    }}
+                  >
+                    {lang.flag}
+                  </span>
+
+                  {lang.name}
+                </button>
+              ))}
           </div>
         </div>
 
         <div className={styles.fontControlGroup}>
-          <div className={styles.settingInfo} style={{ marginBottom: '15px' }}>
+          <div
+            className={styles.settingInfo}
+            style={{ marginBottom: '15px' }}
+          >
             <span className={styles.settingLabel}>
-              <CaseSensitive size={20} className={styles.iconPrimary} />
+              <CaseSensitive
+                size={20}
+                className={styles.iconPrimary}
+              />
               {strings.settings.bible.font_type}
             </span>
           </div>
+
           <div className={styles.fontOptionsList}>
             {filteredFonts.map(option => (
               <button
                 key={option.id}
-                className={`${styles.fontChip} ${fontFamily === option.id ? styles.activeChip : ''}`}
-                onClick={() => updateFontFamily(option.id)}
-                style={{ fontFamily: option.value }}
+                className={`${styles.fontChip} ${
+                  fontFamily === option.id
+                    ? styles.activeChip
+                    : ''
+                }`}
+                onClick={() =>
+                  updateFontFamily(option.id)
+                }
+                style={{
+                  fontFamily: option.value
+                }}
               >
                 {option.name}
               </button>
@@ -545,13 +790,27 @@ const Settings = () => {
           </div>
         </div>
 
-        <div className={styles.fontControlGroup} style={{ marginTop: '20px' }}>
-          <div className={styles.settingInfo} style={{ marginBottom: '15px' }}>
+        <div
+          className={styles.fontControlGroup}
+          style={{ marginTop: '20px' }}
+        >
+          <div
+            className={styles.settingInfo}
+            style={{ marginBottom: '15px' }}
+          >
             <span className={styles.settingLabel}>
-              <Bold size={20} className={styles.iconPrimary} />
-              {strings.settings.bible.font_weight.replace('{weight}', formatNumber(fontWeight))}
+              <Bold
+                size={20}
+                className={styles.iconPrimary}
+              />
+
+              {strings.settings.bible.font_weight.replace(
+                '{weight}',
+                formatNumber(fontWeight)
+              )}
             </span>
           </div>
+
           <div className={styles.controlsWrapper}>
             <input
               type="range"
@@ -559,25 +818,54 @@ const Settings = () => {
               max="900"
               step="100"
               value={fontWeight}
-              onChange={(e) => updateFontWeight(parseInt(e.target.value))}
+              onChange={(e) =>
+                updateFontWeight(
+                  parseInt(e.target.value)
+                )
+              }
               className={styles.slider}
             />
           </div>
         </div>
 
-        <div className={styles.fontControlGroup} style={{ marginTop: '20px' }}>
-          <div className={styles.settingInfo} style={{ marginBottom: '15px' }}>
+        <div
+          className={styles.fontControlGroup}
+          style={{ marginTop: '20px' }}
+        >
+          <div
+            className={styles.settingInfo}
+            style={{ marginBottom: '15px' }}
+          >
             <span className={styles.settingLabel}>
-              <Type size={20} className={styles.iconPrimary} />
-              {strings.settings.bible.font_size.replace('{size}', formatNumber(fontSize))}
+              <Type
+                size={20}
+                className={styles.iconPrimary}
+              />
+
+              {strings.settings.bible.font_size.replace(
+                '{size}',
+                formatNumber(fontSize)
+              )}
             </span>
           </div>
 
-          <div className={styles.fontPreview} style={{ fontSize: `${fontSize}px`, fontFamily: currentFontValue, fontWeight: fontWeight }}>
+          <div
+            className={styles.fontPreview}
+            style={{
+              fontSize: `${fontSize}px`,
+              fontFamily: currentFontValue,
+              fontWeight: fontWeight
+            }}
+          >
             {(versePerLine || parallelLanguage !== null) ? (
               <div className={styles.previewList}>
-                <div>{strings.settings.bible.preview.line_1}</div>
-                <div>{strings.settings.bible.preview.line_2}</div>
+                <div>
+                  {strings.settings.bible.preview.line_1}
+                </div>
+
+                <div>
+                  {strings.settings.bible.preview.line_2}
+                </div>
               </div>
             ) : (
               <p className={styles.previewParagraph}>
@@ -587,7 +875,16 @@ const Settings = () => {
           </div>
 
           <div className={styles.controlsWrapper}>
-            <button className={styles.stepBtn} onClick={() => updateFontSize(fontSize - 1)} disabled={fontSize <= 10}>−</button>
+            <button
+              className={styles.stepBtn}
+              onClick={() =>
+                updateFontSize(fontSize - 1)
+              }
+              disabled={fontSize <= 10}
+            >
+              −
+            </button>
+
             <div className={styles.sliderContainer}>
               <input
                 type="range"
@@ -595,11 +892,24 @@ const Settings = () => {
                 max="40"
                 step="1"
                 value={fontSize}
-                onChange={(e) => updateFontSize(parseInt(e.target.value))}
+                onChange={(e) =>
+                  updateFontSize(
+                    parseInt(e.target.value)
+                  )
+                }
                 className={styles.slider}
               />
             </div>
-            <button className={styles.stepBtn} onClick={() => updateFontSize(fontSize + 1)} disabled={fontSize >= 40}>+</button>
+
+            <button
+              className={styles.stepBtn}
+              onClick={() =>
+                updateFontSize(fontSize + 1)
+              }
+              disabled={fontSize >= 40}
+            >
+              +
+            </button>
           </div>
         </div>
       </div>
@@ -608,20 +918,32 @@ const Settings = () => {
         <div className={styles.section}>
           <div className={styles.masterToggleRow}>
             <h2 className={styles.sectionTitle}>
-              <Bell size={22} className={styles.iconPrimary} /> {strings.settings.notifications.title}
+              <Bell
+                size={22}
+                className={styles.iconPrimary}
+              />
+
+              {strings.settings.notifications.title}
             </h2>
+
             <label className={styles.switch}>
               <input
                 type="checkbox"
                 checked={masterNotifications}
                 onChange={handleMasterToggle}
               />
+
               <span className={styles.sliderRound}></span>
             </label>
           </div>
 
-          <div className={`${styles.notificationList} ${!masterNotifications ? styles.disabledList : ''}`}>
-
+          <div
+            className={`${styles.notificationList} ${
+              !masterNotifications
+                ? styles.disabledList
+                : ''
+            }`}
+          >
             <div className={styles.notificationGroup}>
               <div className={styles.notificationItem}>
                 <div className={styles.notificationInfo}>
@@ -630,26 +952,52 @@ const Settings = () => {
                       <Bell size={18} />
                       {strings.settings.notifications.verse.title}
                     </span>
-                    <p className={styles.subText}>{strings.settings.notifications.verse.desc}</p>
+
+                    <p className={styles.subText}>
+                      {strings.settings.notifications.verse.desc}
+                    </p>
                   </div>
                 </div>
+
                 <label className={styles.switch}>
                   <input
                     type="checkbox"
                     checked={notifications.verse}
-                    onChange={() => updateSubSetting('verse', !notifications.verse)}
+                    onChange={() =>
+                      updateSubSetting(
+                        'verse',
+                        !notifications.verse
+                      )
+                    }
                     disabled={!masterNotifications}
                   />
+
                   <span className={styles.sliderRound}></span>
                 </label>
               </div>
-              <div className={`${styles.timePickerRow} ${!notifications.verse ? styles.dimmed : ''}`}>
+
+              <div
+                className={`${styles.timePickerRow} ${
+                  !notifications.verse
+                    ? styles.dimmed
+                    : ''
+                }`}
+              >
                 <Clock size={16} />
-                <span>{strings.settings.notifications.alert_time}</span>
+
+                <span>
+                  {strings.settings.notifications.alert_time}
+                </span>
+
                 <input
                   type="time"
                   value={notifications.verseTime}
-                  onChange={(e) => updateSubSetting('verseTime', e.target.value)}
+                  onChange={(e) =>
+                    updateSubSetting(
+                      'verseTime',
+                      e.target.value
+                    )
+                  }
                   className={styles.timeInput}
                   disabled={!notifications.verse}
                 />
@@ -662,28 +1010,55 @@ const Settings = () => {
                   <div className={styles.textContainer}>
                     <span className={styles.settingLabel}>
                       <HelpCircle size={18} />
+
                       {strings.settings.notifications.question.title}
                     </span>
-                    <p className={styles.subText}>{strings.settings.notifications.question.desc}</p>
+
+                    <p className={styles.subText}>
+                      {strings.settings.notifications.question.desc}
+                    </p>
                   </div>
                 </div>
+
                 <label className={styles.switch}>
                   <input
                     type="checkbox"
                     checked={notifications.question}
-                    onChange={() => updateSubSetting('question', !notifications.question)}
+                    onChange={() =>
+                      updateSubSetting(
+                        'question',
+                        !notifications.question
+                      )
+                    }
                     disabled={!masterNotifications}
                   />
+
                   <span className={styles.sliderRound}></span>
                 </label>
               </div>
-              <div className={`${styles.timePickerRow} ${!notifications.question ? styles.dimmed : ''}`}>
+
+              <div
+                className={`${styles.timePickerRow} ${
+                  !notifications.question
+                    ? styles.dimmed
+                    : ''
+                }`}
+              >
                 <Clock size={16} />
-                <span>{strings.settings.notifications.alert_time}</span>
+
+                <span>
+                  {strings.settings.notifications.alert_time}
+                </span>
+
                 <input
                   type="time"
                   value={notifications.questionTime}
-                  onChange={(e) => updateSubSetting('questionTime', e.target.value)}
+                  onChange={(e) =>
+                    updateSubSetting(
+                      'questionTime',
+                      e.target.value
+                    )
+                  }
                   className={styles.timeInput}
                   disabled={!notifications.question}
                 />
@@ -696,28 +1071,55 @@ const Settings = () => {
                   <div className={styles.textContainer}>
                     <span className={styles.settingLabel}>
                       <BookOpen size={18} />
+
                       {strings.settings.notifications.study_plans.title}
                     </span>
-                    <p className={styles.subText}>{strings.settings.notifications.study_plans.desc}</p>
+
+                    <p className={styles.subText}>
+                      {strings.settings.notifications.study_plans.desc}
+                    </p>
                   </div>
                 </div>
+
                 <label className={styles.switch}>
                   <input
                     type="checkbox"
                     checked={notifications.studyPlans}
-                    onChange={() => updateSubSetting('studyPlans', !notifications.studyPlans)}
+                    onChange={() =>
+                      updateSubSetting(
+                        'studyPlans',
+                        !notifications.studyPlans
+                      )
+                    }
                     disabled={!masterNotifications}
                   />
+
                   <span className={styles.sliderRound}></span>
                 </label>
               </div>
-              <div className={`${styles.timePickerRow} ${!notifications.studyPlans ? styles.dimmed : ''}`}>
+
+              <div
+                className={`${styles.timePickerRow} ${
+                  !notifications.studyPlans
+                    ? styles.dimmed
+                    : ''
+                }`}
+              >
                 <Clock size={16} />
-                <span>{strings.settings.notifications.alert_time}</span>
+
+                <span>
+                  {strings.settings.notifications.alert_time}
+                </span>
+
                 <input
                   type="time"
                   value={notifications.studyPlansTime}
-                  onChange={(e) => updateSubSetting('studyPlansTime', e.target.value)}
+                  onChange={(e) =>
+                    updateSubSetting(
+                      'studyPlansTime',
+                      e.target.value
+                    )
+                  }
                   className={styles.timeInput}
                   disabled={!notifications.studyPlans}
                 />
@@ -729,29 +1131,59 @@ const Settings = () => {
                 <div className={styles.notificationInfo}>
                   <div className={styles.textContainer}>
                     <span className={styles.settingLabel}>
-                      <Flame size={18} className={styles.notifIcon} />
+                      <Flame
+                        size={18}
+                        className={styles.notifIcon}
+                      />
+
                       {strings.settings.notifications.streak.title}
                     </span>
-                    <p className={styles.subText}>{strings.settings.notifications.streak.desc}</p>
+
+                    <p className={styles.subText}>
+                      {strings.settings.notifications.streak.desc}
+                    </p>
                   </div>
                 </div>
+
                 <label className={styles.switch}>
                   <input
                     type="checkbox"
                     checked={notifications.streak}
-                    onChange={() => updateSubSetting('streak', !notifications.streak)}
+                    onChange={() =>
+                      updateSubSetting(
+                        'streak',
+                        !notifications.streak
+                      )
+                    }
                     disabled={!masterNotifications}
                   />
+
                   <span className={styles.sliderRound}></span>
                 </label>
               </div>
-              <div className={`${styles.timePickerRow} ${!notifications.streak ? styles.dimmed : ''}`}>
+
+              <div
+                className={`${styles.timePickerRow} ${
+                  !notifications.streak
+                    ? styles.dimmed
+                    : ''
+                }`}
+              >
                 <Clock size={16} />
-                <span>{strings.settings.notifications.alert_time}</span>
+
+                <span>
+                  {strings.settings.notifications.alert_time}
+                </span>
+
                 <input
                   type="time"
                   value={notifications.streakTime}
-                  onChange={(e) => updateSubSetting('streakTime', e.target.value)}
+                  onChange={(e) =>
+                    updateSubSetting(
+                      'streakTime',
+                      e.target.value
+                    )
+                  }
                   className={styles.timeInput}
                   disabled={!notifications.streak}
                 />
@@ -763,29 +1195,59 @@ const Settings = () => {
                 <div className={styles.notificationInfo}>
                   <div className={styles.textContainer}>
                     <span className={styles.settingLabel}>
-                      <Sparkles size={18} className={styles.notifIcon} />
+                      <Sparkles
+                        size={18}
+                        className={styles.notifIcon}
+                      />
+
                       {strings.settings.notifications.app_suggestions.title}
                     </span>
-                    <p className={styles.subText}>{strings.settings.notifications.app_suggestions.desc}</p>
+
+                    <p className={styles.subText}>
+                      {strings.settings.notifications.app_suggestions.desc}
+                    </p>
                   </div>
                 </div>
+
                 <label className={styles.switch}>
                   <input
                     type="checkbox"
                     checked={notifications.appSuggestions}
-                    onChange={() => updateSubSetting('appSuggestions', !notifications.appSuggestions)}
+                    onChange={() =>
+                      updateSubSetting(
+                        'appSuggestions',
+                        !notifications.appSuggestions
+                      )
+                    }
                     disabled={!masterNotifications}
                   />
+
                   <span className={styles.sliderRound}></span>
                 </label>
               </div>
-              <div className={`${styles.timePickerRow} ${!notifications.appSuggestions ? styles.dimmed : ''}`}>
+
+              <div
+                className={`${styles.timePickerRow} ${
+                  !notifications.appSuggestions
+                    ? styles.dimmed
+                    : ''
+                }`}
+              >
                 <Clock size={16} />
-                <span>{strings.settings.notifications.alert_time}</span>
+
+                <span>
+                  {strings.settings.notifications.alert_time}
+                </span>
+
                 <input
                   type="time"
                   value={notifications.appSuggestionsTime}
-                  onChange={(e) => updateSubSetting('appSuggestionsTime', e.target.value)}
+                  onChange={(e) =>
+                    updateSubSetting(
+                      'appSuggestionsTime',
+                      e.target.value
+                    )
+                  }
                   className={styles.timeInput}
                   disabled={!notifications.appSuggestions}
                 />
@@ -796,19 +1258,33 @@ const Settings = () => {
               <div className={styles.notificationInfo}>
                 <div className={styles.textContainer}>
                   <span className={styles.settingLabel}>
-                    <RefreshCw size={18} className={styles.notifIcon} />
+                    <RefreshCw
+                      size={18}
+                      className={styles.notifIcon}
+                    />
+
                     {strings.settings.notifications.updates.title}
                   </span>
-                  <p className={styles.subText}>{strings.settings.notifications.updates.desc}</p>
+
+                  <p className={styles.subText}>
+                    {strings.settings.notifications.updates.desc}
+                  </p>
                 </div>
               </div>
+
               <label className={styles.switch}>
                 <input
                   type="checkbox"
                   checked={notifications.updateAlerts}
-                  onChange={() => updateSubSetting('updateAlerts', !notifications.updateAlerts)}
+                  onChange={() =>
+                    updateSubSetting(
+                      'updateAlerts',
+                      !notifications.updateAlerts
+                    )
+                  }
                   disabled={!masterNotifications}
                 />
+
                 <span className={styles.sliderRound}></span>
               </label>
             </div>
@@ -817,71 +1293,142 @@ const Settings = () => {
       )}
 
       {user ? (
-        <div className={styles.section + ' ' + styles.deleteSection}>
+        <div
+          className={
+            styles.section + ' ' + styles.deleteSection
+          }
+        >
           <h2 className={styles.sectionTitle}>
-            <SettingsIcon size={22} className={styles.iconPrimary} /> {strings.settings.account.title}
+            <SettingsIcon
+              size={22}
+              className={styles.iconPrimary}
+            />
+
+            {strings.settings.account.title}
           </h2>
-          <p className={styles.subText} style={{ marginBottom: '15px' }}>
+
+          <p
+            className={styles.subText}
+            style={{ marginBottom: '15px' }}
+          >
             {strings.settings.account.desc}
           </p>
+
           <div className={styles.accountButtons}>
-            <button className={styles.logoutButton} onClick={handleLogout}>
+            <button
+              className={styles.logoutButton}
+              onClick={handleLogout}
+            >
               <LogOut size={20} />
-              <span>{strings.settings.account.logout}</span>
+
+              <span>
+                {strings.settings.account.logout}
+              </span>
             </button>
 
-            <button className={styles.deleteButton} onClick={handleDeleteAccount}>
+            <button
+              className={styles.deleteButton}
+              onClick={handleDeleteAccount}
+            >
               <Trash2 size={20} />
-              <span>{strings.settings.account.delete_account}</span>
+
+              <span>
+                {strings.settings.account.delete_account}
+              </span>
             </button>
           </div>
         </div>
-      ) : showSyncLogin && (
-        <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>
-            <CloudSync size={22} className={styles.iconPrimary} /> {strings.settings.sync.title}
-          </h2>
-          <p className={styles.subText} style={{ marginBottom: '15px' }}>
-            {strings.settings.sync.desc}
-          </p>
-          <button
-            className={styles.loginButton}
-            onClick={() => router.push('/intro')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              padding: '12px',
-              borderRadius: '12px',
-              backgroundColor: 'var(--primary-color, #2563eb)',
-              color: 'white',
-              border: 'none',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            <LogIn size={20} />
-            <span>{strings.settings.sync.login_button}</span>
-          </button>
-        </div>
+      ) : (
+        showSyncLogin && (
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>
+              <CloudSync
+                size={22}
+                className={styles.iconPrimary}
+              />
+
+              {strings.settings.sync.title}
+            </h2>
+
+            <p
+              className={styles.subText}
+              style={{ marginBottom: '15px' }}
+            >
+              {strings.settings.sync.desc}
+            </p>
+
+            <button
+              className={styles.loginButton}
+              onClick={() => router.push('/intro')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                padding: '12px',
+                borderRadius: '12px',
+                backgroundColor:
+                  'var(--primary-color, #2563eb)',
+                color: 'white',
+                border: 'none',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              <LogIn size={20} />
+
+              <span>
+                {strings.settings.sync.login_button}
+              </span>
+            </button>
+          </div>
+        )
       )}
 
       {showPermissionModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
-              <SettingsIcon size={24} className={styles.modalIcon} />
-              <button onClick={() => setShowPermissionModal(false)} className={styles.closeBtn}>
+              <SettingsIcon
+                size={24}
+                className={styles.modalIcon}
+              />
+
+              <button
+                onClick={() =>
+                  setShowPermissionModal(false)
+                }
+                className={styles.closeBtn}
+              >
                 <X size={20} />
               </button>
             </div>
-            <h3>{strings.settings.permission_modal.title}</h3>
-            <p>{strings.settings.permission_modal.desc}</p>
+
+            <h3>
+              {strings.settings.permission_modal.title}
+            </h3>
+
+            <p>
+              {strings.settings.permission_modal.desc}
+            </p>
+
             <div className={styles.modalActions}>
-              <button onClick={openSystemSettings} className={styles.primaryBtn}>{strings.common.open_settings}</button>
-              <button onClick={() => setShowPermissionModal(false)} className={styles.cancelBtn}>{strings.common.cancel}</button>
+              <button
+                onClick={openSystemSettings}
+                className={styles.primaryBtn}
+              >
+                {strings.common.open_settings}
+              </button>
+
+              <button
+                onClick={() =>
+                  setShowPermissionModal(false)
+                }
+                className={styles.cancelBtn}
+              >
+                {strings.common.cancel}
+              </button>
             </div>
           </div>
         </div>

@@ -7,53 +7,183 @@ import React, {
     useEffect,
     useMemo,
     useCallback
-} from 'react';
+} from "react";
 
-import { usePathname } from 'next/navigation';
-import { Preferences } from '@capacitor/preferences';
-import { useTheme } from 'next-themes';
-import { Capacitor } from '@capacitor/core';
-import { App } from '@capacitor/app';
-import { KeepAwake } from '@capacitor-community/keep-awake';
-import { toast } from 'react-hot-toast';
+import { usePathname } from "next/navigation";
+import { Preferences } from "@capacitor/preferences";
+import { useTheme } from "next-themes";
+import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
+import { KeepAwake } from "@capacitor-community/keep-awake";
+import { toast } from "react-hot-toast";
 
-import allBookNames from '../data/bookNames.json';
-import { languageManager } from '../../services/languageManager';
+import allBookNames from "../data/bookNames.json";
+import { languageManager } from "../../services/languageManager";
 
 const LanguageContext = createContext();
 
 const FOLDER_MAP = {
-    ar: 'arabic',
-    en: 'English',
-    de: 'german',
-    fr: 'French'
+    ar: "arabic",
+    en: "English",
+    de: "german",
+    fr: "French"
 };
 
 const BIBLE_FILE_MAP = {
-    ar: 'ar_svd_no_tashkeel.json',
-    en: 'en_web.json',
-    fr: 'fr_segond.json',
-    de: 'de_luther.json'
+    ar: "ar_svd_no_tashkeel.json",
+    en: "en_web.json",
+    fr: "fr_segond.json",
+    de: "de_luther.json"
 };
 
 const SHARED_FILES = [
-    { folder: 'shared', fileName: 'dailyVerses.json' }
+    {
+        folder: "shared",
+        fileName: "dailyVerses.json"
+    }
 ];
 
 const getAuxFiles = (lang) => {
-    const folder = FOLDER_MAP[lang] || 'arabic';
+    const folder = FOLDER_MAP[lang] || "arabic";
 
     return [
-        { folder, fileName: `dailyQuestions_${lang}.json` },
-        { folder, fileName: BIBLE_FILE_MAP[lang] || BIBLE_FILE_MAP.ar }
+        {
+            folder,
+            fileName: `dailyQuestions_${lang}.json`
+        },
+        {
+            folder,
+            fileName:
+                BIBLE_FILE_MAP[lang] ||
+                BIBLE_FILE_MAP.ar
+        }
     ];
 };
 
-export function LanguageProvider({ children }) {
+/*
+|--------------------------------------------------------------------------
+| Session cache + request deduplication
+|--------------------------------------------------------------------------
+|
+| الهدف:
+| 1. منع تحميل نفس الملف أكثر من مرة في نفس الوقت.
+| 2. منع إعادة طلب نفس الملف أثناء نفس جلسة التطبيق.
+|
+| ملاحظة:
+| الـ persistent cache الأساسي يظل مسؤولية languageManager.
+|
+*/
+
+const fileCache = new globalThis.Map();
+const filePromises = new globalThis.Map();
+
+const getFileCacheKey = (folder, fileName) => {
+    return `${folder}/${fileName}`;
+};
+
+const invalidateFileCache = (folder, fileName) => {
+    const key = getFileCacheKey(
+        folder,
+        fileName
+    );
+
+    fileCache.delete(key);
+};
+
+const clearLanguageCache = (lang) => {
+    const folder =
+        FOLDER_MAP[lang] || "arabic";
+
+    const mainFile =
+        lang === "ar"
+            ? "ar.json"
+            : `${lang}.json`;
+
+    invalidateFileCache(
+        folder,
+        mainFile
+    );
+
+    const auxFiles =
+        getAuxFiles(lang);
+
+    auxFiles.forEach(
+        ({ folder: auxFolder, fileName }) => {
+            invalidateFileCache(
+                auxFolder,
+                fileName
+            );
+        }
+    );
+
+    SHARED_FILES.forEach(
+        ({ folder: sharedFolder, fileName }) => {
+            invalidateFileCache(
+                sharedFolder,
+                fileName
+            );
+        }
+    );
+};
+
+const getCachedFile = async (
+    folder,
+    fileName
+) => {
+    const key = getFileCacheKey(
+        folder,
+        fileName
+    );
+
+    /*
+     * موجود بالفعل في memory
+     */
+    if (fileCache.has(key)) {
+        return fileCache.get(key);
+    }
+
+    /*
+     * نفس الملف بيتحمل حاليًا
+     * استخدم نفس الـ Promise بدل download جديد
+     */
+    if (filePromises.has(key)) {
+        return filePromises.get(key);
+    }
+
+    const promise = languageManager
+        .getFile(folder, fileName)
+        .then((data) => {
+            if (
+                data !== undefined &&
+                data !== null
+            ) {
+                fileCache.set(
+                    key,
+                    data
+                );
+            }
+
+            return data;
+        })
+        .finally(() => {
+            filePromises.delete(key);
+        });
+
+    filePromises.set(
+        key,
+        promise
+    );
+
+    return promise;
+};
+
+export function LanguageProvider({
+    children
+}) {
     const pathname = usePathname();
 
     const [language, setLanguage] =
-        useState('ar');
+        useState("ar");
 
     const [parallelLanguage, setParallelLanguage] =
         useState(null);
@@ -77,54 +207,67 @@ export function LanguageProvider({ children }) {
         useState(false);
 
     const [onboardingStep, setOnboardingStep] =
-        useState('language');
+        useState("language");
 
     const [isHydrated, setIsHydrated] =
         useState(false);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Load translations
+    |--------------------------------------------------------------------------
+    */
 
     const loadTranslations =
         useCallback(async (lang) => {
             try {
                 const folder =
-                    FOLDER_MAP[lang] || 'arabic';
+                    FOLDER_MAP[lang] ||
+                    "arabic";
 
                 const mainFile =
-                    lang === 'ar'
-                        ? 'ar.json'
+                    lang === "ar"
+                        ? "ar.json"
                         : `${lang}.json`;
 
                 const mainData =
-                    await languageManager.getFile(
+                    await getCachedFile(
                         folder,
                         mainFile
                     );
 
                 if (!mainData) {
                     throw new Error(
-                        'Main language data is empty'
+                        "Main language data is empty"
                     );
                 }
 
                 setStrings(mainData);
             } catch (error) {
                 console.error(
-                    'Error loading language:',
+                    "Error loading language:",
                     error
                 );
 
-                if (lang === 'ar') {
+                /*
+                 * Arabic local fallback
+                 */
+                if (lang === "ar") {
                     try {
                         const fallback =
                             await import(
-                                '../data/translations/arabic/ar.json'
+                                "../data/translations/arabic/ar.json"
                             );
 
                         setStrings(
-                            fallback.default || fallback
+                            fallback.default ||
+                            fallback
                         );
-                    } catch (fallbackError) {
+                    } catch (
+                        fallbackError
+                    ) {
                         console.error(
-                            'Critical fallback error:',
+                            "Critical fallback error:",
                             fallbackError
                         );
                     }
@@ -134,39 +277,70 @@ export function LanguageProvider({ children }) {
             }
         }, []);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Prefetch auxiliary files
+    |--------------------------------------------------------------------------
+    */
+
     const prefetchAuxFiles =
         useCallback(async (lang) => {
-            if (!Capacitor.isNativePlatform()) {
+            if (
+                !Capacitor.isNativePlatform()
+            ) {
                 return;
             }
 
-            const files = getAuxFiles(lang);
+            const files =
+                getAuxFiles(lang);
 
             await Promise.allSettled(
-                files.map(({ folder, fileName }) =>
-                    languageManager.getFile(
+                files.map(
+                    ({
                         folder,
                         fileName
-                    )
+                    }) =>
+                        getCachedFile(
+                            folder,
+                            fileName
+                        )
                 )
             );
         }, []);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Prefetch shared files
+    |--------------------------------------------------------------------------
+    */
 
     const prefetchSharedFiles =
         useCallback(async () => {
-            if (!Capacitor.isNativePlatform()) {
+            if (
+                !Capacitor.isNativePlatform()
+            ) {
                 return;
             }
 
             await Promise.allSettled(
-                SHARED_FILES.map(({ folder, fileName }) =>
-                    languageManager.getFile(
+                SHARED_FILES.map(
+                    ({
                         folder,
                         fileName
-                    )
+                    }) =>
+                        getCachedFile(
+                            folder,
+                            fileName
+                        )
                 )
             );
         }, []);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Initial initialization
+    |--------------------------------------------------------------------------
+    */
 
     useEffect(() => {
         const init = async () => {
@@ -175,13 +349,13 @@ export function LanguageProvider({ children }) {
 
                 const savedLang =
                     localStorage.getItem(
-                        'app_lang'
+                        "app_lang"
                     );
 
                 const onboardingDone =
                     localStorage.getItem(
-                        'onboarding_done'
-                    ) === 'true';
+                        "onboarding_done"
+                    ) === "true";
 
                 if (
                     !savedLang ||
@@ -190,7 +364,7 @@ export function LanguageProvider({ children }) {
                     setIsFirstTime(true);
 
                     const langToLoad =
-                        savedLang || 'ar';
+                        savedLang || "ar";
 
                     setLanguage(
                         langToLoad
@@ -200,13 +374,17 @@ export function LanguageProvider({ children }) {
                         langToLoad
                     );
 
-                    prefetchAuxFiles(
+                    /*
+                     * لا ننتظر الـ prefetch
+                     * حتى لا يؤخر فتح التطبيق
+                     */
+                    void prefetchAuxFiles(
                         langToLoad
                     );
 
                     if (savedLang) {
                         setOnboardingStep(
-                            'theme'
+                            "theme"
                         );
                     }
                 } else {
@@ -218,16 +396,22 @@ export function LanguageProvider({ children }) {
                         savedLang
                     );
 
-                    prefetchAuxFiles(
+                    /*
+                     * Background prefetch
+                     */
+                    void prefetchAuxFiles(
                         savedLang
                     );
                 }
 
-                prefetchSharedFiles();
+                /*
+                 * Background prefetch
+                 */
+                void prefetchSharedFiles();
 
                 const savedParallel =
                     localStorage.getItem(
-                        'parallel_lang'
+                        "parallel_lang"
                     );
 
                 if (savedParallel) {
@@ -238,8 +422,8 @@ export function LanguageProvider({ children }) {
 
                 const savedTashkeel =
                     localStorage.getItem(
-                        'useTashkeel'
-                    ) === 'true';
+                        "useTashkeel"
+                    ) === "true";
 
                 setUseTashkeel(
                     savedTashkeel
@@ -247,23 +431,23 @@ export function LanguageProvider({ children }) {
 
                 const appAwakeRaw =
                     localStorage.getItem(
-                        'keepAppAwake'
+                        "keepAppAwake"
                     );
 
                 const bibleAwakeRaw =
                     localStorage.getItem(
-                        'keepBibleAwake'
+                        "keepBibleAwake"
                     );
 
                 const appAwake =
                     appAwakeRaw === null
                         ? true
-                        : appAwakeRaw === 'true';
+                        : appAwakeRaw === "true";
 
                 const bibleAwake =
                     bibleAwakeRaw === null
                         ? true
-                        : bibleAwakeRaw === 'true';
+                        : bibleAwakeRaw === "true";
 
                 setKeepAppAwake(
                     appAwake
@@ -276,7 +460,7 @@ export function LanguageProvider({ children }) {
                 setIsHydrated(true);
             } catch (error) {
                 console.error(
-                    'Language initialization error:',
+                    "Language initialization error:",
                     error
                 );
 
@@ -285,7 +469,17 @@ export function LanguageProvider({ children }) {
         };
 
         init();
-    }, [loadTranslations, prefetchAuxFiles, prefetchSharedFiles]);
+    }, [
+        loadTranslations,
+        prefetchAuxFiles,
+        prefetchSharedFiles
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Keep Awake
+    |--------------------------------------------------------------------------
+    */
 
     useEffect(() => {
         if (
@@ -305,7 +499,7 @@ export function LanguageProvider({ children }) {
                     } else if (
                         keepBibleAwake &&
                         pathname?.includes(
-                            '/bible'
+                            "/bible"
                         )
                     ) {
                         await KeepAwake.keepAwake();
@@ -314,7 +508,7 @@ export function LanguageProvider({ children }) {
                     }
                 } catch (error) {
                     console.error(
-                        'Awake Status Error:',
+                        "Awake Status Error:",
                         error
                     );
                 }
@@ -328,87 +522,168 @@ export function LanguageProvider({ children }) {
         isHydrated
     ]);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Background update checker
+    |--------------------------------------------------------------------------
+    */
+
     useEffect(() => {
         if (!isHydrated) {
             return;
         }
 
-        const checkForUpdates = async () => {
-            try {
-                await languageManager.refreshManifest();
+        const checkForUpdates =
+            async () => {
+                try {
+                    /*
+                     * Get newest manifest
+                     */
+                    await languageManager.refreshManifest();
 
-                const folder =
-                    FOLDER_MAP[language] || 'arabic';
+                    const folder =
+                        FOLDER_MAP[
+                            language
+                        ] || "arabic";
 
-                const mainFile =
-                    language === 'ar'
-                        ? 'ar.json'
-                        : `${language}.json`;
+                    const mainFile =
+                        language === "ar"
+                            ? "ar.json"
+                            : `${language}.json`;
 
-                const upToDate =
-                    await languageManager.isUpToDate(
-                        folder,
-                        mainFile
+                    /*
+                     * Check main translation
+                     */
+                    const upToDate =
+                        await languageManager.isUpToDate(
+                            folder,
+                            mainFile
+                        );
+
+                    if (!upToDate) {
+                        /*
+                         * مهم:
+                         * امسح نسخة الـ memory القديمة
+                         * قبل تحميل النسخة الجديدة.
+                         */
+                        invalidateFileCache(
+                            folder,
+                            mainFile
+                        );
+
+                        await loadTranslations(
+                            language
+                        );
+                    }
+
+                    /*
+                     * Native auxiliary files
+                     */
+                    if (
+                        Capacitor.isNativePlatform()
+                    ) {
+                        const auxFiles =
+                            getAuxFiles(
+                                language
+                            );
+
+                        for (
+                            const {
+                                folder: auxFolder,
+                                fileName
+                            } of auxFiles
+                        ) {
+                            const auxUpToDate =
+                                await languageManager.isUpToDate(
+                                    auxFolder,
+                                    fileName
+                                );
+
+                            if (
+                                !auxUpToDate
+                            ) {
+                                /*
+                                 * امسح الـ memory cache
+                                 */
+                                invalidateFileCache(
+                                    auxFolder,
+                                    fileName
+                                );
+
+                                /*
+                                 * حمّل النسخة الجديدة
+                                 * في الخلفية
+                                 */
+                                await getCachedFile(
+                                    auxFolder,
+                                    fileName
+                                ).catch(
+                                    () => {}
+                                );
+                            }
+                        }
+
+                        /*
+                         * Shared files
+                         */
+                        for (
+                            const {
+                                folder: sharedFolder,
+                                fileName
+                            } of SHARED_FILES
+                        ) {
+                            const sharedUpToDate =
+                                await languageManager.isUpToDate(
+                                    sharedFolder,
+                                    fileName
+                                );
+
+                            if (
+                                !sharedUpToDate
+                            ) {
+                                invalidateFileCache(
+                                    sharedFolder,
+                                    fileName
+                                );
+
+                                await getCachedFile(
+                                    sharedFolder,
+                                    fileName
+                                ).catch(
+                                    () => {}
+                                );
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(
+                        "Update Check Error:",
+                        error
                     );
-
-                if (!upToDate) {
-                    await loadTranslations(language);
                 }
+            };
 
-                if (Capacitor.isNativePlatform()) {
-                    const auxFiles =
-                        getAuxFiles(language);
+        /*
+        |--------------------------------------------------------------------------
+        | Native: check when app becomes active
+        |--------------------------------------------------------------------------
+        */
 
-                    for (const { folder: auxFolder, fileName } of auxFiles) {
-                        const auxUpToDate =
-                            await languageManager.isUpToDate(
-                                auxFolder,
-                                fileName
-                            );
-
-                        if (!auxUpToDate) {
-                            await languageManager.getFile(
-                                auxFolder,
-                                fileName
-                            ).catch(() => {});
-                        }
-                    }
-
-                    for (const { folder: sharedFolder, fileName } of SHARED_FILES) {
-                        const sharedUpToDate =
-                            await languageManager.isUpToDate(
-                                sharedFolder,
-                                fileName
-                            );
-
-                        if (!sharedUpToDate) {
-                            await languageManager.getFile(
-                                sharedFolder,
-                                fileName
-                            ).catch(() => {});
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error(
-                    'Update Check Error:',
-                    error
-                );
-            }
-        };
-
-        if (Capacitor.isNativePlatform()) {
+        if (
+            Capacitor.isNativePlatform()
+        ) {
             let listenerHandle;
 
             App.addListener(
-                'appStateChange',
+                "appStateChange",
                 ({ isActive }) => {
                     if (isActive) {
-                        checkForUpdates();
+                        void checkForUpdates();
                     }
                 }
             ).then((handle) => {
-                listenerHandle = handle;
+                listenerHandle =
+                    handle;
             });
 
             return () => {
@@ -416,20 +691,30 @@ export function LanguageProvider({ children }) {
             };
         }
 
-        const handleVisibility = () => {
-            if (document.visibilityState === 'visible') {
-                checkForUpdates();
-            }
-        };
+        /*
+        |--------------------------------------------------------------------------
+        | Web: check when tab becomes visible
+        |--------------------------------------------------------------------------
+        */
+
+        const handleVisibility =
+            () => {
+                if (
+                    document.visibilityState ===
+                    "visible"
+                ) {
+                    void checkForUpdates();
+                }
+            };
 
         document.addEventListener(
-            'visibilitychange',
+            "visibilitychange",
             handleVisibility
         );
 
         return () => {
             document.removeEventListener(
-                'visibilitychange',
+                "visibilitychange",
                 handleVisibility
             );
         };
@@ -439,25 +724,45 @@ export function LanguageProvider({ children }) {
         loadTranslations
     ]);
 
-    const bookNames = useMemo(() => {
-        if (!allBookNames) {
-            return [];
-        }
+    /*
+    |--------------------------------------------------------------------------
+    | Book names
+    |--------------------------------------------------------------------------
+    */
 
-        return (
-            allBookNames[language] ||
-            allBookNames.ar ||
-            []
+    const bookNames =
+        useMemo(() => {
+            if (!allBookNames) {
+                return [];
+            }
+
+            return (
+                allBookNames[language] ||
+                allBookNames.ar ||
+                []
+            );
+        }, [language]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Direction
+    |--------------------------------------------------------------------------
+    */
+
+    const dir =
+        useMemo(
+            () =>
+                language === "ar"
+                    ? "rtl"
+                    : "ltr",
+            [language]
         );
-    }, [language]);
 
-    const dir = useMemo(
-        () =>
-            language === 'ar'
-                ? 'rtl'
-                : 'ltr',
-        [language]
-    );
+    /*
+    |--------------------------------------------------------------------------
+    | Sync language
+    |--------------------------------------------------------------------------
+    */
 
     useEffect(() => {
         if (!isHydrated) {
@@ -473,10 +778,12 @@ export function LanguageProvider({ children }) {
         const syncLang =
             async () => {
                 try {
-                    await Preferences.set({
-                        key: 'language',
-                        value: language
-                    });
+                    await Preferences.set(
+                        {
+                            key: "language",
+                            value: language
+                        }
+                    );
 
                     if (
                         window
@@ -489,7 +796,7 @@ export function LanguageProvider({ children }) {
                     }
                 } catch (error) {
                     console.error(
-                        'Language Sync Error:',
+                        "Language Sync Error:",
                         error
                     );
                 }
@@ -502,6 +809,12 @@ export function LanguageProvider({ children }) {
         isHydrated
     ]);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sync theme
+    |--------------------------------------------------------------------------
+    */
+
     useEffect(() => {
         if (
             isHydrated &&
@@ -511,10 +824,12 @@ export function LanguageProvider({ children }) {
             const syncTheme =
                 async () => {
                     try {
-                        await Preferences.set({
-                            key: 'theme',
-                            value: theme
-                        });
+                        await Preferences.set(
+                            {
+                                key: "theme",
+                                value: theme
+                            }
+                        );
 
                         if (
                             window
@@ -527,7 +842,7 @@ export function LanguageProvider({ children }) {
                         }
                     } catch (error) {
                         console.error(
-                            'Theme Sync Error:',
+                            "Theme Sync Error:",
                             error
                         );
                     }
@@ -540,13 +855,19 @@ export function LanguageProvider({ children }) {
         isHydrated
     ]);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Change language
+    |--------------------------------------------------------------------------
+    */
+
     const changeLanguage =
         async (newLang) => {
             if (
                 newLang === language
             ) {
                 localStorage.setItem(
-                    'app_lang',
+                    "app_lang",
                     newLang
                 );
 
@@ -554,15 +875,20 @@ export function LanguageProvider({ children }) {
             }
 
             const folder =
-                FOLDER_MAP[newLang] || 'arabic';
+                FOLDER_MAP[newLang] ||
+                "arabic";
 
             const mainFile =
-                newLang === 'ar'
-                    ? 'ar.json'
+                newLang === "ar"
+                    ? "ar.json"
                     : `${newLang}.json`;
 
+            /*
+             * Offline check
+             */
             if (
-                typeof navigator !== 'undefined' &&
+                typeof navigator !==
+                    "undefined" &&
                 !navigator.onLine
             ) {
                 const alreadyAvailable =
@@ -571,10 +897,13 @@ export function LanguageProvider({ children }) {
                         mainFile
                     );
 
-                if (!alreadyAvailable) {
+                if (
+                    !alreadyAvailable
+                ) {
                     toast.error(
-                        strings?.common?.internet_required ||
-                        'This feature requires an internet connection'
+                        strings?.common
+                            ?.internet_required ||
+                        "This feature requires an internet connection"
                     );
 
                     return;
@@ -582,20 +911,44 @@ export function LanguageProvider({ children }) {
             }
 
             localStorage.setItem(
-                'app_lang',
+                "app_lang",
                 newLang
             );
 
             setIsHydrated(false);
 
             try {
+                /*
+                 * Get latest manifest
+                 */
                 await languageManager.refreshManifest();
+
+                /*
+                 * مهم:
+                 * لو كان الملف موجود في session cache
+                 * لازم نتأكد من الـ manifest قبل الاعتماد عليه.
+                 */
+                const upToDate =
+                    await languageManager.isUpToDate(
+                        folder,
+                        mainFile
+                    );
+
+                if (!upToDate) {
+                    invalidateFileCache(
+                        folder,
+                        mainFile
+                    );
+                }
 
                 await loadTranslations(
                     newLang
                 );
 
-                prefetchAuxFiles(
+                /*
+                 * Background prefetch
+                 */
+                void prefetchAuxFiles(
                     newLang
                 );
 
@@ -612,23 +965,30 @@ export function LanguageProvider({ children }) {
                     );
 
                     localStorage.removeItem(
-                        'parallel_lang'
+                        "parallel_lang"
                     );
                 }
             } catch (error) {
                 console.error(
-                    'Change Language Error:',
+                    "Change Language Error:",
                     error
                 );
 
                 toast.error(
-                    strings?.common?.internet_required ||
-                    'This feature requires an internet connection'
+                    strings?.common
+                        ?.internet_required ||
+                    "This feature requires an internet connection"
                 );
             } finally {
                 setIsHydrated(true);
             }
         };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Finish onboarding
+    |--------------------------------------------------------------------------
+    */
 
     const finishFirstTime =
         () => {
@@ -637,10 +997,16 @@ export function LanguageProvider({ children }) {
             );
 
             localStorage.setItem(
-                'onboarding_done',
-                'true'
+                "onboarding_done",
+                "true"
             );
         };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Parallel language
+    |--------------------------------------------------------------------------
+    */
 
     const changeParallelLanguage =
         (newLang) => {
@@ -652,7 +1018,7 @@ export function LanguageProvider({ children }) {
                 );
 
                 localStorage.removeItem(
-                    'parallel_lang'
+                    "parallel_lang"
                 );
             } else {
                 setParallelLanguage(
@@ -660,63 +1026,86 @@ export function LanguageProvider({ children }) {
                 );
 
                 localStorage.setItem(
-                    'parallel_lang',
+                    "parallel_lang",
                     newLang
                 );
             }
 
             window.dispatchEvent(
-                new Event('storage')
+                new Event("storage")
             );
         };
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tashkeel
+    |--------------------------------------------------------------------------
+    */
 
     const toggleTashkeel =
         useCallback(() => {
             setUseTashkeel(
-                previous => {
+                (previous) => {
                     const newState =
                         !previous;
 
                     localStorage.setItem(
-                        'useTashkeel',
+                        "useTashkeel",
                         newState.toString()
                     );
 
                     window.dispatchEvent(
-                        new Event('storage')
+                        new Event(
+                            "storage"
+                        )
                     );
 
                     return newState;
                 }
             );
         }, []);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Keep app awake
+    |--------------------------------------------------------------------------
+    */
 
     const toggleKeepAppAwake =
-        useCallback(async () => {
-            setKeepAppAwake(
-                previous => {
-                    const newState =
-                        !previous;
+        useCallback(
+            async () => {
+                setKeepAppAwake(
+                    (previous) => {
+                        const newState =
+                            !previous;
 
-                    localStorage.setItem(
-                        'keepAppAwake',
-                        newState.toString()
-                    );
+                        localStorage.setItem(
+                            "keepAppAwake",
+                            newState.toString()
+                        );
 
-                    return newState;
-                }
-            );
-        }, []);
+                        return newState;
+                    }
+                );
+            },
+            []
+        );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Keep Bible awake
+    |--------------------------------------------------------------------------
+    */
 
     const toggleKeepBibleAwake =
         useCallback(() => {
             setKeepBibleAwake(
-                previous => {
+                (previous) => {
                     const newState =
                         !previous;
 
                     localStorage.setItem(
-                        'keepBibleAwake',
+                        "keepBibleAwake",
                         newState.toString()
                     );
 
@@ -725,48 +1114,60 @@ export function LanguageProvider({ children }) {
             );
         }, []);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Format numbers
+    |--------------------------------------------------------------------------
+    */
+
     const formatNumber =
         useCallback(
-            num => {
+            (num) => {
                 if (
                     num === null ||
                     num === undefined
                 ) {
-                    return '';
+                    return "";
                 }
 
                 if (
-                    language !== 'ar'
+                    language !== "ar"
                 ) {
                     return num.toString();
                 }
 
                 const arabicNums = [
-                    '٠',
-                    '١',
-                    '٢',
-                    '٣',
-                    '٤',
-                    '٥',
-                    '٦',
-                    '٧',
-                    '٨',
-                    '٩'
+                    "٠",
+                    "١",
+                    "٢",
+                    "٣",
+                    "٤",
+                    "٥",
+                    "٦",
+                    "٧",
+                    "٨",
+                    "٩"
                 ];
 
                 return num
                     .toString()
-                    .split('')
+                    .split("")
                     .map(
-                        digit =>
+                        (digit) =>
                             arabicNums[
                                 +digit
                             ] || digit
                     )
-                    .join('');
+                    .join("");
             },
             [language]
         );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Context value
+    |--------------------------------------------------------------------------
+    */
 
     const value = {
         language,
@@ -792,6 +1193,12 @@ export function LanguageProvider({ children }) {
         formatNumber
     };
 
+    /*
+    |--------------------------------------------------------------------------
+    | Loading screen
+    |--------------------------------------------------------------------------
+    */
+
     if (
         !isHydrated ||
         !strings
@@ -799,16 +1206,16 @@ export function LanguageProvider({ children }) {
         return (
             <div
                 style={{
-                    height: '100vh',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    height: "100vh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     backgroundColor:
-                        'var(--color-bg-start)',
+                        "var(--color-bg-start)",
                     color:
-                        'var(--color-text-primary)',
+                        "var(--color-text-primary)",
                     fontFamily:
-                        'sans-serif'
+                        "sans-serif"
                 }}
             >
                 ...
@@ -826,6 +1233,7 @@ export function LanguageProvider({ children }) {
 }
 
 export const useLanguage =
-    () => useContext(
-        LanguageContext
-    );
+    () =>
+        useContext(
+            LanguageContext
+        );

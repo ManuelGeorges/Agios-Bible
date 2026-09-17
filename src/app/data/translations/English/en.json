@@ -467,7 +467,7 @@
     "invite_friend": "Invite a friend",
     "delete_account": "Delete Account",
     "delete_confirm": "Are you sure you want to delete your account permanently?",
-    "version": "Agios App - Version 2.5.0",
+    "version": "Agios App - Version 2.6.2",
     "share_title": "Agios App",
     "share_text": "Download the Agios app and read the Bible in a new way!",
     "share_dialog": "Share the app with friends",
@@ -749,8 +749,24 @@
     },
     "history": [
       {
-        "version": "2.5.0",
+        "version": "2.6.2",
         "date": "Current Update",
+        "title": "Comprehensive Performance, Design, and AI Improvements",
+        "features": [
+          "Resolved severe app slowness and made it work fast on all networks",
+          "Radical design and color improvements for better eye comfort",
+          "Improvements in Bible display design and book/chapter selection",
+          "Added copying of Arabic verses with diacritics",
+          "Improved AI analysis and response speed",
+          "Major Audio Bible enhancements with synchronization to text"
+        ],
+        "fixes": [
+          "Resolved several bugs and issues reported by users"
+        ]
+      },
+      {
+        "version": "2.5.0",
+        "date": "Previous Update",
         "title": "Major Profile Overhaul & General Improvements",
         "features": [
           "Radical development of the personal profile page to be more interactive and modern",

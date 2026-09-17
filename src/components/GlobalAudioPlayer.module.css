@@ -1,21 +1,40 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: 99999;
+}
+
 .audioPanel {
   position: fixed;
   bottom: 65px;
   left: 0;
   right: 0;
   width: 100%;
-  background-color: var(--color-card-bg);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
+  /* خلفية مضمونة عدم الشفافية: لو var(--color-card-bg) فيها alpha، بنضيف طبقة
+     صلبة تحتها بنفس اللون تقريبًا عشان محتوى الشاشة اللي وراء اللوحة (آيات
+     الإصحاح مثلًا)ميبانش خلالها أبدًا - وده كان جزء من سبب التراكب المرئي. */
+  background-color: var(--color-solid-bg, var(--color-card-bg));
+  background-image: linear-gradient(var(--color-card-bg), var(--color-card-bg));
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-top: 1px solid var(--color-border);
-  padding: 12px 18px;
-  border-radius: 25px 25px 0 0;
+  padding: 8px 18px 16px;
+  border-radius: 26px 26px 0 0;
   z-index: 100000;
   box-shadow: 0 -10px 40px var(--color-shadow-medium);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   color: var(--color-text-primary);
+  /* بديل بسيط عن position:relative القديم اللي كان بيستخدمه العنصر الغلط
+     كـ containing block للـ settingsMenu - دلوقتي مفيش عناصر absolute جوه
+     خالص، فمفيش داعي، لكن سايبينها كسياج أمان لأي إضافة مستقبلية. */
+  position: fixed;
+  max-height: 88vh;
+  overflow-y: auto;
 }
 
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
@@ -24,17 +43,46 @@
   }
 }
 
-.audioPanelHeader {
+.grabber {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--color-border);
+  margin: 4px auto 8px;
+  flex-shrink: 0;
+}
+
+/* الحاوية اللي بتتبدّل بين "شاشة المشغّل" و"شاشة الإعدادات" - مفيش تراكب
+   بينهم خالص لأن واحدة بس موجودة في الـ DOM في كل لحظة (AnimatePresence
+   mode="wait" في الكومبوننت)، عكس التصميم القديم اللي كان بيحط الإعدادات
+   position:absolute فوق نفس محتوى المشغّل من غير ما يشيله. */
+.viewWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panelHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+}
+
+.panelHeaderTitle {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--color-accent);
+  flex: 1;
+  text-align: center;
 }
 
 .titleContainer {
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 70%;
+  max-width: 65%;
+  overflow: hidden;
 }
 
 .audioPanelTitle {
@@ -44,6 +92,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .iconBtn {
@@ -58,14 +112,25 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.iconBtn:hover {
+  background: var(--color-accent);
+  color: #fff;
 }
 
 .iconBtn:active {
   transform: scale(0.9);
 }
 
+.iconBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .downloaded {
-  background-color: rgba(76, 175, 80, 0.1);
+  background-color: rgba(16, 185, 129, 0.15);
 }
 
 .spinning {
@@ -77,109 +142,160 @@
   to { transform: rotate(360deg); }
 }
 
-/* Settings Menu Overlay - Now inside the panel */
-.settingsMenu {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-card-bg);
-  border-radius: 25px 25px 0 0;
-  padding: 15px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  z-index: 100001;
+/* شريط تقدّم التحميل (بديل عن الاعتماد بس على السبينر) */
+.downloadProgressTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.settingsHeader {
+.downloadProgressFill {
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 0.2s ease;
+}
+
+/* --- شاشة الإعدادات --- */
+.settingsBody {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-  color: var(--color-accent);
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 6px;
 }
 
 .settingItem {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .settingLabel {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.volumeValue {
+  margin-inline-start: auto;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  font-size: 0.8rem;
 }
 
 .volumeSlider {
   width: 100%;
-  height: 5px;
+  height: 6px;
   -webkit-appearance: none;
-  background: var(--color-border);
+  appearance: none;
   border-radius: 10px;
   outline: none;
 }
 
 .volumeSlider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  background: var(--color-accent);
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border: 3px solid var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.volumeSlider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border: 3px solid var(--color-accent);
   border-radius: 50%;
   cursor: pointer;
 }
 
-.settingsGrid {
+.optionsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
-.settingBtn {
+.optionBtn {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   background: var(--color-border);
-  border: 1px solid transparent;
-  padding: 8px 4px;
-  border-radius: 12px;
-  font-size: 0.7rem;
+  border: 1.5px solid transparent;
+  padding: 12px 6px;
+  border-radius: 16px;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: var(--color-text-primary);
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.activeSetting {
-  background: rgba(var(--color-accent), 0.1);
+.optionBtn:hover {
+  transform: translateY(-2px);
+}
+
+.optionBtnActive {
+  background: rgba(var(--color-accent-rgb, 33, 150, 243), 0.14);
   border-color: var(--color-accent);
   color: var(--color-accent);
+  box-shadow: 0 4px 14px rgba(var(--color-accent-rgb, 33, 150, 243), 0.2);
+}
+
+.sleepSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sleepCountdown {
+  margin-inline-start: auto;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-variant-numeric: tabular-nums;
 }
 
 .timerChips {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .timerChip {
   flex: 1;
-  padding: 6px 0;
+  padding: 9px 0;
   background: var(--color-border);
-  border-radius: 8px;
-  font-size: 0.75rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--color-text-primary);
-  border: none;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.timerChip:hover {
+  transform: translateY(-1px);
 }
 
 .activeChip {
   background: var(--color-accent);
-  color: white;
+  border-color: var(--color-accent);
+  color: #fff;
 }
 
-/* Seek Bar */
+/* --- شريط التقدّم --- */
 .progressBarContainer {
   width: 100%;
   display: flex;
@@ -191,7 +307,7 @@
   width: 100%;
   height: 6px;
   -webkit-appearance: none;
-  background: var(--color-border);
+  appearance: none;
   border-radius: 10px;
   outline: none;
 }
@@ -203,21 +319,24 @@
   background: var(--color-text-primary);
   border-radius: 50%;
   border: 2px solid var(--color-accent);
+  cursor: pointer;
 }
 
 .timeDisplay {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  font-weight: bold;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Controls */
+/* --- أزرار التشغيل --- */
 .audioMainControls {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 25px;
+  gap: 22px;
 }
 
 .panelBtn {
@@ -227,47 +346,80 @@
   display: flex;
   align-items: center;
   cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  opacity: 0.85;
+}
+
+.panelBtn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.panelBtn:active {
+  transform: scale(0.9);
 }
 
 .playPauseCircle {
-  width: 58px;
-  height: 58px;
+  width: 60px;
+  height: 60px;
   background: var(--color-accent);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 20px rgba(var(--color-accent-rgb, 33, 150, 243), 0.35);
   border: none;
   cursor: pointer;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
 }
 
+.playPauseCircle:active {
+  transform: scale(0.94);
+}
+
+/* --- سرعة التشغيل --- */
 .speedSelector {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
   background: var(--color-border);
   padding: 4px;
-  border-radius: 15px;
-  width: fit-content;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 340px;
   margin: 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.speedSelector::-webkit-scrollbar {
+  display: none;
 }
 
 .speedChip {
-  padding: 3px 12px;
+  padding: 6px 10px;
   background: transparent;
   border: none;
   border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: bold;
+  font-size: 0.78rem;
+  font-weight: 800;
   color: var(--color-text-primary);
   opacity: 0.6;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
 .speedChipActive {
   background: var(--color-accent);
   color: white;
   opacity: 1;
+}
+
+@media (max-width: 380px) {
+  .optionsGrid { gap: 8px; }
+  .optionBtn { padding: 10px 4px; font-size: 0.68rem; }
+  .audioMainControls { gap: 16px; }
 }

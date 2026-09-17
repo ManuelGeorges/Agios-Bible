@@ -267,7 +267,7 @@
       "priest_name": "Rév. Père Athanasios",
       "priest_desc": "Nous exprimons notre profonde gratitude et notre amour à {name} for son soin paternel constant envers ce travail depuis ses débuts.",
       "priest_abraam_name": "Très Révérend Père Abraam Emil",
-      "priest_abraam_desc": "Nous exprimons notre gratitude particulière et notre profonde reconnaissance au {name} (Vicaire Général du Patriarcat à Alexandrie) pour son immense soutien paternel lors des premières phases de lancement de l'application, ainsi que pour son aide précieuse dans sa diffusion, son financement et la mobilisation de tous les moyens matériels et moraux nécessaires à la réussite de ce projet.",
+      "priest_abraam_desc": "Nous exprimons notre gratitude particulière et notre profonde reconnaissance au {name} (Vicaire Général du Patriarcat à Alexandrie) for son immense soutien paternel lors des premières phases de lancement de l'application, ainsi que pour son aide précieuse dans sa diffusion, son financement et la mobilisation de tous les moyens matériels et moraux nécessaires à la réussite de ce projet.",
       "fcbh": "Merci spécial à Faith Comes By Hearing pour avoir fourni la merveilleuse bibliothèque audio de M. Adel Noshy, et pour leur soutien technique continu.",
       "church": "Merci à notre église locale, l'Église de l'Archange Michel à Mostafa Kamel - Alexandrie, pour son soutien constant.",
       "translations": "La traduction Louis Segond est utilisée pour le français, Smith & Van Dyke pour l'arabe, World English Bible pour l'anglais et Luther pour l'allemand. Toutes ces traductions sont open-source et légalement autorisées.",
@@ -466,7 +466,7 @@
     "invite_friend": "Inviter un ami",
     "delete_account": "Supprimer le compte",
     "delete_confirm": "Êtes-vous sûr de vouloir supprimer votre compte ?",
-    "version": "Agios App - Version 2.5.0",
+    "version": "Agios App - Version 2.6.2",
     "share_title": "Application Agios",
     "share_text": "Téléchargez l'application Agios and lisez la Bible d'une nouvelle façon !",
     "share_dialog": "Partager l'application with des amis",
@@ -570,7 +570,7 @@
     "incorrect_feedback": "La bonne réponse était : {answer}",
     "next_question": "Question suivante",
     "cancel_quiz": "Annuler le concours",
-    "error_no_questions": "Aucune question disponible pour cette catégorie.",
+    "error_no_questions": "Aucune question disponible for cette catégorie.",
     "points_reason_complete": "Concours terminé : {category}",
     "points_reason_perfect": "Score parfait : {category}"
   },
@@ -748,11 +748,27 @@
     },
     "history": [
       {
-        "version": "2.5.0",
+        "version": "2.6.2",
         "date": "Mise à jour actuelle",
+        "title": "Améliorations complètes des performances, du design et de l'IA",
+        "features": [
+          "Résolution des lenteurs extrêmes de l'application, désormais fluide sur tous les réseaux",
+          "Améliorations radicales du design et des couleurs pour un meilleur confort visuel",
+          "Améliorations du design de l'affichage de la Bible et de la sélection des livres/chapitres",
+          "Ajout de la copie des versets arabes avec diacritiques (Tashkeel)",
+          "Amélioration de l'analyse IA et de sa vitesse de réponse",
+          "Développements majeurs du système de Bible Audio avec synchronisation au texte"
+        ],
+        "fixes": [
+          "Résolution de nombreux bugs et problèmes signalés par les utilisateurs"
+        ]
+      },
+      {
+        "version": "2.5.0",
+        "date": "Mise à jour précédente",
         "title": "Développement complet du profil et améliorations générales",
         "features": [
-          "Développement radical de la page de profil personnel pour être plus interactive et moderne",
+          "Développement radical de la page de profil personnel pour être plus interactive et modern",
           "Amélioration et développement du système de badges et de points (XP) pour encourager l'interaction quotidienne",
           "Achèvement complet du livre d'Esther et ajout au système",
           "Correction d'un problème dans le calcul de la série d'engagement (Streak) pour garantir la précision",
@@ -889,7 +905,7 @@
         "date": "Mise à jour précédente",
         "title": "Mise à jour majeure et support multilingue",
         "features": [
-          "Restructuration complète de l'application pour le support multilingue",
+          "Restructuration complète de l'application for le support multilingue",
           "Ajout du support pour 3 nouvelles langues (Anglais, Français, Allemand) with les fonctionnalités principales",
           "Amélioration de l'affichage et du formatage du texte arabe dans la Sainte Bible",
           "Améliorations du design et de la réactivité pour les petits écrans",
@@ -947,9 +963,9 @@
         "title": "Sortie des cartes améliorées",
         "features": [
           "Expansion de la bibliothèque de cartes with de nouvelles cartes",
-          "Ajout de la recherche intelligente pour les lieux et monuments historiques",
-          "Ajout d'une fonctionnalité pour voir un monument et naviguer vers ses mentions bibliques",
-          "Ajout de la section 'Essayer l'IA' sur la page d'accueil pour une meilleure expérience utilisateur"
+          "Ajout de la recherche intelligente for les lieux et monuments historiques",
+          "Ajout d'une fonctionnalité for voir un monument et naviguer vers ses mentions bibliques",
+          "Ajout de la section 'Essayer l'IA' sur la page d'accueil for une meilleure expérience utilisateur"
         ],
         "fixes": [
           "Correction de la lenteur dans les listes de sélection des livres et chapitres",
