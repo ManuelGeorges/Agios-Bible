@@ -56,7 +56,7 @@ export const metadata = {
     locale: 'ar_EG',
     images: [
       {
-        url: 'https://agios-bible.vercel.app/images/agios.png',
+        url: 'https://agios-bible.vercel.app/favicon.ico',
         width: 1200,
         height: 630,
         type: 'image/png',
@@ -64,9 +64,9 @@ export const metadata = {
     ],
   },
   icons: {
-    icon: '/images/agios.png',
-    shortcut: '/images/agios.png',
-    apple: '/images/agios.png',
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon.ico',
   },
   verification: {
     google: 'JTfGW-LIKZCB-BMpO_0Ziky-cRpExV_HedDEHumxLqY',
