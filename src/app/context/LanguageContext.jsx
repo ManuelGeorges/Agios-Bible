@@ -69,6 +69,12 @@ const getAuxFiles = (lang) => {
 };
 
 // =========================================================
+// Constants
+// =========================================================
+
+const FILE_REQUEST_TIMEOUT = 12000;
+
+// =========================================================
 // Session memory cache
 // =========================================================
 
@@ -95,10 +101,97 @@ const invalidateFileCache = (
     fileCache.delete(key);
 };
 
-const getCachedFile = async (
+const clearPendingFileRequest = (
     folder,
     fileName
 ) => {
+    const key =
+        getFileCacheKey(
+            folder,
+            fileName
+        );
+
+    filePromises.delete(key);
+};
+
+// =========================================================
+// Timeout helper
+// =========================================================
+
+const withTimeout = (
+    promise,
+    timeoutMs,
+    onTimeout
+) => {
+    return new Promise(
+        (resolve, reject) => {
+
+            let settled = false;
+
+            const timer =
+                setTimeout(() => {
+
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+
+                    try {
+                        onTimeout?.();
+                    } catch {}
+
+                    reject(
+                        new Error(
+                            `Translation request timed out after ${timeoutMs}ms`
+                        )
+                    );
+
+                }, timeoutMs);
+
+            promise.then(
+                (value) => {
+
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+                    clearTimeout(timer);
+
+                    resolve(value);
+
+                },
+                (error) => {
+
+                    if (settled) {
+                        return;
+                    }
+
+                    settled = true;
+                    clearTimeout(timer);
+
+                    reject(error);
+                }
+            );
+        }
+    );
+};
+
+// =========================================================
+// Cached file loader
+// =========================================================
+
+const getCachedFile = async (
+    folder,
+    fileName,
+    options = {}
+) => {
+
+    const {
+        timeoutMs = FILE_REQUEST_TIMEOUT
+    } = options;
+
     const key =
         getFileCacheKey(
             folder,
@@ -125,7 +218,7 @@ const getCachedFile = async (
     // New request
     // -----------------------------------------------------
 
-    const promise =
+    const rawPromise =
         languageManager
             .getFile(
                 folder,
@@ -137,6 +230,7 @@ const getCachedFile = async (
                     data !== null &&
                     data !== undefined
                 ) {
+
                     fileCache.set(
                         key,
                         data
@@ -146,6 +240,7 @@ const getCachedFile = async (
                 return data;
             })
             .finally(() => {
+
                 filePromises.delete(
                     key
                 );
@@ -153,10 +248,32 @@ const getCachedFile = async (
 
     filePromises.set(
         key,
-        promise
+        rawPromise
     );
 
-    return promise;
+    // -----------------------------------------------------
+    // Timeout protection
+    // -----------------------------------------------------
+
+    return withTimeout(
+        rawPromise,
+        timeoutMs,
+        () => {
+
+            /*
+             * The original request may still be running.
+             *
+             * Remove it from the deduplication map so that
+             * a later background retry can start a fresh
+             * request instead of waiting forever.
+             */
+
+            clearPendingFileRequest(
+                folder,
+                fileName
+            );
+        }
+    );
 };
 
 // =========================================================
@@ -166,6 +283,7 @@ const getCachedFile = async (
 export function LanguageProvider({
     children
 }) {
+
     const pathname =
         usePathname();
 
@@ -178,7 +296,7 @@ export function LanguageProvider({
     const [strings, setStrings] =
         useState(null);
 
-    const { theme, setTheme } =
+    const { theme } =
         useTheme();
 
     const [useTashkeel, setUseTashkeel] =
@@ -200,7 +318,7 @@ export function LanguageProvider({
         useState(false);
 
     // -----------------------------------------------------
-    // Prevent duplicate initialization
+    // Initialization refs
     // -----------------------------------------------------
 
     const initializedRef =
@@ -216,11 +334,50 @@ export function LanguageProvider({
         useRef(0);
 
     // =====================================================
+    // Bundled Arabic fallback
+    // =====================================================
+
+    const loadBundledArabic =
+        useCallback(async () => {
+
+            try {
+
+                const fallback =
+                    await import(
+                        "../data/translations/arabic/ar.json"
+                    );
+
+                const data =
+                    fallback.default ||
+                    fallback;
+
+                return data;
+
+            } catch (error) {
+
+                console.error(
+                    "Bundled Arabic translation failed:",
+                    error
+                );
+
+                throw error;
+            }
+
+        }, []);
+
+    // =====================================================
     // Load translations
     // =====================================================
 
     const loadTranslations =
-        useCallback(async (lang) => {
+        useCallback(async (
+            lang,
+            options = {}
+        ) => {
+
+            const {
+                allowBundledFallback = true
+            } = options;
 
             const folder =
                 FOLDER_MAP[lang] ||
@@ -238,6 +395,7 @@ export function LanguageProvider({
                     );
 
                 if (!data) {
+
                     throw new Error(
                         "Main language data is empty"
                     );
@@ -258,39 +416,58 @@ export function LanguageProvider({
                 // Arabic bundled fallback
                 // -----------------------------------------
 
-                if (lang === "ar") {
+                if (
+                    lang === "ar" &&
+                    allowBundledFallback
+                ) {
 
-                    try {
+                    const data =
+                        await loadBundledArabic();
 
-                        const fallback =
-                            await import(
-                                "../data/translations/arabic/ar.json"
-                            );
+                    setStrings(data);
 
-                        const data =
-                            fallback.default ||
-                            fallback;
-
-                        setStrings(data);
-
-                        return data;
-
-                    } catch (
-                        fallbackError
-                    ) {
-
-                        console.error(
-                            "Critical fallback error:",
-                            fallbackError
-                        );
-
-                        throw fallbackError;
-                    }
+                    return data;
                 }
 
                 throw error;
             }
-        }, []);
+
+        }, [
+            loadBundledArabic
+        ]);
+
+    // =====================================================
+    // Initial Arabic startup
+    //
+    // IMPORTANT:
+    //
+    // Arabic has a bundled copy inside the application.
+    // We use it immediately instead of making startup
+    // dependent on R2/manifest/CORS.
+    // =====================================================
+
+    const initializeArabic =
+        useCallback(async () => {
+
+            const bundled =
+                await loadBundledArabic();
+
+            /*
+             * Make the application usable immediately.
+             */
+
+            setStrings(bundled);
+
+            /*
+             * Return bundled data so initialization can
+             * continue without waiting for the network.
+             */
+
+            return bundled;
+
+        }, [
+            loadBundledArabic
+        ]);
 
     // =====================================================
     // Background auxiliary prefetch
@@ -307,15 +484,6 @@ export function LanguageProvider({
 
             const files =
                 getAuxFiles(lang);
-
-            /*
-             * لا await.
-             *
-             * languageManager نفسه مسؤول عن:
-             * - local cache
-             * - deduplication
-             * - background updates
-             */
 
             for (const {
                 folder,
@@ -362,11 +530,14 @@ export function LanguageProvider({
 
     useEffect(() => {
 
-        if (initializedRef.current) {
+        if (
+            initializedRef.current
+        ) {
             return;
         }
 
-        initializedRef.current = true;
+        initializedRef.current =
+            true;
 
         let cancelled = false;
 
@@ -391,29 +562,65 @@ export function LanguageProvider({
                 const langToLoad =
                     savedLang || "ar";
 
-                if (!savedLang || !onboardingDone) {
-                    setIsFirstTime(true);
-                    setLanguage(langToLoad);
+                if (
+                    !savedLang ||
+                    !onboardingDone
+                ) {
+
+                    setIsFirstTime(
+                        true
+                    );
+
+                    setLanguage(
+                        langToLoad
+                    );
 
                     if (savedLang) {
+
                         setOnboardingStep(
                             "theme"
                         );
                     }
+
                 } else {
+
                     setLanguage(
                         langToLoad
                     );
                 }
 
                 // -----------------------------------------
-                // Load local translation FIRST
+                // Translation initialization
                 // -----------------------------------------
 
-                if (!cancelled) {
-                    await loadTranslations(
-                        langToLoad
-                    );
+                if (
+                    langToLoad === "ar"
+                ) {
+
+                    /*
+                     * IMPORTANT:
+                     *
+                     * Do NOT wait for R2 on first startup.
+                     *
+                     * Arabic is bundled inside the application,
+                     * so the UI can become available immediately.
+                     */
+
+                    await initializeArabic();
+
+                } else {
+
+                    /*
+                     * Other languages still try their local/R2
+                     * source, but are protected by the timeout.
+                     */
+
+                    if (!cancelled) {
+
+                        await loadTranslations(
+                            langToLoad
+                        );
+                    }
                 }
 
                 if (cancelled) {
@@ -430,6 +637,7 @@ export function LanguageProvider({
                     );
 
                 if (savedParallel) {
+
                     setParallelLanguage(
                         savedParallel
                     );
@@ -470,7 +678,9 @@ export function LanguageProvider({
                 // Show app immediately
                 // -----------------------------------------
 
-                setIsHydrated(true);
+                setIsHydrated(
+                    true
+                );
 
                 // -----------------------------------------
                 // Background work AFTER UI is ready
@@ -478,27 +688,43 @@ export function LanguageProvider({
 
                 void Promise.resolve()
                     .then(() => {
+
                         prefetchAuxFiles(
                             langToLoad
                         );
+
                     })
                     .catch(() => {});
 
                 void Promise.resolve()
                     .then(() => {
+
                         prefetchSharedFiles();
+
                     })
                     .catch(() => {});
 
                 /*
-                 * Manifest intentionally NOT awaited here.
+                 * IMPORTANT:
                  *
-                 * languageManager will handle it in background.
+                 * Manifest initialization happens only
+                 * after the UI has already become usable.
                  */
 
-                void languageManager
-                    .init()
-                    .catch(() => {});
+                void Promise.resolve()
+                    .then(() => {
+
+                        return languageManager.init();
+
+                    })
+                    .catch((error) => {
+
+                        console.warn(
+                            "[LanguageManager] Background initialization failed:",
+                            error
+                        );
+
+                    });
 
             } catch (error) {
 
@@ -507,8 +733,51 @@ export function LanguageProvider({
                     error
                 );
 
+                /*
+                 * Arabic should already have a bundled fallback.
+                 *
+                 * If something unexpected happens, make one
+                 * final attempt to render Arabic instead of
+                 * leaving the application permanently stuck.
+                 */
+
+                if (
+                    !cancelled &&
+                    langToLoadIsArabicFallback(
+                        language
+                    )
+                ) {
+
+                    try {
+
+                        const fallback =
+                            await loadBundledArabic();
+
+                        setStrings(
+                            fallback
+                        );
+
+                    } catch (
+                        fallbackError
+                    ) {
+
+                        console.error(
+                            "Final Arabic fallback failed:",
+                            fallbackError
+                        );
+                    }
+                }
+
                 if (!cancelled) {
-                    setIsHydrated(true);
+
+                    /*
+                     * Only expose the application if we have
+                     * translation strings.
+                     */
+
+                    setIsHydrated(
+                        true
+                    );
                 }
             }
         };
@@ -520,9 +789,11 @@ export function LanguageProvider({
         };
 
     }, [
+        initializeArabic,
         loadTranslations,
         prefetchAuxFiles,
-        prefetchSharedFiles
+        prefetchSharedFiles,
+        loadBundledArabic
     ]);
 
     // =====================================================
@@ -545,7 +816,9 @@ export function LanguageProvider({
 
                 try {
 
-                    if (keepAppAwake) {
+                    if (
+                        keepAppAwake
+                    ) {
 
                         await KeepAwake.keepAwake();
 
@@ -566,6 +839,7 @@ export function LanguageProvider({
                 } catch (error) {
 
                     if (!cancelled) {
+
                         console.error(
                             "Awake Status Error:",
                             error
@@ -594,24 +868,14 @@ export function LanguageProvider({
     const checkForUpdates =
         useCallback(async () => {
 
-            /*
-             * Prevent duplicate checks
-             */
-
             if (
                 updateCheckRunningRef.current
             ) {
                 return;
             }
 
-            /*
-             * Don't check repeatedly within
-             * a short period.
-             *
-             * 5 minutes is enough.
-             */
-
-            const now = Date.now();
+            const now =
+                Date.now();
 
             if (
                 now -
@@ -627,9 +891,7 @@ export function LanguageProvider({
             try {
 
                 /*
-                 * Refresh manifest ONLY here.
-                 *
-                 * Never block initial startup.
+                 * Manifest is refreshed ONLY in background.
                  */
 
                 const manifest =
@@ -668,17 +930,17 @@ export function LanguageProvider({
                         mainFile
                     );
 
-                    /*
-                     * Don't replace UI synchronously
-                     * while user is doing something.
-                     *
-                     * Load updated version in background.
-                     */
-
                     void getCachedFile(
                         folder,
                         mainFile
-                    ).catch(() => {});
+                    ).catch((error) => {
+
+                        console.warn(
+                            "[LanguageManager] Main translation update failed:",
+                            error
+                        );
+
+                    });
                 }
 
                 // -----------------------------------------
@@ -777,7 +1039,9 @@ export function LanguageProvider({
 
     useEffect(() => {
 
-        if (!isHydrated) {
+        if (
+            !isHydrated
+        ) {
             return;
         }
 
@@ -785,7 +1049,8 @@ export function LanguageProvider({
             Capacitor.isNativePlatform()
         ) {
 
-            let listenerHandle = null;
+            let listenerHandle =
+                null;
 
             const setupListener =
                 async () => {
@@ -797,7 +1062,10 @@ export function LanguageProvider({
                                 isActive
                             }) => {
 
-                                if (isActive) {
+                                if (
+                                    isActive
+                                ) {
+
                                     void checkForUpdates();
                                 }
                             }
@@ -825,6 +1093,7 @@ export function LanguageProvider({
                     document.visibilityState ===
                     "visible"
                 ) {
+
                     void checkForUpdates();
                 }
             };
@@ -835,6 +1104,7 @@ export function LanguageProvider({
         );
 
         return () => {
+
             document.removeEventListener(
                 "visibilitychange",
                 handleVisibility
@@ -886,7 +1156,9 @@ export function LanguageProvider({
 
     useEffect(() => {
 
-        if (!isHydrated) {
+        if (
+            !isHydrated
+        ) {
             return;
         }
 
@@ -990,7 +1262,9 @@ export function LanguageProvider({
     // =====================================================
 
     const changeLanguage =
-        useCallback(async (newLang) => {
+        useCallback(async (
+            newLang
+        ) => {
 
             if (
                 !FOLDER_MAP[newLang]
@@ -1010,11 +1284,6 @@ export function LanguageProvider({
                 return;
             }
 
-            /*
-             * Prevent two language changes
-             * at the same time.
-             */
-
             if (
                 languageChangeRef.current
             ) {
@@ -1028,30 +1297,21 @@ export function LanguageProvider({
                 FOLDER_MAP[newLang];
 
             const mainFile =
-                getMainFile(newLang);
+                getMainFile(
+                    newLang
+                );
 
             try {
 
-                /*
-                 * ---------------------------------------
-                 * IMPORTANT:
-                 *
-                 * Don't refresh manifest first.
-                 *
-                 * Try local file immediately.
-                 * ---------------------------------------
-                 */
+                // ---------------------------------------
+                // Try local/RAM cache first
+                // ---------------------------------------
 
                 let data =
                     await getCachedFile(
                         folder,
                         mainFile
                     );
-
-                /*
-                 * If local file is available,
-                 * UI can switch immediately.
-                 */
 
                 if (data) {
 
@@ -1068,18 +1328,9 @@ export function LanguageProvider({
                         data
                     );
 
-                    /*
-                     * Background prefetch
-                     */
-
                     prefetchAuxFiles(
                         newLang
                     );
-
-                    /*
-                     * Manifest refresh happens
-                     * independently in background.
-                     */
 
                     void languageManager
                         .refreshManifest()
@@ -1088,13 +1339,9 @@ export function LanguageProvider({
                     return;
                 }
 
-                /*
-                 * ---------------------------------------
-                 * File does not exist locally.
-                 *
-                 * Now internet is required.
-                 * ---------------------------------------
-                 */
+                // ---------------------------------------
+                // Internet check
+                // ---------------------------------------
 
                 if (
                     typeof navigator !==
@@ -1111,15 +1358,9 @@ export function LanguageProvider({
                     return;
                 }
 
-                /*
-                 * getFile() will:
-                 *
-                 * Manifest
-                 * ↓
-                 * R2
-                 * ↓
-                 * Save locally
-                 */
+                // ---------------------------------------
+                // Remote download
+                // ---------------------------------------
 
                 data =
                     await getCachedFile(
@@ -1128,6 +1369,7 @@ export function LanguageProvider({
                     );
 
                 if (!data) {
+
                     throw new Error(
                         "Language file is empty"
                     );
@@ -1455,6 +1697,19 @@ export function LanguageProvider({
         >
             {children}
         </LanguageContext.Provider>
+    );
+}
+
+// =========================================================
+// Arabic fallback helper
+// =========================================================
+
+function langToLoadIsArabicFallback(
+    lang
+) {
+    return (
+        !lang ||
+        lang === "ar"
     );
 }
 
