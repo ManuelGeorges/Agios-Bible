@@ -28,9 +28,9 @@ import { Capacitor } from '@capacitor/core';
 import { kv, CACHE_KEYS } from '../../../lib/kv';
 
 import {
-  languageManager,
   useLanguage,
 } from '../../context/LanguageContext';
+import { languageManager } from '../../../services/languageManager';
 
 import { getAuth } from 'firebase/auth';
 
