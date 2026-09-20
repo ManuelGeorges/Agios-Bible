@@ -12,43 +12,97 @@ const STORE_NAME = 'files';
 
 const METADATA_KEY = 'translation_metadata';
 
+// Worst case for a first download = MANIFEST_TIMEOUT + FILE_DOWNLOAD_TIMEOUT (13s).
+// The provider's outer timeout must be larger than this.
+const MANIFEST_TIMEOUT = 3000;
+const FILE_DOWNLOAD_TIMEOUT = 10000;
+
 // =========================================================
 // Runtime caches
 // =========================================================
 
-// Manifest موجود في RAM طوال الـ session
+// Manifest lives in RAM for the whole session
 let manifestCache = null;
 
-// يمنع أكثر من Manifest request في نفس الوقت
+// Prevents more than one manifest request at a time
 let manifestPromise = null;
 
-// Metadata موجودة في RAM بدل Preferences في كل عملية
+// Metadata lives in RAM instead of hitting Preferences on every operation
 let metadataCache = null;
 let metadataPromise = null;
 
-// IndexedDB connection cached
+// IndexedDB connection (cached)
 let dbPromise = null;
 
-// Background manifest check
-let backgroundManifestChecked = false;
-
-// الملفات التي تم التعامل معها في background خلال الـ session
+// Files that already had a background update scheduled this session
 const backgroundUpdates = new Set();
 
-// الملفات التي يتم تحميلها حاليًا
+// Downloads currently in flight (deduplicated by key)
 const downloadPromises = new Map();
+
+// =========================================================
+// Update events
+//
+// The provider subscribes to these so that:
+//  - a finished background download updates the UI + RAM cache
+//  - clearing the cache also clears the provider's RAM cache
+// =========================================================
+
+const listeners = new Set();
+
+function emit(event) {
+    for (const listener of listeners) {
+        try {
+            listener(event);
+        } catch (error) {
+            console.warn('[LanguageManager] Listener error:', error);
+        }
+    }
+}
+
+function splitKey(key) {
+    const index = key.indexOf('/');
+
+    return {
+        folder: key.substring(0, index),
+        fileName: key.substring(index + 1)
+    };
+}
 
 // =========================================================
 // Background download queue
 // =========================================================
 
-// أقصى عدد downloads في الخلفية في نفس الوقت.
-// 2 مناسب جدًا للموبايل ولا يضغط الشبكة أو التخزين.
+// Max simultaneous background downloads (friendly to mobile networks)
 const MAX_BACKGROUND_DOWNLOADS = 2;
 
 let activeBackgroundDownloads = 0;
 
 const backgroundDownloadQueue = [];
+
+function processBackgroundQueue() {
+    while (
+        activeBackgroundDownloads < MAX_BACKGROUND_DOWNLOADS &&
+        backgroundDownloadQueue.length > 0
+    ) {
+        const task = backgroundDownloadQueue.shift();
+
+        activeBackgroundDownloads++;
+
+        Promise.resolve()
+            .then(task)
+            .catch(() => {})
+            .finally(() => {
+                activeBackgroundDownloads--;
+                processBackgroundQueue();
+            });
+    }
+}
+
+function enqueueBackgroundTask(task) {
+    backgroundDownloadQueue.push(task);
+    processBackgroundQueue();
+}
 
 // =========================================================
 // Platform
@@ -61,38 +115,27 @@ const isNative = () => Capacitor.isNativePlatform();
 // =========================================================
 
 function openDB() {
-    // استخدم نفس Promise لكل requests
     if (dbPromise) {
         return dbPromise;
     }
 
     dbPromise = new Promise((resolve, reject) => {
-        const request = indexedDB.open(
-            DB_NAME,
-            DB_VERSION
-        );
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = () => {
             const db = request.result;
 
             if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, {
-                    keyPath: 'key'
-                });
+                db.createObjectStore(STORE_NAME, { keyPath: 'key' });
             }
         };
 
         request.onsuccess = () => {
             const db = request.result;
 
-            // لو الـconnection اتقفل unexpectedly
+            // Connection closed unexpectedly -> reopen next time
             db.onclose = () => {
                 dbPromise = null;
-            };
-
-            db.onerror = () => {
-                // لا نمسح الـPromise هنا فورًا،
-                // لأن الخطأ قد يكون transaction-specific.
             };
 
             resolve(db);
@@ -111,24 +154,13 @@ async function idbGet(key) {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(
-            STORE_NAME,
-            'readonly'
-        );
+        const request = db
+            .transaction(STORE_NAME, 'readonly')
+            .objectStore(STORE_NAME)
+            .get(key);
 
-        const store = transaction.objectStore(
-            STORE_NAME
-        );
-
-        const request = store.get(key);
-
-        request.onsuccess = () => {
-            resolve(request.result || null);
-        };
-
-        request.onerror = () => {
-            reject(request.error);
-        };
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
     });
 }
 
@@ -136,24 +168,13 @@ async function idbSet(value) {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(
-            STORE_NAME,
-            'readwrite'
-        );
+        const request = db
+            .transaction(STORE_NAME, 'readwrite')
+            .objectStore(STORE_NAME)
+            .put(value);
 
-        const store = transaction.objectStore(
-            STORE_NAME
-        );
-
-        const request = store.put(value);
-
-        request.onsuccess = () => {
-            resolve();
-        };
-
-        request.onerror = () => {
-            reject(request.error);
-        };
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
     });
 }
 
@@ -161,24 +182,27 @@ async function idbDelete(key) {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction(
-            STORE_NAME,
-            'readwrite'
-        );
+        const request = db
+            .transaction(STORE_NAME, 'readwrite')
+            .objectStore(STORE_NAME)
+            .delete(key);
 
-        const store = transaction.objectStore(
-            STORE_NAME
-        );
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+}
 
-        const request = store.delete(key);
+async function idbGetAllKeys() {
+    const db = await openDB();
 
-        request.onsuccess = () => {
-            resolve();
-        };
+    return new Promise((resolve, reject) => {
+        const request = db
+            .transaction(STORE_NAME, 'readonly')
+            .objectStore(STORE_NAME)
+            .getAllKeys();
 
-        request.onerror = () => {
-            reject(request.error);
-        };
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
     });
 }
 
@@ -187,21 +211,19 @@ async function idbDelete(key) {
 // =========================================================
 
 async function getMetadata() {
-    // أسرع مسار: RAM
+    // Fastest path: RAM
     if (metadataCache !== null) {
         return metadataCache;
     }
 
-    // لو عملية Preferences شغالة بالفعل
+    // A Preferences read is already running
     if (metadataPromise) {
         return await metadataPromise;
     }
 
     metadataPromise = (async () => {
         try {
-            const result = await Preferences.get({
-                key: METADATA_KEY
-            });
+            const result = await Preferences.get({ key: METADATA_KEY });
 
             if (!result.value) {
                 metadataCache = {};
@@ -209,19 +231,15 @@ async function getMetadata() {
             }
 
             try {
-                metadataCache = JSON.parse(
-                    result.value
-                );
+                metadataCache = JSON.parse(result.value);
             } catch {
                 metadataCache = {};
             }
 
             return metadataCache;
-
         } catch {
             metadataCache = {};
             return metadataCache;
-
         } finally {
             metadataPromise = null;
         }
@@ -230,37 +248,30 @@ async function getMetadata() {
     return await metadataPromise;
 }
 
-// ---------------------------------------------------------
-// Preferences writes
-// ---------------------------------------------------------
-
+// Writes to Preferences are serialized. This promise never rejects:
+// failing to persist metadata must not fail a download that succeeded
+// (the file will simply be re-checked next time).
 let metadataWritePromise = Promise.resolve();
 
 function saveMetadata(metadata) {
     metadataCache = metadata;
 
-    // Serialize writes to Preferences
-    metadataWritePromise =
-        metadataWritePromise
-            .catch(() => {})
-            .then(async () => {
-                await Preferences.set({
-                    key: METADATA_KEY,
-                    value: JSON.stringify(
-                        metadata
-                    )
-                });
+    metadataWritePromise = metadataWritePromise.then(async () => {
+        try {
+            await Preferences.set({
+                key: METADATA_KEY,
+                value: JSON.stringify(metadata)
             });
+        } catch (error) {
+            console.warn('[LanguageManager] Failed to save metadata:', error);
+        }
+    });
 
     return metadataWritePromise;
 }
 
-async function setFileMetadata(
-    key,
-    version
-) {
-    const metadata =
-        await getMetadata();
+async function setFileMetadata(key, version) {
+    const metadata = await getMetadata();
 
     metadata[key] = {
         version,
@@ -270,18 +281,22 @@ async function setFileMetadata(
     await saveMetadata(metadata);
 }
 
-async function removeFileMetadata(key) {
-    const metadata =
-        await getMetadata();
+async function removeMetadataKeys(keys) {
+    if (keys.length === 0) {
+        return;
+    }
 
-    delete metadata[key];
+    const metadata = await getMetadata();
+
+    for (const key of keys) {
+        delete metadata[key];
+    }
 
     await saveMetadata(metadata);
 }
 
 async function getFileMetadata(key) {
-    const metadata =
-        await getMetadata();
+    const metadata = await getMetadata();
 
     return metadata[key] || null;
 }
@@ -292,36 +307,24 @@ async function getFileMetadata(key) {
 
 async function getNativeFile(path) {
     try {
-        const file =
-            await Filesystem.readFile({
-                path,
-                directory: Directory.Data,
-                encoding: Encoding.UTF8
-            });
+        const file = await Filesystem.readFile({
+            path,
+            directory: Directory.Data,
+            encoding: Encoding.UTF8
+        });
 
         return JSON.parse(file.data);
-
     } catch {
         return null;
     }
 }
 
-async function saveNativeFile(
-    path,
-    data
-) {
-    const lastSlash =
-        path.lastIndexOf('/');
+async function saveNativeFile(path, data) {
+    const lastSlash = path.lastIndexOf('/');
 
     if (lastSlash !== -1) {
-        const folder =
-            path.substring(
-                0,
-                lastSlash
-            );
-
         await Filesystem.mkdir({
-            path: folder,
+            path: path.substring(0, lastSlash),
             directory: Directory.Data,
             recursive: true
         }).catch(() => {});
@@ -344,37 +347,72 @@ async function deleteNativeFile(path) {
     } catch {}
 }
 
+async function removeNativeFolder(path) {
+    try {
+        await Filesystem.rmdir({
+            path,
+            directory: Directory.Data,
+            recursive: true
+        });
+    } catch {}
+}
+
 // =========================================================
-// Background Queue
+// Cache helpers (do NOT depend on the manifest being loaded)
 // =========================================================
 
-function processBackgroundQueue() {
-    while (
-        activeBackgroundDownloads <
-            MAX_BACKGROUND_DOWNLOADS &&
-        backgroundDownloadQueue.length > 0
-    ) {
-        const task =
-            backgroundDownloadQueue.shift();
-
-        activeBackgroundDownloads++;
-
-        Promise.resolve()
-            .then(task)
-            .catch(() => {})
-            .finally(() => {
-                activeBackgroundDownloads--;
-
-                processBackgroundQueue();
-            });
+async function deleteFileByKey(key) {
+    if (isNative()) {
+        await deleteNativeFile(`translations/${key}`);
+    } else {
+        await idbDelete(key).catch(() => {});
     }
 }
 
-function enqueueBackgroundTask(task) {
-    backgroundDownloadQueue.push(task);
+/**
+ * Collects every known cache key ("folder/file.json") starting with `prefix`
+ * from metadata, the manifest (if loaded) and IndexedDB (web).
+ * Works offline because it doesn't need the manifest.
+ */
+async function collectKnownKeys(prefix = '') {
+    const keys = new Set();
 
-    processBackgroundQueue();
+    const metadata = await getMetadata();
+
+    for (const key of Object.keys(metadata)) {
+        if (key.startsWith(prefix)) {
+            keys.add(key);
+        }
+    }
+
+    const languages = manifestCache?.languages || {};
+
+    for (const [folder, language] of Object.entries(languages)) {
+        for (const fileName of Object.keys(language.files || {})) {
+            const key = `${folder}/${fileName}`;
+
+            if (key.startsWith(prefix)) {
+                keys.add(key);
+            }
+        }
+    }
+
+    if (!isNative()) {
+        try {
+            for (const key of await idbGetAllKeys()) {
+                if (typeof key === 'string' && key.startsWith(prefix)) {
+                    keys.add(key);
+                }
+            }
+        } catch {}
+    }
+
+    return [...keys];
 }
+
+const getVersion = (manifestFile, language) => {
+    return manifestFile?.version || language?.version || 1;
+};
 
 // =========================================================
 // Language Manager
@@ -383,77 +421,70 @@ function enqueueBackgroundTask(task) {
 export const languageManager = {
 
     // =====================================================
+    // Events
+    // =====================================================
+
+    /**
+     * Subscribe to { type: 'updated' | 'cleared', folder, fileName, data? }
+     * Returns an unsubscribe function.
+     */
+    subscribe(listener) {
+        listeners.add(listener);
+
+        return () => {
+            listeners.delete(listener);
+        };
+    },
+
+    // =====================================================
     // Manifest
     // =====================================================
 
     async init() {
-        // موجود في RAM
         if (manifestCache) {
             return true;
         }
 
-        // request موجود بالفعل
         if (manifestPromise) {
             return await manifestPromise;
         }
 
-        manifestPromise =
-            (async () => {
-                try {
-                    const response =
-                        await fetchWithTimeout(
-                            MANIFEST_URL,
-                            {
-                                cache: 'no-store',
-                                timeout: 3000
-                            }
-                        );
+        manifestPromise = (async () => {
+            try {
+                const response = await fetchWithTimeout(MANIFEST_URL, {
+                    cache: 'no-store',
+                    timeout: MANIFEST_TIMEOUT
+                });
 
-                    if (!response.ok) {
-                        throw new Error(
-                            `Manifest request failed: ${response.status}`
-                        );
-                    }
-
-                    manifestCache =
-                        await response.json();
-
-                    return true;
-
-                } catch (error) {
-                    console.warn(
-                        '[LanguageManager] Manifest request failed:',
-                        error
-                    );
-
-                    return false;
-
-                } finally {
-                    manifestPromise = null;
+                if (!response.ok) {
+                    throw new Error(`Manifest request failed: ${response.status}`);
                 }
-            })();
+
+                manifestCache = await response.json();
+
+                return true;
+            } catch (error) {
+                console.warn('[LanguageManager] Manifest request failed:', error);
+
+                return false;
+            } finally {
+                manifestPromise = null;
+            }
+        })();
 
         return await manifestPromise;
     },
 
-    async getManifest(
-        forceRefresh = false
-    ) {
-        // الطبيعي: استخدم RAM
-        if (
-            !forceRefresh &&
-            manifestCache
-        ) {
+    async getManifest(forceRefresh = false) {
+        if (!forceRefresh && manifestCache) {
             return manifestCache;
         }
 
-        // Refresh متعمد
         if (forceRefresh) {
             return await this.refreshManifest();
         }
 
-        const success =
-            await this.init();
+        const success = await this.init();
 
         if (!success) {
             return null;
@@ -463,58 +494,39 @@ export const languageManager = {
     },
 
     async refreshManifest() {
-        // امنع أكثر من refresh
         if (manifestPromise) {
             await manifestPromise;
 
             return manifestCache;
         }
 
-        const previous =
-            manifestCache;
+        const previous = manifestCache;
 
-        manifestPromise =
-            (async () => {
-                try {
-                    const response =
-                        await fetchWithTimeout(
-                            MANIFEST_URL,
-                            {
-                                cache: 'no-store',
-                                timeout: 3000
-                            }
-                        );
+        manifestPromise = (async () => {
+            try {
+                const response = await fetchWithTimeout(MANIFEST_URL, {
+                    cache: 'no-store',
+                    timeout: MANIFEST_TIMEOUT
+                });
 
-                    if (!response.ok) {
-                        throw new Error(
-                            `Manifest request failed: ${response.status}`
-                        );
-                    }
-
-                    const freshManifest =
-                        await response.json();
-
-                    manifestCache =
-                        freshManifest;
-
-                    return true;
-
-                } catch (error) {
-                    console.warn(
-                        '[LanguageManager] Manifest refresh failed:',
-                        error
-                    );
-
-                    // احتفظ بالقديم
-                    manifestCache =
-                        previous;
-
-                    return false;
-
-                } finally {
-                    manifestPromise = null;
+                if (!response.ok) {
+                    throw new Error(`Manifest request failed: ${response.status}`);
                 }
-            })();
+
+                manifestCache = await response.json();
+
+                return true;
+            } catch (error) {
+                console.warn('[LanguageManager] Manifest refresh failed:', error);
+
+                // Keep the old one
+                manifestCache = previous;
+
+                return false;
+            } finally {
+                manifestPromise = null;
+            }
+        })();
 
         await manifestPromise;
 
@@ -525,348 +537,197 @@ export const languageManager = {
     // Local Copy
     // =====================================================
 
-    async hasLocalCopy(
-        langFolder,
-        fileName
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
-
+    async getLocalCopy(langFolder, fileName) {
         if (isNative()) {
-            const path =
-                `translations/${langFolder}/${fileName}`;
-
-            const data =
-                await getNativeFile(path);
-
-            return data !== null;
+            return await getNativeFile(`translations/${langFolder}/${fileName}`);
         }
 
-        const cached =
-            await idbGet(key);
+        try {
+            const cached = await idbGet(`${langFolder}/${fileName}`);
 
-        return cached !== null;
+            return cached ? cached.data : null;
+        } catch (error) {
+            // IndexedDB can be unavailable (private mode, quota, etc.)
+            console.warn('[LanguageManager] IndexedDB read failed:', error);
+
+            return null;
+        }
     },
 
-    async getLocalCopy(
-        langFolder,
-        fileName
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
+    async hasLocalCopy(langFolder, fileName) {
+        const data = await this.getLocalCopy(langFolder, fileName);
 
-        if (isNative()) {
-            const path =
-                `translations/${langFolder}/${fileName}`;
-
-            return await getNativeFile(
-                path
-            );
-        }
-
-        const cached =
-            await idbGet(key);
-
-        return cached
-            ? cached.data
-            : null;
+        return data !== null;
     },
 
     // =====================================================
     // Main File Getter
     // =====================================================
 
-    async getFile(
-        langFolder,
-        fileName
-    ) {
-        // -----------------------------------------------
-        // STEP 1
-        // Local first
-        // -----------------------------------------------
-
-        const localCopy =
-            await this.getLocalCopy(
-                langFolder,
-                fileName
-            );
-
-        // -----------------------------------------------
-        // Local exists
-        // -----------------------------------------------
+    async getFile(langFolder, fileName) {
+        // STEP 1: local first
+        const localCopy = await this.getLocalCopy(langFolder, fileName);
 
         if (localCopy !== null) {
+            // Background only. Never wait for the network here.
+            this.updateFileInBackground(langFolder, fileName);
 
-            // Background only
-            this.updateFileInBackground(
-                langFolder,
-                fileName
-            );
-
-            // لا تنتظر الإنترنت
             return localCopy;
         }
 
-        // -----------------------------------------------
-        // STEP 2
-        // First download
-        // -----------------------------------------------
-
-        return await this.downloadMissingFile(
-            langFolder,
-            fileName
-        );
+        // STEP 2: first download
+        return await this.downloadMissingFile(langFolder, fileName);
     },
 
     // =====================================================
     // First Download
+    //
+    // FIX: this method must NOT register itself in
+    // `downloadPromises`. Only downloadAndSaveOnce dedupes.
+    // Before, both used the same key, so the inner call
+    // awaited the outer promise, which was awaiting it
+    // (a deadlock).
     // =====================================================
 
-    async downloadMissingFile(
-        langFolder,
-        fileName
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
+    async downloadMissingFile(langFolder, fileName) {
+        const manifest = await this.getManifest();
 
-        // لو نفس الملف بيتحمل بالفعل
-        if (
-            downloadPromises.has(key)
-        ) {
-            return await downloadPromises.get(
-                key
-            );
+        if (!manifest) {
+            throw new Error('Manifest unavailable and no local copy found');
         }
 
-        const promise =
-            (async () => {
+        const language = manifest.languages?.[langFolder];
 
-                const manifest =
-                    await this.getManifest();
+        if (!language) {
+            throw new Error(`Language "${langFolder}" not found`);
+        }
 
-                if (!manifest) {
-                    throw new Error(
-                        'Manifest unavailable and no local copy found'
-                    );
-                }
+        const manifestFile = language.files?.[fileName];
 
-                const language =
-                    manifest.languages?.[
-                        langFolder
-                    ];
+        if (!manifestFile) {
+            throw new Error(`File "${fileName}" not found in "${langFolder}"`);
+        }
 
-                if (!language) {
-                    throw new Error(
-                        `Language "${langFolder}" not found`
-                    );
-                }
-
-                const manifestFile =
-                    language.files?.[
-                        fileName
-                    ];
-
-                if (!manifestFile) {
-                    throw new Error(
-                        `File "${fileName}" not found in "${langFolder}"`
-                    );
-                }
-
-                const version =
-                    manifestFile.version ||
-                    language.version ||
-                    1;
-
-                return await this.downloadAndSaveOnce(
-                    langFolder,
-                    fileName,
-                    manifestFile,
-                    version
-                );
-            })();
-
-        downloadPromises.set(
-            key,
-            promise
+        return await this.downloadAndSaveOnce(
+            langFolder,
+            fileName,
+            manifestFile,
+            getVersion(manifestFile, language)
         );
-
-        try {
-            return await promise;
-        } finally {
-            downloadPromises.delete(
-                key
-            );
-        }
     },
 
     // =====================================================
     // Background Update
     // =====================================================
 
-    updateFileInBackground(
-        langFolder,
-        fileName
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
+    updateFileInBackground(langFolder, fileName) {
+        const key = `${langFolder}/${fileName}`;
 
-        // هذا الملف اتعمله background update
-        // في الـsession الحالية
-        if (
-            backgroundUpdates.has(key)
-        ) {
+        // Already scheduled this session
+        if (backgroundUpdates.has(key)) {
             return;
         }
 
         backgroundUpdates.add(key);
 
-        // لا تنتظر
-        enqueueBackgroundTask(
-            async () => {
+        enqueueBackgroundTask(async () => {
+            try {
+                const success = await this.init();
+                const manifest = manifestCache;
 
-                try {
-
-                    // -----------------------------------
-                    // Manifest مرة واحدة
-                    // -----------------------------------
-
-                    if (
-                        !backgroundManifestChecked
-                    ) {
-                        const success =
-                            await this.init();
-
-                        // لا نقفلها إلا لو نجح
-                        if (success) {
-                            backgroundManifestChecked =
-                                true;
-                        }
-                    }
-
-                    const manifest =
-                        manifestCache;
-
-                    if (!manifest) {
-                        return;
-                    }
-
-                    // -----------------------------------
-                    // Language
-                    // -----------------------------------
-
-                    const language =
-                        manifest.languages?.[
-                            langFolder
-                        ];
-
-                    if (!language) {
-                        return;
-                    }
-
-                    // -----------------------------------
-                    // File
-                    // -----------------------------------
-
-                    const manifestFile =
-                        language.files?.[
-                            fileName
-                        ];
-
-                    if (!manifestFile) {
-                        return;
-                    }
-
-                    const version =
-                        manifestFile.version ||
-                        language.version ||
-                        1;
-
-                    // -----------------------------------
-                    // Metadata
-                    // -----------------------------------
-
-                    const metadata =
-                        await getFileMetadata(
-                            key
-                        );
-
-                    // بالفعل أحدث نسخة
-                    if (
-                        metadata?.version ===
-                        version
-                    ) {
-                        return;
-                    }
-
-                    // -----------------------------------
-                    // Background download
-                    // -----------------------------------
-
-                    await this.downloadAndSaveOnce(
-                        langFolder,
-                        fileName,
-                        manifestFile,
-                        version
-                    );
-
-                    console.log(
-                        `[LanguageManager] Background update completed: ${key}`
-                    );
-
-                } catch (error) {
-
-                    console.warn(
-                        `[LanguageManager] Background update failed for ${key}:`,
-                        error
-                    );
+                if (!success || !manifest) {
+                    // Offline / manifest failed: allow a later retry
+                    backgroundUpdates.delete(key);
+                    return;
                 }
+
+                const language = manifest.languages?.[langFolder];
+                const manifestFile = language?.files?.[fileName];
+
+                if (!manifestFile) {
+                    return;
+                }
+
+                const version = getVersion(manifestFile, language);
+
+                const metadata = await getFileMetadata(key);
+
+                // Already the latest version
+                if (metadata?.version === version) {
+                    return;
+                }
+
+                await this.downloadAndSaveOnce(
+                    langFolder,
+                    fileName,
+                    manifestFile,
+                    version
+                );
+
+                console.log(`[LanguageManager] Background update completed: ${key}`);
+            } catch (error) {
+                // Allow a later retry
+                backgroundUpdates.delete(key);
+
+                console.warn(
+                    `[LanguageManager] Background update failed for ${key}:`,
+                    error
+                );
             }
+        });
+    },
+
+    // =====================================================
+    // Force Update
+    //
+    // Downloads the manifest version of a file right now,
+    // bypassing the "local copy first" path. Emits an
+    // 'updated' event so the UI/RAM cache pick it up.
+    // =====================================================
+
+    async forceUpdate(langFolder, fileName) {
+        const manifest = await this.getManifest();
+
+        const language = manifest?.languages?.[langFolder];
+        const manifestFile = language?.files?.[fileName];
+
+        if (!manifestFile) {
+            return null;
+        }
+
+        return await this.downloadAndSaveOnce(
+            langFolder,
+            fileName,
+            manifestFile,
+            getVersion(manifestFile, language)
         );
     },
 
     // =====================================================
-    // Download & Save - Deduplicated
+    // Download & Save - Deduplicated (the ONLY dedupe point)
     // =====================================================
 
-    async downloadAndSaveOnce(
-        langFolder,
-        fileName,
-        manifestFile,
-        version
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
+    async downloadAndSaveOnce(langFolder, fileName, manifestFile, version) {
+        const key = `${langFolder}/${fileName}`;
 
-        // مهم جدًا:
-        // يمنع background update من تحميل نفس الملف
-        // بالتزامن مع first download.
-        if (
-            downloadPromises.has(key)
-        ) {
-            return await downloadPromises.get(
-                key
-            );
+        // has() + set() run synchronously, so this is race-free
+        if (downloadPromises.has(key)) {
+            return await downloadPromises.get(key);
         }
 
-        const promise =
-            this.downloadAndSave(
-                langFolder,
-                fileName,
-                manifestFile,
-                version
-            );
-
-        downloadPromises.set(
-            key,
-            promise
+        const promise = this.downloadAndSave(
+            langFolder,
+            fileName,
+            manifestFile,
+            version
         );
+
+        downloadPromises.set(key, promise);
 
         try {
             return await promise;
         } finally {
-            downloadPromises.delete(
-                key
-            );
+            downloadPromises.delete(key);
         }
     },
 
@@ -874,104 +735,34 @@ export const languageManager = {
     // Actual Download & Save
     // =====================================================
 
-    async downloadAndSave(
-        langFolder,
-        fileName,
-        manifestFile,
-        version
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
+    async downloadAndSave(langFolder, fileName, manifestFile, version) {
+        const key = `${langFolder}/${fileName}`;
+        const url = `${R2_URL}/${manifestFile.path}`;
 
-        const url =
-            `${R2_URL}/${manifestFile.path}`;
+        let data;
+
+        // ---------------------------------------------------
+        // Download + parse
+        // ---------------------------------------------------
 
         try {
-
-            // -------------------------------------------
-            // Download
-            // -------------------------------------------
-
-            const response =
-                await fetchWithTimeout(
-                    url,
-                    {
-                        timeout: 10000
-                    }
-                );
+            const response = await fetchWithTimeout(url, {
+                timeout: FILE_DOWNLOAD_TIMEOUT
+            });
 
             if (!response.ok) {
-                throw new Error(
-                    `Failed to download ${url}: ${response.status}`
-                );
+                throw new Error(`Failed to download ${url}: ${response.status}`);
             }
 
-            // -------------------------------------------
-            // Parse JSON
-            // -------------------------------------------
-
-            const data =
-                await response.json();
-
-            // -------------------------------------------
-            // Native
-            // -------------------------------------------
-
-            if (isNative()) {
-
-                const path =
-                    `translations/${langFolder}/${fileName}`;
-
-                await saveNativeFile(
-                    path,
-                    data
-                );
-            }
-
-            // -------------------------------------------
-            // Web
-            // -------------------------------------------
-
-            else {
-
-                await idbSet({
-                    key,
-                    language:
-                        langFolder,
-                    fileName,
-                    data,
-                    cachedAt:
-                        Date.now()
-                });
-            }
-
-            // -------------------------------------------
-            // Metadata
-            // -------------------------------------------
-
-            await setFileMetadata(
-                key,
-                version
-            );
-
-            return data;
-
+            data = await response.json();
         } catch (error) {
-
             console.warn(
                 `[LanguageManager] Download failed for ${fileName}:`,
                 error
             );
 
-            // -------------------------------------------
-            // Fallback
-            // -------------------------------------------
-
-            const fallback =
-                await this.getLocalCopy(
-                    langFolder,
-                    fileName
-                );
+            // Fallback to whatever we already have locally
+            const fallback = await this.getLocalCopy(langFolder, fileName);
 
             if (fallback !== null) {
                 return fallback;
@@ -979,226 +770,125 @@ export const languageManager = {
 
             throw error;
         }
+
+        // ---------------------------------------------------
+        // Persist. A storage failure must not lose data that
+        // was downloaded successfully: we still return it,
+        // and since metadata isn't written it will be retried.
+        // ---------------------------------------------------
+
+        try {
+            if (isNative()) {
+                await saveNativeFile(`translations/${langFolder}/${fileName}`, data);
+            } else {
+                await idbSet({
+                    key,
+                    language: langFolder,
+                    fileName,
+                    data,
+                    cachedAt: Date.now()
+                });
+            }
+
+            await setFileMetadata(key, version);
+        } catch (error) {
+            console.warn(
+                `[LanguageManager] Failed to persist ${key}:`,
+                error
+            );
+        }
+
+        emit({
+            type: 'updated',
+            folder: langFolder,
+            fileName,
+            data
+        });
+
+        return data;
     },
 
     // =====================================================
     // Is Up To Date
     // =====================================================
 
-    async isUpToDate(
-        langFolder,
-        fileName
-    ) {
-        // لا Network
-        const manifest =
-            manifestCache;
+    async isUpToDate(langFolder, fileName) {
+        const manifest = manifestCache;
 
         if (!manifest) {
             return false;
         }
 
-        const language =
-            manifest.languages?.[
-                langFolder
-            ];
+        const language = manifest.languages?.[langFolder];
+        const manifestFile = language?.files?.[fileName];
 
-        const manifestFile =
-            language?.files?.[
-                fileName
-            ];
-
+        // Not in the manifest: nothing to update
         if (!manifestFile) {
             return true;
         }
 
-        const version =
-            manifestFile.version ||
-            language.version ||
-            1;
+        const metadata = await getFileMetadata(`${langFolder}/${fileName}`);
 
-        const key =
-            `${langFolder}/${fileName}`;
-
-        const metadata =
-            await getFileMetadata(
-                key
-            );
-
-        return (
-            metadata?.version ===
-            version
-        );
+        return metadata?.version === getVersion(manifestFile, language);
     },
 
     // =====================================================
     // Is File Downloaded
     // =====================================================
 
-    async isFileDownloaded(
-        langFolder,
-        fileName
-    ) {
-        const key =
-            `${langFolder}/${fileName}`;
+    async isFileDownloaded(langFolder, fileName) {
+        const key = `${langFolder}/${fileName}`;
 
-        const metadata =
-            await getFileMetadata(
-                key
-            );
+        const metadata = await getFileMetadata(key);
 
         if (!metadata) {
             return false;
         }
 
-        // لا يوجد Manifest في RAM
-        if (!manifestCache) {
+        // FIX: use the same version fallback as everywhere else
+        // (file version -> language version -> 1)
+        if (manifestCache) {
+            const language = manifestCache.languages?.[langFolder];
+            const manifestFile = language?.files?.[fileName];
 
-            if (isNative()) {
-
-                const data =
-                    await getNativeFile(
-                        `translations/${langFolder}/${fileName}`
-                    );
-
-                return data !== null;
+            if (!manifestFile) {
+                return false;
             }
 
-            const cached =
-                await idbGet(key);
-
-            return cached !== null;
+            if (metadata.version !== getVersion(manifestFile, language)) {
+                return false;
+            }
         }
 
-        const manifestFile =
-            manifestCache
-                .languages?.[
-                    langFolder
-                ]
-                ?.files?.[
-                    fileName
-                ];
-
-        if (!manifestFile) {
-            return false;
-        }
-
-        const version =
-            manifestFile.version ||
-            1;
-
-        // النسخة قديمة
-        if (
-            metadata.version !==
-            version
-        ) {
-            return false;
-        }
-
-        // تأكد أن الملف نفسه موجود
-        if (isNative()) {
-
-            const data =
-                await getNativeFile(
-                    `translations/${langFolder}/${fileName}`
-                );
-
-            return data !== null;
-        }
-
-        const cached =
-            await idbGet(key);
-
-        return cached !== null;
+        // Make sure the file itself really exists
+        return await this.hasLocalCopy(langFolder, fileName);
     },
 
     // =====================================================
     // Clear Cache
+    //
+    // FIX: no longer depends on the manifest being loaded,
+    // so it works offline too.
     // =====================================================
 
-    async clearCache(
-        langFolder
-    ) {
-        const manifest =
-            manifestCache;
+    async clearCache(langFolder) {
+        const keys = await collectKnownKeys(`${langFolder}/`);
 
-        const language =
-            manifest?.languages?.[
-                langFolder
-            ];
+        for (const key of keys) {
+            await deleteFileByKey(key);
 
-        if (!language) {
-            return;
+            // Allow background updates again
+            backgroundUpdates.delete(key);
         }
 
-        const files =
-            Object.keys(
-                language.files || {}
-            );
-
-        for (
-            const fileName of files
-        ) {
-            const key =
-                `${langFolder}/${fileName}`;
-
-            // -------------------------------------------
-            // Native
-            // -------------------------------------------
-
-            if (isNative()) {
-
-                const path =
-                    `translations/${langFolder}/${fileName}`;
-
-                await deleteNativeFile(
-                    path
-                );
-            }
-
-            // -------------------------------------------
-            // Web
-            // -------------------------------------------
-
-            else {
-
-                await idbDelete(key);
-            }
-
-            // -------------------------------------------
-            // Metadata
-            // -------------------------------------------
-
-            await removeFileMetadata(
-                key
-            );
-
-            // -------------------------------------------
-            // Allow background update again
-            // -------------------------------------------
-
-            backgroundUpdates.delete(
-                key
-            );
-        }
-
-        // -----------------------------------------------
-        // Remove Native folder
-        // -----------------------------------------------
+        await removeMetadataKeys(keys);
 
         if (isNative()) {
+            await removeNativeFolder(`translations/${langFolder}`);
+        }
 
-            try {
-
-                await Filesystem.rmdir({
-                    path:
-                        `translations/${langFolder}`,
-                    directory:
-                        Directory.Data,
-                    recursive:
-                        true
-                });
-
-            } catch {}
+        for (const key of keys) {
+            emit({ type: 'cleared', ...splitKey(key) });
         }
     },
 
@@ -1207,25 +897,22 @@ export const languageManager = {
     // =====================================================
 
     async clearAllCache() {
-        const manifest =
-            manifestCache;
+        const keys = await collectKnownKeys();
 
-        if (!manifest) {
-            return;
+        for (const key of keys) {
+            await deleteFileByKey(key);
         }
 
-        for (
-            const langFolder of Object.keys(
-                manifest.languages || {}
-            )
-        ) {
-            await this.clearCache(
-                langFolder
-            );
+        if (isNative()) {
+            await removeNativeFolder('translations');
         }
 
-        // اسمح بعمل background updates
-        // مرة أخرى بعد clearAll
+        await saveMetadata({});
+
         backgroundUpdates.clear();
+
+        for (const key of keys) {
+            emit({ type: 'cleared', ...splitKey(key) });
+        }
     }
 };

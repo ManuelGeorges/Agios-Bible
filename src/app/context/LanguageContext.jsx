@@ -44,15 +44,10 @@ const SHARED_FILES = [
     }
 ];
 
-const getMainFile = (lang) => {
-    return lang === "ar"
-        ? "ar.json"
-        : `${lang}.json`;
-};
+const getMainFile = (lang) => `${lang}.json`;
 
 const getAuxFiles = (lang) => {
-    const folder =
-        FOLDER_MAP[lang] || "arabic";
+    const folder = FOLDER_MAP[lang] || "arabic";
 
     return [
         {
@@ -61,9 +56,7 @@ const getAuxFiles = (lang) => {
         },
         {
             folder,
-            fileName:
-                BIBLE_FILE_MAP[lang] ||
-                BIBLE_FILE_MAP.ar
+            fileName: BIBLE_FILE_MAP[lang] || BIBLE_FILE_MAP.ar
         }
     ];
 };
@@ -72,7 +65,18 @@ const getAuxFiles = (lang) => {
 // Constants
 // =========================================================
 
-const FILE_REQUEST_TIMEOUT = 12000;
+// Must be LONGER than the worst case in languageManager
+// (3s manifest + 10s file download = 13s), otherwise this
+// timeout fires while a valid download is still running.
+const FILE_REQUEST_TIMEOUT = 15000;
+
+const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
+
+const INTERNET_REQUIRED_FALLBACK =
+    "This feature requires an internet connection";
+
+const LOAD_FAILED_FALLBACK =
+    "Could not load the language. Please try again.";
 
 // =========================================================
 // Session memory cache
@@ -81,348 +85,182 @@ const FILE_REQUEST_TIMEOUT = 12000;
 const fileCache = new Map();
 const filePromises = new Map();
 
-const getFileCacheKey = (
-    folder,
-    fileName
-) => {
-    return `${folder}/${fileName}`;
-};
-
-const invalidateFileCache = (
-    folder,
-    fileName
-) => {
-    const key =
-        getFileCacheKey(
-            folder,
-            fileName
-        );
-
-    fileCache.delete(key);
-};
-
-const clearPendingFileRequest = (
-    folder,
-    fileName
-) => {
-    const key =
-        getFileCacheKey(
-            folder,
-            fileName
-        );
-
-    filePromises.delete(key);
-};
+const getFileCacheKey = (folder, fileName) => `${folder}/${fileName}`;
 
 // =========================================================
 // Timeout helper
 // =========================================================
 
-const withTimeout = (
-    promise,
-    timeoutMs,
-    onTimeout
-) => {
-    return new Promise(
-        (resolve, reject) => {
+const withTimeout = (promise, timeoutMs, onTimeout) => {
+    return new Promise((resolve, reject) => {
+        let settled = false;
 
-            let settled = false;
+        const timer = setTimeout(() => {
+            if (settled) {
+                return;
+            }
 
-            const timer =
-                setTimeout(() => {
+            settled = true;
 
-                    if (settled) {
-                        return;
-                    }
+            try {
+                onTimeout?.();
+            } catch {}
 
-                    settled = true;
-
-                    try {
-                        onTimeout?.();
-                    } catch {}
-
-                    reject(
-                        new Error(
-                            `Translation request timed out after ${timeoutMs}ms`
-                        )
-                    );
-
-                }, timeoutMs);
-
-            promise.then(
-                (value) => {
-
-                    if (settled) {
-                        return;
-                    }
-
-                    settled = true;
-                    clearTimeout(timer);
-
-                    resolve(value);
-
-                },
-                (error) => {
-
-                    if (settled) {
-                        return;
-                    }
-
-                    settled = true;
-                    clearTimeout(timer);
-
-                    reject(error);
-                }
+            reject(
+                new Error(`Translation request timed out after ${timeoutMs}ms`)
             );
-        }
-    );
+        }, timeoutMs);
+
+        promise.then(
+            (value) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (error) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                clearTimeout(timer);
+                reject(error);
+            }
+        );
+    });
 };
 
 // =========================================================
 // Cached file loader
 // =========================================================
 
-const getCachedFile = async (
-    folder,
-    fileName,
-    options = {}
-) => {
+const getCachedFile = async (folder, fileName, options = {}) => {
+    const { timeoutMs = FILE_REQUEST_TIMEOUT } = options;
 
-    const {
-        timeoutMs = FILE_REQUEST_TIMEOUT
-    } = options;
+    const key = getFileCacheKey(folder, fileName);
 
-    const key =
-        getFileCacheKey(
-            folder,
-            fileName
-        );
-
-    // -----------------------------------------------------
     // RAM cache
-    // -----------------------------------------------------
-
     if (fileCache.has(key)) {
         return fileCache.get(key);
     }
 
-    // -----------------------------------------------------
-    // Existing request
-    // -----------------------------------------------------
-
+    // Existing request. Callers joining an in-flight request
+    // get their own timeout too, so nobody waits forever.
     if (filePromises.has(key)) {
-        return filePromises.get(key);
+        return withTimeout(filePromises.get(key), timeoutMs);
     }
 
-    // -----------------------------------------------------
     // New request
-    // -----------------------------------------------------
+    const rawPromise = languageManager
+        .getFile(folder, fileName)
+        .then((data) => {
+            if (data !== null && data !== undefined) {
+                fileCache.set(key, data);
+            }
 
-    const rawPromise =
-        languageManager
-            .getFile(
-                folder,
-                fileName
-            )
-            .then((data) => {
+            return data;
+        })
+        .finally(() => {
+            // FIX: only delete OUR entry. After a timeout a newer retry
+            // may have registered its own promise under the same key.
+            if (filePromises.get(key) === rawPromise) {
+                filePromises.delete(key);
+            }
+        });
 
-                if (
-                    data !== null &&
-                    data !== undefined
-                ) {
+    filePromises.set(key, rawPromise);
 
-                    fileCache.set(
-                        key,
-                        data
-                    );
-                }
-
-                return data;
-            })
-            .finally(() => {
-
-                filePromises.delete(
-                    key
-                );
-            });
-
-    filePromises.set(
-        key,
-        rawPromise
-    );
-
-    // -----------------------------------------------------
-    // Timeout protection
-    // -----------------------------------------------------
-
-    return withTimeout(
-        rawPromise,
-        timeoutMs,
-        () => {
-
-            /*
-             * The original request may still be running.
-             *
-             * Remove it from the deduplication map so that
-             * a later background retry can start a fresh
-             * request instead of waiting forever.
-             */
-
-            clearPendingFileRequest(
-                folder,
-                fileName
-            );
+    return withTimeout(rawPromise, timeoutMs, () => {
+        // The original request may still be running. Remove it from the
+        // dedupe map so a later retry can start fresh (the manager itself
+        // still dedupes the actual download, so nothing is downloaded twice).
+        if (filePromises.get(key) === rawPromise) {
+            filePromises.delete(key);
         }
-    );
+    });
 };
 
 // =========================================================
 // Context Provider
 // =========================================================
 
-export function LanguageProvider({
-    children
-}) {
+export function LanguageProvider({ children }) {
+    const pathname = usePathname();
 
-    const pathname =
-        usePathname();
+    const [language, setLanguage] = useState("ar");
+    const [parallelLanguage, setParallelLanguage] = useState(null);
+    const [strings, setStrings] = useState(null);
 
-    const [language, setLanguage] =
-        useState("ar");
+    const { theme } = useTheme();
 
-    const [parallelLanguage, setParallelLanguage] =
-        useState(null);
+    const [useTashkeel, setUseTashkeel] = useState(false);
+    const [keepAppAwake, setKeepAppAwake] = useState(true);
+    const [keepBibleAwake, setKeepBibleAwake] = useState(true);
 
-    const [strings, setStrings] =
-        useState(null);
+    const [isFirstTime, setIsFirstTime] = useState(false);
+    const [onboardingStep, setOnboardingStep] = useState("language");
+    const [isHydrated, setIsHydrated] = useState(false);
 
-    const { theme } =
-        useTheme();
+    const languageChangeRef = useRef(false);
+    const updateCheckRunningRef = useRef(false);
+    const lastUpdateCheckRef = useRef(0);
 
-    const [useTashkeel, setUseTashkeel] =
-        useState(false);
+    // Lets long-lived callbacks (the manager subscription) read the
+    // current language without being re-created on every change.
+    const languageRef = useRef(language);
 
-    const [keepAppAwake, setKeepAppAwake] =
-        useState(true);
-
-    const [keepBibleAwake, setKeepBibleAwake] =
-        useState(true);
-
-    const [isFirstTime, setIsFirstTime] =
-        useState(false);
-
-    const [onboardingStep, setOnboardingStep] =
-        useState("language");
-
-    const [isHydrated, setIsHydrated] =
-        useState(false);
-
-    // -----------------------------------------------------
-    // Initialization refs
-    // -----------------------------------------------------
-
-    const initializedRef =
-        useRef(false);
-
-    const languageChangeRef =
-        useRef(false);
-
-    const updateCheckRunningRef =
-        useRef(false);
-
-    const lastUpdateCheckRef =
-        useRef(0);
+    useEffect(() => {
+        languageRef.current = language;
+    }, [language]);
 
     // =====================================================
     // Bundled Arabic fallback
     // =====================================================
 
-    const loadBundledArabic =
-        useCallback(async () => {
+    const loadBundledArabic = useCallback(async () => {
+        try {
+            const fallback = await import(
+                "../data/translations/arabic/ar.json"
+            );
 
-            try {
+            return fallback.default || fallback;
+        } catch (error) {
+            console.error("Bundled Arabic translation failed:", error);
 
-                const fallback =
-                    await import(
-                        "../data/translations/arabic/ar.json"
-                    );
-
-                const data =
-                    fallback.default ||
-                    fallback;
-
-                return data;
-
-            } catch (error) {
-
-                console.error(
-                    "Bundled Arabic translation failed:",
-                    error
-                );
-
-                throw error;
-            }
-
-        }, []);
+            throw error;
+        }
+    }, []);
 
     // =====================================================
     // Load translations
     // =====================================================
 
-    const loadTranslations =
-        useCallback(async (
-            lang,
-            options = {}
-        ) => {
+    const loadTranslations = useCallback(
+        async (lang, options = {}) => {
+            const { allowBundledFallback = true } = options;
 
-            const {
-                allowBundledFallback = true
-            } = options;
-
-            const folder =
-                FOLDER_MAP[lang] ||
-                "arabic";
-
-            const mainFile =
-                getMainFile(lang);
+            const folder = FOLDER_MAP[lang] || "arabic";
+            const mainFile = getMainFile(lang);
 
             try {
-
-                const data =
-                    await getCachedFile(
-                        folder,
-                        mainFile
-                    );
+                const data = await getCachedFile(folder, mainFile);
 
                 if (!data) {
-
-                    throw new Error(
-                        "Main language data is empty"
-                    );
+                    throw new Error("Main language data is empty");
                 }
 
                 setStrings(data);
 
                 return data;
-
             } catch (error) {
+                console.error("Error loading language:", error);
 
-                console.error(
-                    "Error loading language:",
-                    error
-                );
-
-                // -----------------------------------------
-                // Arabic bundled fallback
-                // -----------------------------------------
-
-                if (
-                    lang === "ar" &&
-                    allowBundledFallback
-                ) {
-
-                    const data =
-                        await loadBundledArabic();
+                if (lang === "ar" && allowBundledFallback) {
+                    const data = await loadBundledArabic();
 
                     setStrings(data);
 
@@ -431,196 +269,168 @@ export function LanguageProvider({
 
                 throw error;
             }
-
-        }, [
-            loadBundledArabic
-        ]);
+        },
+        [loadBundledArabic]
+    );
 
     // =====================================================
     // Initial Arabic startup
     //
-    // IMPORTANT:
-    //
-    // Arabic has a bundled copy inside the application.
-    // We use it immediately instead of making startup
-    // dependent on R2/manifest/CORS.
+    // FIX: previously Arabic ALWAYS used the bundled copy and never
+    // saw remote updates. Now we use the downloaded local copy when one
+    // exists (fast, no network) and fall back to the bundled one.
     // =====================================================
 
-    const initializeArabic =
-        useCallback(async () => {
+    const initializeArabic = useCallback(async () => {
+        const folder = FOLDER_MAP.ar;
+        const mainFile = getMainFile("ar");
 
-            const bundled =
-                await loadBundledArabic();
+        try {
+            const local = await languageManager.getLocalCopy(folder, mainFile);
 
-            /*
-             * Make the application usable immediately.
-             */
+            if (local) {
+                fileCache.set(getFileCacheKey(folder, mainFile), local);
 
-            setStrings(bundled);
+                setStrings(local);
 
-            /*
-             * Return bundled data so initialization can
-             * continue without waiting for the network.
-             */
+                return local;
+            }
+        } catch (error) {
+            console.warn("Local Arabic copy unavailable, using bundle:", error);
+        }
 
-            return bundled;
+        const bundled = await loadBundledArabic();
 
-        }, [
-            loadBundledArabic
-        ]);
+        setStrings(bundled);
+
+        return bundled;
+    }, [loadBundledArabic]);
 
     // =====================================================
     // Background auxiliary prefetch
     // =====================================================
 
-    const prefetchAuxFiles =
-        useCallback((lang) => {
-
-            if (
-                !Capacitor.isNativePlatform()
-            ) {
-                return;
-            }
-
-            const files =
-                getAuxFiles(lang);
-
-            for (const {
-                folder,
-                fileName
-            } of files) {
-
-                void getCachedFile(
-                    folder,
-                    fileName
-                ).catch(() => {});
-            }
-
-        }, []);
-
-    // =====================================================
-    // Shared prefetch
-    // =====================================================
-
-    const prefetchSharedFiles =
-        useCallback(() => {
-
-            if (
-                !Capacitor.isNativePlatform()
-            ) {
-                return;
-            }
-
-            for (const {
-                folder,
-                fileName
-            } of SHARED_FILES) {
-
-                void getCachedFile(
-                    folder,
-                    fileName
-                ).catch(() => {});
-            }
-
-        }, []);
-
-    // =====================================================
-    // Initial initialization
-    // =====================================================
-
-    useEffect(() => {
-
-        if (
-            initializedRef.current
-        ) {
+    const prefetchAuxFiles = useCallback((lang) => {
+        if (!Capacitor.isNativePlatform()) {
             return;
         }
 
-        initializedRef.current =
-            true;
+        for (const { folder, fileName } of getAuxFiles(lang)) {
+            void getCachedFile(folder, fileName).catch(() => {});
+        }
+    }, []);
 
+    const prefetchSharedFiles = useCallback(() => {
+        if (!Capacitor.isNativePlatform()) {
+            return;
+        }
+
+        for (const { folder, fileName } of SHARED_FILES) {
+            void getCachedFile(folder, fileName).catch(() => {});
+        }
+    }, []);
+
+    // =====================================================
+    // Subscribe to language manager events
+    //
+    // FIX: finished background downloads were never applied.
+    // Now a downloaded file refreshes the RAM cache and, if it is the
+    // current language's main file, the UI strings too.
+    // =====================================================
+
+    useEffect(() => {
+        const unsubscribe = languageManager.subscribe((event) => {
+            const key = getFileCacheKey(event.folder, event.fileName);
+
+            if (event.type === "cleared") {
+                fileCache.delete(key);
+                return;
+            }
+
+            if (event.type === "updated" && event.data) {
+                fileCache.set(key, event.data);
+
+                const currentLang = languageRef.current;
+
+                if (
+                    event.folder === (FOLDER_MAP[currentLang] || "arabic") &&
+                    event.fileName === getMainFile(currentLang)
+                ) {
+                    setStrings(event.data);
+                }
+            }
+        });
+
+        return unsubscribe;
+    }, []);
+
+    // =====================================================
+    // Initial initialization
+    //
+    // FIX: removed `initializedRef`. Combined with `cancelled`, React
+    // Strict Mode (mount -> cleanup -> mount) left the app on the loading
+    // screen forever in development. The init logic is idempotent, so
+    // running it twice is harmless.
+    // =====================================================
+
+    useEffect(() => {
         let cancelled = false;
 
         const init = async () => {
+            let langToLoad = "ar";
 
             try {
-
                 // -----------------------------------------
-                // Read local settings first
+                // Read ALL local settings first (synchronous), so they are
+                // applied even if translation loading fails afterwards.
                 // -----------------------------------------
 
-                const savedLang =
-                    localStorage.getItem(
-                        "app_lang"
-                    );
+                const rawLang = localStorage.getItem("app_lang");
+
+                const savedLang = rawLang && FOLDER_MAP[rawLang] ? rawLang : null;
 
                 const onboardingDone =
-                    localStorage.getItem(
-                        "onboarding_done"
-                    ) === "true";
+                    localStorage.getItem("onboarding_done") === "true";
 
-                const langToLoad =
-                    savedLang || "ar";
+                langToLoad = savedLang || "ar";
 
-                if (
-                    !savedLang ||
-                    !onboardingDone
-                ) {
-
-                    setIsFirstTime(
-                        true
-                    );
-
-                    setLanguage(
-                        langToLoad
-                    );
+                if (!savedLang || !onboardingDone) {
+                    setIsFirstTime(true);
 
                     if (savedLang) {
-
-                        setOnboardingStep(
-                            "theme"
-                        );
+                        setOnboardingStep("theme");
                     }
-
-                } else {
-
-                    setLanguage(
-                        langToLoad
-                    );
                 }
 
+                setLanguage(langToLoad);
+
+                const savedParallel = localStorage.getItem("parallel_lang");
+
+                if (savedParallel) {
+                    setParallelLanguage(savedParallel);
+                }
+
+                setUseTashkeel(localStorage.getItem("useTashkeel") === "true");
+
+                const appAwakeRaw = localStorage.getItem("keepAppAwake");
+                const bibleAwakeRaw = localStorage.getItem("keepBibleAwake");
+
+                setKeepAppAwake(appAwakeRaw === null ? true : appAwakeRaw === "true");
+                setKeepBibleAwake(
+                    bibleAwakeRaw === null ? true : bibleAwakeRaw === "true"
+                );
+
                 // -----------------------------------------
-                // Translation initialization
+                // Translations
                 // -----------------------------------------
 
-                if (
-                    langToLoad === "ar"
-                ) {
-
-                    /*
-                     * IMPORTANT:
-                     *
-                     * Do NOT wait for R2 on first startup.
-                     *
-                     * Arabic is bundled inside the application,
-                     * so the UI can become available immediately.
-                     */
-
+                if (langToLoad === "ar") {
+                    // Never make first startup depend on R2/manifest/CORS.
                     await initializeArabic();
-
                 } else {
-
-                    /*
-                     * Other languages still try their local/R2
-                     * source, but are protected by the timeout.
-                     */
-
-                    if (!cancelled) {
-
-                        await loadTranslations(
-                            langToLoad
-                        );
-                    }
+                    // Other languages use their local/R2 source, protected
+                    // by the timeout.
+                    await loadTranslations(langToLoad);
                 }
 
                 if (cancelled) {
@@ -628,156 +438,65 @@ export function LanguageProvider({
                 }
 
                 // -----------------------------------------
-                // Other local settings
-                // -----------------------------------------
-
-                const savedParallel =
-                    localStorage.getItem(
-                        "parallel_lang"
-                    );
-
-                if (savedParallel) {
-
-                    setParallelLanguage(
-                        savedParallel
-                    );
-                }
-
-                const savedTashkeel =
-                    localStorage.getItem(
-                        "useTashkeel"
-                    ) === "true";
-
-                setUseTashkeel(
-                    savedTashkeel
-                );
-
-                const appAwakeRaw =
-                    localStorage.getItem(
-                        "keepAppAwake"
-                    );
-
-                const bibleAwakeRaw =
-                    localStorage.getItem(
-                        "keepBibleAwake"
-                    );
-
-                setKeepAppAwake(
-                    appAwakeRaw === null
-                        ? true
-                        : appAwakeRaw === "true"
-                );
-
-                setKeepBibleAwake(
-                    bibleAwakeRaw === null
-                        ? true
-                        : bibleAwakeRaw === "true"
-                );
-
-                // -----------------------------------------
                 // Show app immediately
                 // -----------------------------------------
 
-                setIsHydrated(
-                    true
-                );
+                setIsHydrated(true);
 
                 // -----------------------------------------
-                // Background work AFTER UI is ready
+                // Background work AFTER the UI is ready
                 // -----------------------------------------
 
                 void Promise.resolve()
                     .then(() => {
-
-                        prefetchAuxFiles(
-                            langToLoad
-                        );
-
-                    })
-                    .catch(() => {});
-
-                void Promise.resolve()
-                    .then(() => {
-
+                        prefetchAuxFiles(langToLoad);
                         prefetchSharedFiles();
 
-                    })
-                    .catch(() => {});
-
-                /*
-                 * IMPORTANT:
-                 *
-                 * Manifest initialization happens only
-                 * after the UI has already become usable.
-                 */
-
-                void Promise.resolve()
-                    .then(() => {
+                        // Non-Arabic main files already schedule their own
+                        // background update through languageManager.getFile.
+                        // Arabic starts from local/bundled data, so schedule it.
+                        if (langToLoad === "ar") {
+                            languageManager.updateFileInBackground(
+                                FOLDER_MAP.ar,
+                                getMainFile("ar")
+                            );
+                        }
 
                         return languageManager.init();
-
                     })
                     .catch((error) => {
-
                         console.warn(
                             "[LanguageManager] Background initialization failed:",
                             error
                         );
-
                     });
-
             } catch (error) {
+                console.error("Language initialization error:", error);
 
-                console.error(
-                    "Language initialization error:",
-                    error
-                );
+                // -----------------------------------------
+                // FIX: the old catch checked a stale `language`
+                // (always "ar" on first render), so a German user whose
+                // load failed ended up with language="de", dir="ltr" and
+                // Arabic strings. Now the language switches to "ar" along
+                // with the fallback strings.
+                //
+                // `app_lang` is NOT overwritten, so the saved language is
+                // retried on the next launch.
+                // -----------------------------------------
 
-                /*
-                 * Arabic should already have a bundled fallback.
-                 *
-                 * If something unexpected happens, make one
-                 * final attempt to render Arabic instead of
-                 * leaving the application permanently stuck.
-                 */
+                try {
+                    const fallback = await loadBundledArabic();
 
-                if (
-                    !cancelled &&
-                    langToLoadIsArabicFallback(
-                        language
-                    )
-                ) {
-
-                    try {
-
-                        const fallback =
-                            await loadBundledArabic();
-
-                        setStrings(
-                            fallback
-                        );
-
-                    } catch (
-                        fallbackError
-                    ) {
-
-                        console.error(
-                            "Final Arabic fallback failed:",
-                            fallbackError
-                        );
+                    if (!cancelled) {
+                        setLanguage("ar");
+                        setStrings(fallback);
                     }
+                } catch (fallbackError) {
+                    console.error("Final Arabic fallback failed:", fallbackError);
                 }
 
                 if (!cancelled) {
-
-                    /*
-                     * Only expose the application if we have
-                     * translation strings.
-                     */
-
-                    setIsHydrated(
-                        true
-                    );
+                    setIsHydrated(true);
                 }
             }
         };
@@ -787,7 +506,6 @@ export function LanguageProvider({
         return () => {
             cancelled = true;
         };
-
     }, [
         initializeArabic,
         loadTranslations,
@@ -801,843 +519,440 @@ export function LanguageProvider({
     // =====================================================
 
     useEffect(() => {
-
-        if (
-            !isHydrated ||
-            !Capacitor.isNativePlatform()
-        ) {
+        if (!isHydrated || !Capacitor.isNativePlatform()) {
             return;
         }
 
         let cancelled = false;
 
-        const updateAwakeStatus =
-            async () => {
-
-                try {
-
-                    if (
-                        keepAppAwake
-                    ) {
-
-                        await KeepAwake.keepAwake();
-
-                    } else if (
-                        keepBibleAwake &&
-                        pathname?.includes(
-                            "/bible"
-                        )
-                    ) {
-
-                        await KeepAwake.keepAwake();
-
-                    } else {
-
-                        await KeepAwake.allowSleep();
-                    }
-
-                } catch (error) {
-
-                    if (!cancelled) {
-
-                        console.error(
-                            "Awake Status Error:",
-                            error
-                        );
-                    }
+        const updateAwakeStatus = async () => {
+            try {
+                if (keepAppAwake) {
+                    await KeepAwake.keepAwake();
+                } else if (keepBibleAwake && pathname?.includes("/bible")) {
+                    await KeepAwake.keepAwake();
+                } else {
+                    await KeepAwake.allowSleep();
                 }
-            };
+            } catch (error) {
+                if (!cancelled) {
+                    console.error("Awake Status Error:", error);
+                }
+            }
+        };
 
         void updateAwakeStatus();
 
         return () => {
             cancelled = true;
         };
-
-    }, [
-        keepAppAwake,
-        keepBibleAwake,
-        pathname,
-        isHydrated
-    ]);
+    }, [keepAppAwake, keepBibleAwake, pathname, isHydrated]);
 
     // =====================================================
     // Background update checker
+    //
+    // FIX: it used to invalidate the RAM cache and call getCachedFile,
+    // which just returned the stale local copy again (and the manager's
+    // per-session guard blocked the real download). Now it calls
+    // `forceUpdate`, and the manager's 'updated' event applies the result
+    // (RAM cache + UI strings).
     // =====================================================
 
-    const checkForUpdates =
-        useCallback(async () => {
+    const checkForUpdates = useCallback(async () => {
+        if (updateCheckRunningRef.current) {
+            return;
+        }
 
-            if (
-                updateCheckRunningRef.current
-            ) {
-                return;
-            }
+        const now = Date.now();
 
-            const now =
-                Date.now();
+        if (now - lastUpdateCheckRef.current < UPDATE_CHECK_INTERVAL) {
+            return;
+        }
 
-            if (
-                now -
-                    lastUpdateCheckRef.current <
-                5 * 60 * 1000
-            ) {
-                return;
-            }
+        updateCheckRunningRef.current = true;
 
-            updateCheckRunningRef.current =
-                true;
-
+        const updateIfStale = async (folder, fileName) => {
             try {
-
-                /*
-                 * Manifest is refreshed ONLY in background.
-                 */
-
-                const manifest =
-                    await languageManager
-                        .refreshManifest();
-
-                if (!manifest) {
+                if (await languageManager.isUpToDate(folder, fileName)) {
                     return;
                 }
 
-                const folder =
-                    FOLDER_MAP[
-                        language
-                    ] || "arabic";
-
-                const mainFile =
-                    getMainFile(
-                        language
-                    );
-
-                // -----------------------------------------
-                // Main translation
-                // -----------------------------------------
-
-                const upToDate =
-                    await languageManager
-                        .isUpToDate(
-                            folder,
-                            mainFile
-                        );
-
-                if (!upToDate) {
-
-                    invalidateFileCache(
-                        folder,
-                        mainFile
-                    );
-
-                    void getCachedFile(
-                        folder,
-                        mainFile
-                    ).catch((error) => {
-
-                        console.warn(
-                            "[LanguageManager] Main translation update failed:",
-                            error
-                        );
-
-                    });
-                }
-
-                // -----------------------------------------
-                // Auxiliary files
-                // -----------------------------------------
-
-                if (
-                    Capacitor.isNativePlatform()
-                ) {
-
-                    const auxFiles =
-                        getAuxFiles(
-                            language
-                        );
-
-                    for (const {
-                        folder: auxFolder,
-                        fileName
-                    } of auxFiles) {
-
-                        const isUpToDate =
-                            await languageManager
-                                .isUpToDate(
-                                    auxFolder,
-                                    fileName
-                                );
-
-                        if (!isUpToDate) {
-
-                            invalidateFileCache(
-                                auxFolder,
-                                fileName
-                            );
-
-                            void getCachedFile(
-                                auxFolder,
-                                fileName
-                            ).catch(() => {});
-                        }
-                    }
-
-                    // -------------------------------------
-                    // Shared files
-                    // -------------------------------------
-
-                    for (const {
-                        folder: sharedFolder,
-                        fileName
-                    } of SHARED_FILES) {
-
-                        const isUpToDate =
-                            await languageManager
-                                .isUpToDate(
-                                    sharedFolder,
-                                    fileName
-                                );
-
-                        if (!isUpToDate) {
-
-                            invalidateFileCache(
-                                sharedFolder,
-                                fileName
-                            );
-
-                            void getCachedFile(
-                                sharedFolder,
-                                fileName
-                            ).catch(() => {});
-                        }
-                    }
-                }
-
-                lastUpdateCheckRef.current =
-                    now;
-
+                await languageManager.forceUpdate(folder, fileName);
             } catch (error) {
-
                 console.warn(
-                    "Background update check failed:",
+                    `[LanguageManager] Update failed for ${folder}/${fileName}:`,
                     error
                 );
+            }
+        };
 
-            } finally {
+        try {
+            // Manifest is refreshed ONLY in the background
+            const manifest = await languageManager.refreshManifest();
 
-                updateCheckRunningRef.current =
-                    false;
+            if (!manifest) {
+                return;
             }
 
-        }, [
-            language
-        ]);
+            // Main translation
+            await updateIfStale(
+                FOLDER_MAP[language] || "arabic",
+                getMainFile(language)
+            );
+
+            // Auxiliary + shared files (native only), one at a time
+            if (Capacitor.isNativePlatform()) {
+                const extraFiles = [...getAuxFiles(language), ...SHARED_FILES];
+
+                for (const { folder, fileName } of extraFiles) {
+                    await updateIfStale(folder, fileName);
+                }
+            }
+
+            lastUpdateCheckRef.current = now;
+        } catch (error) {
+            console.warn("Background update check failed:", error);
+        } finally {
+            updateCheckRunningRef.current = false;
+        }
+    }, [language]);
 
     // =====================================================
     // App active / visibility update check
     // =====================================================
 
     useEffect(() => {
-
-        if (
-            !isHydrated
-        ) {
+        if (!isHydrated) {
             return;
         }
 
-        if (
-            Capacitor.isNativePlatform()
-        ) {
+        if (Capacitor.isNativePlatform()) {
+            // FIX: if cleanup ran before `addListener` resolved, the handle
+            // was still null and the listener leaked.
+            let cancelled = false;
+            let listenerHandle = null;
 
-            let listenerHandle =
-                null;
-
-            const setupListener =
-                async () => {
-
-                    const handle =
-                        await App.addListener(
-                            "appStateChange",
-                            ({
-                                isActive
-                            }) => {
-
-                                if (
-                                    isActive
-                                ) {
-
-                                    void checkForUpdates();
-                                }
-                            }
-                        );
-
-                    listenerHandle =
-                        handle;
-                };
-
-            void setupListener();
+            App.addListener("appStateChange", ({ isActive }) => {
+                if (isActive) {
+                    void checkForUpdates();
+                }
+            })
+                .then((handle) => {
+                    if (cancelled) {
+                        void handle.remove();
+                    } else {
+                        listenerHandle = handle;
+                    }
+                })
+                .catch((error) => {
+                    console.warn("appStateChange listener failed:", error);
+                });
 
             return () => {
-                listenerHandle?.remove();
+                cancelled = true;
+                void listenerHandle?.remove();
             };
         }
 
-        // -----------------------------------------------
         // Web
-        // -----------------------------------------------
-
-        const handleVisibility =
-            () => {
-
-                if (
-                    document.visibilityState ===
-                    "visible"
-                ) {
-
-                    void checkForUpdates();
-                }
-            };
-
-        document.addEventListener(
-            "visibilitychange",
-            handleVisibility
-        );
-
-        return () => {
-
-            document.removeEventListener(
-                "visibilitychange",
-                handleVisibility
-            );
+        const handleVisibility = () => {
+            if (document.visibilityState === "visible") {
+                void checkForUpdates();
+            }
         };
 
-    }, [
-        isHydrated,
-        checkForUpdates
-    ]);
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, [isHydrated, checkForUpdates]);
 
     // =====================================================
     // Book names
     // =====================================================
 
-    const bookNames =
-        useMemo(() => {
-
-            return (
-                allBookNames?.[
-                    language
-                ] ||
-                allBookNames?.ar ||
-                []
-            );
-
-        }, [
-            language
-        ]);
+    const bookNames = useMemo(() => {
+        return allBookNames?.[language] || allBookNames?.ar || [];
+    }, [language]);
 
     // =====================================================
     // Direction
     // =====================================================
 
-    const dir =
-        useMemo(() => {
-
-            return language === "ar"
-                ? "rtl"
-                : "ltr";
-
-        }, [
-            language
-        ]);
+    const dir = useMemo(() => {
+        return language === "ar" ? "rtl" : "ltr";
+    }, [language]);
 
     // =====================================================
     // Sync language
     // =====================================================
 
     useEffect(() => {
-
-        if (
-            !isHydrated
-        ) {
+        if (!isHydrated) {
             return;
         }
 
-        document.documentElement.lang =
-            language;
+        document.documentElement.lang = language;
+        document.documentElement.dir = dir;
 
-        document.documentElement.dir =
-            dir;
+        const syncLang = async () => {
+            try {
+                await Preferences.set({
+                    key: "language",
+                    value: language
+                });
 
-        const syncLang =
-            async () => {
-
-                try {
-
-                    await Preferences.set({
-                        key: "language",
-                        value: language
-                    });
-
-                    if (
-                        window
-                            .AgiosScannerNative
-                            ?.refreshAlarms
-                    ) {
-
-                        window
-                            .AgiosScannerNative
-                            .refreshAlarms();
-                    }
-
-                } catch (error) {
-
-                    console.error(
-                        "Language Sync Error:",
-                        error
-                    );
+                if (window.AgiosScannerNative?.refreshAlarms) {
+                    window.AgiosScannerNative.refreshAlarms();
                 }
-            };
+            } catch (error) {
+                console.error("Language Sync Error:", error);
+            }
+        };
 
         void syncLang();
-
-    }, [
-        language,
-        dir,
-        isHydrated
-    ]);
+    }, [language, dir, isHydrated]);
 
     // =====================================================
     // Sync theme
     // =====================================================
 
     useEffect(() => {
-
-        if (
-            !isHydrated ||
-            !Capacitor.isNativePlatform() ||
-            !theme
-        ) {
+        if (!isHydrated || !Capacitor.isNativePlatform() || !theme) {
             return;
         }
 
-        const syncTheme =
-            async () => {
+        const syncTheme = async () => {
+            try {
+                await Preferences.set({
+                    key: "theme",
+                    value: theme
+                });
 
-                try {
-
-                    await Preferences.set({
-                        key: "theme",
-                        value: theme
-                    });
-
-                    if (
-                        window
-                            .AgiosScannerNative
-                            ?.refreshWidgets
-                    ) {
-
-                        window
-                            .AgiosScannerNative
-                            .refreshWidgets();
-                    }
-
-                } catch (error) {
-
-                    console.error(
-                        "Theme Sync Error:",
-                        error
-                    );
+                if (window.AgiosScannerNative?.refreshWidgets) {
+                    window.AgiosScannerNative.refreshWidgets();
                 }
-            };
+            } catch (error) {
+                console.error("Theme Sync Error:", error);
+            }
+        };
 
         void syncTheme();
-
-    }, [
-        theme,
-        isHydrated
-    ]);
+    }, [theme, isHydrated]);
 
     // =====================================================
     // Change language
+    //
+    // FIXES:
+    //  - the offline check was unreachable (getCachedFile already
+    //    tried the download); now we check for a local copy FIRST
+    //  - switching back to Arabic offline works via the bundled copy
+    //  - only real connectivity problems show "internet required"
     // =====================================================
 
-    const changeLanguage =
-        useCallback(async (
-            newLang
-        ) => {
-
-            if (
-                !FOLDER_MAP[newLang]
-            ) {
+    const changeLanguage = useCallback(
+        async (newLang) => {
+            if (!FOLDER_MAP[newLang]) {
                 return;
             }
 
-            if (
-                newLang === language
-            ) {
-
-                localStorage.setItem(
-                    "app_lang",
-                    newLang
-                );
-
+            if (newLang === language) {
+                localStorage.setItem("app_lang", newLang);
                 return;
             }
 
-            if (
-                languageChangeRef.current
-            ) {
+            if (languageChangeRef.current) {
                 return;
             }
 
-            languageChangeRef.current =
-                true;
+            languageChangeRef.current = true;
 
-            const folder =
-                FOLDER_MAP[newLang];
+            const folder = FOLDER_MAP[newLang];
+            const mainFile = getMainFile(newLang);
+            const key = getFileCacheKey(folder, mainFile);
 
-            const mainFile =
-                getMainFile(
-                    newLang
-                );
+            const apply = (data) => {
+                localStorage.setItem("app_lang", newLang);
+
+                setLanguage(newLang);
+                setStrings(data);
+
+                prefetchAuxFiles(newLang);
+            };
 
             try {
+                // ---------------------------------------
+                // Do we already have it locally?
+                // ---------------------------------------
+
+                let hasLocal = fileCache.has(key);
+
+                if (!hasLocal) {
+                    try {
+                        hasLocal = await languageManager.hasLocalCopy(folder, mainFile);
+                    } catch {
+                        hasLocal = false;
+                    }
+                }
 
                 // ---------------------------------------
-                // Try local/RAM cache first
+                // Arabic without a downloaded copy: use the bundled one
+                // (works offline) and fetch updates in the background.
                 // ---------------------------------------
 
-                let data =
-                    await getCachedFile(
-                        folder,
-                        mainFile
-                    );
+                if (!hasLocal && newLang === "ar") {
+                    apply(await loadBundledArabic());
 
-                if (data) {
-
-                    localStorage.setItem(
-                        "app_lang",
-                        newLang
-                    );
-
-                    setLanguage(
-                        newLang
-                    );
-
-                    setStrings(
-                        data
-                    );
-
-                    prefetchAuxFiles(
-                        newLang
-                    );
-
-                    void languageManager
-                        .refreshManifest()
-                        .catch(() => {});
+                    languageManager.updateFileInBackground(folder, mainFile);
 
                     return;
                 }
 
                 // ---------------------------------------
-                // Internet check
+                // Not local -> a download is required
                 // ---------------------------------------
 
                 if (
-                    typeof navigator !==
-                        "undefined" &&
+                    !hasLocal &&
+                    typeof navigator !== "undefined" &&
                     !navigator.onLine
                 ) {
-
                     toast.error(
-                        strings?.common
-                            ?.internet_required ||
-                        "This feature requires an internet connection"
+                        strings?.common?.internet_required ||
+                            INTERNET_REQUIRED_FALLBACK
                     );
 
                     return;
                 }
 
-                // ---------------------------------------
-                // Remote download
-                // ---------------------------------------
-
-                data =
-                    await getCachedFile(
-                        folder,
-                        mainFile
-                    );
+                // Local copy (fast) or remote download (with timeout)
+                const data = await getCachedFile(folder, mainFile);
 
                 if (!data) {
-
-                    throw new Error(
-                        "Language file is empty"
-                    );
+                    throw new Error("Language file is empty");
                 }
 
-                localStorage.setItem(
-                    "app_lang",
-                    newLang
-                );
+                apply(data);
 
-                setLanguage(
-                    newLang
-                );
-
-                setStrings(
-                    data
-                );
-
-                prefetchAuxFiles(
-                    newLang
-                );
-
+                if (hasLocal) {
+                    void languageManager.refreshManifest().catch(() => {});
+                }
             } catch (error) {
+                console.error("Change Language Error:", error);
 
-                console.error(
-                    "Change Language Error:",
-                    error
-                );
+                const offline =
+                    typeof navigator !== "undefined" && !navigator.onLine;
 
                 toast.error(
-                    strings?.common
-                        ?.internet_required ||
-                    "This feature requires an internet connection"
+                    offline
+                        ? strings?.common?.internet_required ||
+                              INTERNET_REQUIRED_FALLBACK
+                        : strings?.common?.language_load_failed ||
+                              LOAD_FAILED_FALLBACK
                 );
-
             } finally {
-
-                languageChangeRef.current =
-                    false;
+                languageChangeRef.current = false;
             }
-
-        }, [
-            language,
-            strings,
-            prefetchAuxFiles
-        ]);
+        },
+        [language, strings, prefetchAuxFiles, loadBundledArabic]
+    );
 
     // =====================================================
     // Finish onboarding
     // =====================================================
 
-    const finishFirstTime =
-        useCallback(() => {
+    const finishFirstTime = useCallback(() => {
+        setIsFirstTime(false);
 
-            setIsFirstTime(
-                false
-            );
-
-            localStorage.setItem(
-                "onboarding_done",
-                "true"
-            );
-
-        }, []);
+        localStorage.setItem("onboarding_done", "true");
+    }, []);
 
     // =====================================================
     // Parallel language
     // =====================================================
 
-    const changeParallelLanguage =
-        useCallback((newLang) => {
+    const changeParallelLanguage = useCallback((newLang) => {
+        if (newLang === null) {
+            setParallelLanguage(null);
 
-            if (
-                newLang === null
-            ) {
+            localStorage.removeItem("parallel_lang");
+        } else {
+            setParallelLanguage(newLang);
 
-                setParallelLanguage(
-                    null
-                );
+            localStorage.setItem("parallel_lang", newLang);
+        }
 
-                localStorage.removeItem(
-                    "parallel_lang"
-                );
-
-            } else {
-
-                setParallelLanguage(
-                    newLang
-                );
-
-                localStorage.setItem(
-                    "parallel_lang",
-                    newLang
-                );
-            }
-
-            window.dispatchEvent(
-                new Event("storage")
-            );
-
-        }, []);
+        window.dispatchEvent(new Event("storage"));
+    }, []);
 
     // =====================================================
-    // Tashkeel
+    // Toggles
+    //
+    // FIX: side effects (localStorage, dispatchEvent) used to run inside
+    // `setState` updater functions, which must be pure (Strict Mode runs
+    // them twice). Now the new value is computed first, side effects run
+    // outside the updater, and the updater is trivial.
     // =====================================================
 
-    const toggleTashkeel =
-        useCallback(() => {
+    const toggleTashkeel = useCallback(() => {
+        const newState = !useTashkeel;
 
-            setUseTashkeel(
-                (previous) => {
+        localStorage.setItem("useTashkeel", String(newState));
 
-                    const newState =
-                        !previous;
+        setUseTashkeel(newState);
 
-                    localStorage.setItem(
-                        "useTashkeel",
-                        newState.toString()
-                    );
+        // localStorage is already updated, so listeners read the new value
+        window.dispatchEvent(new Event("storage"));
+    }, [useTashkeel]);
 
-                    window.dispatchEvent(
-                        new Event("storage")
-                    );
+    const toggleKeepAppAwake = useCallback(() => {
+        const newState = !keepAppAwake;
 
-                    return newState;
-                }
-            );
+        localStorage.setItem("keepAppAwake", String(newState));
 
-        }, []);
+        setKeepAppAwake(newState);
+    }, [keepAppAwake]);
 
-    // =====================================================
-    // Keep App Awake
-    // =====================================================
+    const toggleKeepBibleAwake = useCallback(() => {
+        const newState = !keepBibleAwake;
 
-    const toggleKeepAppAwake =
-        useCallback(() => {
+        localStorage.setItem("keepBibleAwake", String(newState));
 
-            setKeepAppAwake(
-                (previous) => {
-
-                    const newState =
-                        !previous;
-
-                    localStorage.setItem(
-                        "keepAppAwake",
-                        newState.toString()
-                    );
-
-                    return newState;
-                }
-            );
-
-        }, []);
-
-    // =====================================================
-    // Keep Bible Awake
-    // =====================================================
-
-    const toggleKeepBibleAwake =
-        useCallback(() => {
-
-            setKeepBibleAwake(
-                (previous) => {
-
-                    const newState =
-                        !previous;
-
-                    localStorage.setItem(
-                        "keepBibleAwake",
-                        newState.toString()
-                    );
-
-                    return newState;
-                }
-            );
-
-        }, []);
+        setKeepBibleAwake(newState);
+    }, [keepBibleAwake]);
 
     // =====================================================
     // Format numbers
     // =====================================================
 
-    const formatNumber =
-        useCallback(
-            (num) => {
+    const formatNumber = useCallback(
+        (num) => {
+            if (num === null || num === undefined) {
+                return "";
+            }
 
-                if (
-                    num === null ||
-                    num === undefined
-                ) {
-                    return "";
-                }
+            if (language !== "ar") {
+                return num.toString();
+            }
 
-                if (
-                    language !== "ar"
-                ) {
-                    return num.toString();
-                }
+            const arabicNums = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
 
-                const arabicNums = [
-                    "٠",
-                    "١",
-                    "٢",
-                    "٣",
-                    "٤",
-                    "٥",
-                    "٦",
-                    "٧",
-                    "٨",
-                    "٩"
-                ];
-
-                return num
-                    .toString()
-                    .split("")
-                    .map(
-                        (digit) =>
-                            arabicNums[
-                                Number(digit)
-                            ] || digit
-                    )
-                    .join("");
-
-            },
-            [
-                language
-            ]
-        );
+            return num
+                .toString()
+                .split("")
+                .map((digit) => arabicNums[Number(digit)] || digit)
+                .join("");
+        },
+        [language]
+    );
 
     // =====================================================
     // Memoized context value
     // =====================================================
 
-    const value =
-        useMemo(() => {
-
-            return {
-                language,
-                parallelLanguage,
-                useTashkeel,
-                keepAppAwake,
-                keepBibleAwake,
-                strings,
-                bookNames,
-                allBookNames,
-                dir,
-
-                changeLanguage,
-                changeParallelLanguage,
-
-                toggleTashkeel,
-                toggleKeepAppAwake,
-                toggleKeepBibleAwake,
-
-                isFirstTime,
-                setIsFirstTime,
-
-                onboardingStep,
-                setOnboardingStep,
-
-                finishFirstTime,
-
-                isHydrated,
-
-                formatNumber
-            };
-
-        }, [
+    const value = useMemo(() => {
+        return {
             language,
             parallelLanguage,
             useTashkeel,
@@ -1645,6 +960,7 @@ export function LanguageProvider({
             keepBibleAwake,
             strings,
             bookNames,
+            allBookNames,
             dir,
 
             changeLanguage,
@@ -1655,22 +971,47 @@ export function LanguageProvider({
             toggleKeepBibleAwake,
 
             isFirstTime,
+            setIsFirstTime,
+
             onboardingStep,
+            setOnboardingStep,
 
             finishFirstTime,
+
             isHydrated,
+
             formatNumber
-        ]);
+        };
+    }, [
+        language,
+        parallelLanguage,
+        useTashkeel,
+        keepAppAwake,
+        keepBibleAwake,
+        strings,
+        bookNames,
+        dir,
+
+        changeLanguage,
+        changeParallelLanguage,
+
+        toggleTashkeel,
+        toggleKeepAppAwake,
+        toggleKeepBibleAwake,
+
+        isFirstTime,
+        onboardingStep,
+
+        finishFirstTime,
+        isHydrated,
+        formatNumber
+    ]);
 
     // =====================================================
     // Loading screen
     // =====================================================
 
-    if (
-        !isHydrated ||
-        !strings
-    ) {
-
+    if (!isHydrated || !strings) {
         return (
             <div
                 style={{
@@ -1678,12 +1019,9 @@ export function LanguageProvider({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor:
-                        "var(--color-bg-start)",
-                    color:
-                        "var(--color-text-primary)",
-                    fontFamily:
-                        "sans-serif"
+                    backgroundColor: "var(--color-bg-start)",
+                    color: "var(--color-text-primary)",
+                    fontFamily: "sans-serif"
                 }}
             >
                 ...
@@ -1692,24 +1030,9 @@ export function LanguageProvider({
     }
 
     return (
-        <LanguageContext.Provider
-            value={value}
-        >
+        <LanguageContext.Provider value={value}>
             {children}
         </LanguageContext.Provider>
-    );
-}
-
-// =========================================================
-// Arabic fallback helper
-// =========================================================
-
-function langToLoadIsArabicFallback(
-    lang
-) {
-    return (
-        !lang ||
-        lang === "ar"
     );
 }
 
@@ -1717,7 +1040,4 @@ function langToLoadIsArabicFallback(
 // Hook
 // =========================================================
 
-export const useLanguage = () =>
-    useContext(
-        LanguageContext
-    );
+export const useLanguage = () => useContext(LanguageContext);
