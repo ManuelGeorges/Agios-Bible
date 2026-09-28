@@ -512,6 +512,7 @@ export default function BibleContent() {
 const {
   language,
   useTashkeel,
+  setUseTashkeel,
   parallelLanguage,
   strings,
   dir: pageDir,

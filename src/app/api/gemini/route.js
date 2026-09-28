@@ -39,6 +39,7 @@ const corsHeaders = {
 
 /* =========================================================
    ANALYSIS PROMPTS
+   OLD / ORIGINAL PROMPTS PRESERVED
 ========================================================= */
 
 const ANALYSIS_PROMPTS = {
@@ -202,7 +203,7 @@ const ANALYSIS_PROMPTS = {
 إذا لم توجد شبهة مهمة مرتبطة مباشرة بالنص، قل ذلك باختصار بدلاً من اختراع اعتراض وهمي.
 
 ==================================================
-شكل الإجابة (مهم جداً)
+شكل الإجابة
 ==================================================
 
 لا تستخدم Markdown.
@@ -215,7 +216,7 @@ const ANALYSIS_PROMPTS = {
 -
 عناوين Markdown
 
-اكتب نصاً عادياً فقط.
+استخدم عناوين نصية بسيطة فقط.
 
 يجب أن تكون الإجابة شاملة وعميقة وليست مختصرة.
 
@@ -375,8 +376,7 @@ Write the entire answer, including all section headings, in ${answerLanguage}.
 
 FORMAT (VERY IMPORTANT):
 
-Do not use Markdown formatting (no *, **, #, or - bullets).
-Write plain text only.
+Do not use Markdown formatting.
 
 Mandatory formatting rules:
 
@@ -420,6 +420,7 @@ Before sending the answer, verify that:
 
 /* =========================================================
    OTHER PROMPTS
+   OLD / ORIGINAL PROMPTS PRESERVED
 ========================================================= */
 
 const PROMPTS = {
@@ -602,7 +603,8 @@ function resolveLanguage(lang) {
 
   return {
     promptLang: "en",
-    answerLanguage: ANSWER_LANGUAGE_NAMES[lang] || "English",
+    answerLanguage:
+      ANSWER_LANGUAGE_NAMES[lang] || "English",
   };
 }
 
@@ -647,7 +649,10 @@ function normalizeAnalysisPayload(payload = {}) {
    VALIDATION
 ========================================================= */
 
-function validateAnalysisInput(reference, verseText) {
+function validateAnalysisInput(
+  reference,
+  verseText
+) {
   if (!reference) {
     return {
       valid: false,
@@ -663,15 +668,11 @@ function validateAnalysisInput(reference, verseText) {
     };
   }
 
-  /*
-    We do not reject genuinely short Biblical verses automatically.
-    This is only protection against empty or obviously invalid UI data.
-  */
-
   if (verseText.length < 3) {
     return {
       valid: false,
-      error: "The supplied Biblical text is too short.",
+      error:
+        "The supplied Biblical text is too short.",
     };
   }
 
@@ -732,10 +733,11 @@ function buildPrompt(
       verseText,
     } = normalizeAnalysisPayload(payload);
 
-    const validation = validateAnalysisInput(
-      reference,
-      verseText
-    );
+    const validation =
+      validateAnalysisInput(
+        reference,
+        verseText
+      );
 
     if (!validation.valid) {
       return {
@@ -848,31 +850,37 @@ async function generateText(
   task,
   attempt
 ) {
-  const genAI = getGenAI(attempt);
+  const genAI =
+    getGenAI(attempt);
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-  });
+  const model =
+    genAI.getGenerativeModel({
+      model: MODEL_NAME,
+    });
 
-  const result = await model.generateContent({
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
-      },
-    ],
-    generationConfig:
-      getGenerationConfig(task),
-  });
+  const result =
+    await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: prompt,
+            },
+          ],
+        },
+      ],
+      generationConfig:
+        getGenerationConfig(task),
+    });
 
   const text =
     result.response.text();
 
-  if (!text || !text.trim()) {
+  if (
+    !text ||
+    !text.trim()
+  ) {
     throw new Error(
       `Gemini returned an empty ${task} response.`
     );
@@ -885,7 +893,9 @@ async function generateText(
    SERVER CACHE
 ========================================================= */
 
-function getServerCacheKey(cacheKey) {
+function getServerCacheKey(
+  cacheKey
+) {
   if (
     typeof cacheKey !== "string" ||
     !cacheKey.trim()
@@ -894,7 +904,8 @@ function getServerCacheKey(cacheKey) {
   }
 
   /*
-    Keep the server cache separate from the client cache.
+    Keep server cache separate
+    from client cache.
 
     Client:
       cacheKey
@@ -922,14 +933,17 @@ const RETRYABLE_STATUSES = [
    POST
 ========================================================= */
 
-export async function POST(request) {
+export async function POST(
+  request
+) {
   try {
     /* -------------------------------------------------------
        Static export
     ------------------------------------------------------- */
 
     if (
-      process.env.NEXT_PUBLIC_EXPORT === "true"
+      process.env.NEXT_PUBLIC_EXPORT ===
+      "true"
     ) {
       return NextResponse.json(
         {
@@ -1011,7 +1025,9 @@ export async function POST(request) {
     ------------------------------------------------------- */
 
     const serverKey =
-      getServerCacheKey(cacheKey);
+      getServerCacheKey(
+        cacheKey
+      );
 
     /* -------------------------------------------------------
        Cache read
@@ -1020,21 +1036,20 @@ export async function POST(request) {
     if (serverKey) {
       try {
         const cached =
-          await kv.get(serverKey);
+          await kv.get(
+            serverKey
+          );
 
         if (cached) {
-          /*
-            Preserve the original analysis metadata behavior.
-
-            Cached responses normally contain the generated text.
-            For analysis, reference and verseText are reconstructed
-            from the current validated request payload.
-          */
-
           const responseData = {
             cached: true,
             data: cached,
           };
+
+          /*
+            Preserve old analysis
+            response metadata.
+          */
 
           if (
             task === "analysis" &&
@@ -1102,7 +1117,8 @@ export async function POST(request) {
     };
 
     /*
-      Preserve the first version's analysis response fields.
+      Preserve old analysis
+      response fields.
     */
 
     if (
