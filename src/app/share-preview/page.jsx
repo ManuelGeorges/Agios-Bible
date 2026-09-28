@@ -24,7 +24,7 @@ import { db } from '../../lib/firebase';
 import { getCairoIsoString } from '../../lib/dateUtils';
 import { StorageService, KEYS } from '../../lib/storage';
 
-const TEMPLATES = Array.from({ length: 20 }, (_, i) => ({
+const TEMPLATES = Array.from({ length: 28 }, (_, i) => ({
   id: i + 1,
   url: `/templates/${i + 1}.webp`
 }));
