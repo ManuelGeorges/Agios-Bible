@@ -3,118 +3,61 @@ workflows:
     name: iOS TestFlight Build
     max_build_duration: 60
     instance_type: mac_mini_m1
-
     integrations:
       app_store_connect: "Agios App Store Key"
-
     environment:
       groups:
         - ios-secrets
-
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.agios.bible"
         WIDGET_BUNDLE_ID: "com.agios.bible.AgiosWidgets"
         TEAM_ID: "XMBVV283C4"
-
       node: latest
       xcode: latest
       cocoapods: default
-
     scripts:
-
-      # =========================================================
-      # 1. Install dependencies
-      # =========================================================
       - name: Install dependencies
         script: |
           npm install
-
-      # =========================================================
-      # 2. Build web project
-      # =========================================================
       - name: Build web project
         script: |
           npm run build:mobile
-
-      # =========================================================
-      # 3. Sync Capacitor
-      # =========================================================
       - name: Sync Capacitor
         script: |
           npx cap sync ios
-
-      # =========================================================
-      # 4. Inject iOS Widgets
-      # =========================================================
-      - name: Inject iOS Widgets
+      - name: Inject iOS Widgets (Automated Xcode Script)
         script: |
           cd ios
           gem install xcodeproj
           ruby add_widgets.rb
-
-      # =========================================================
-      # 5. Increment Build Number
-      # =========================================================
       - name: Increment Build Number
         script: |
           cd ios/App
-
-          agvtool new-marketing-version 2.6.4
+          agvtool new-marketing-version 2.6.2
           agvtool new-version -all $(date +%s)
-
-      # =========================================================
-      # 6. Build and Sign IPA
-      # =========================================================
       - name: Build and Sign IPA
         script: |
-
-          # -----------------------------------------------------
-          # Initialize temporary keychain
-          # -----------------------------------------------------
+          # 1. Initialize Keychain
           keychain initialize
-
-          # -----------------------------------------------------
-          # Remove stale provisioning profiles
-          # -----------------------------------------------------
           find ~/Library -name "*.mobileprovision" -delete
-          find ~/Library -name "*.provisionprofile" -delete
-
-          # -----------------------------------------------------
-          # Add uploaded .p12 certificate + private key
-          # -----------------------------------------------------
+          
+          # 2. Fetch signing files for both App and Widget
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "$WIDGET_BUNDLE_ID" --type IOS_APP_STORE --create
           keychain add-certificates
-
-          # -----------------------------------------------------
-          # Fetch EXISTING App Store provisioning profiles
-          #
-          # IMPORTANT:
-          # No --create here.
-          # -----------------------------------------------------
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE
-
-          app-store-connect fetch-signing-files "$WIDGET_BUNDLE_ID" \
-            --type IOS_APP_STORE
-
-          # -----------------------------------------------------
-          # Apply provisioning profiles to Xcode project
-          # -----------------------------------------------------
-          xcode-project use-profiles \
-            --project "$XCODE_PROJECT"
-
-          # -----------------------------------------------------
-          # Build IPA
-          # -----------------------------------------------------
+          
+          # 3. Use profiles in the project
+          xcode-project use-profiles --project "$XCODE_PROJECT"
+          
+          # 4. Build the IPA
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
             --archive-flags "DEVELOPMENT_TEAM=$TEAM_ID"
-
     artifacts:
       - build/ios/ipa/*.ipa
-
     publishing:
       app_store_connect:
         auth: integration
