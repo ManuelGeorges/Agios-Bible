@@ -41,6 +41,32 @@ workflows:
         script: |
           # 1. Initialize Keychain
           keychain initialize
+
+          # Remove stale provisioning profiles
+          find ~/Library -name "*.mobileprovision" -delete
+
+          # 2. Add the uploaded Agios Distribution certificate + private key
+          keychain add-certificates
+
+          # 3. Fetch existing App Store provisioning profiles
+          # IMPORTANT: do NOT use --create here
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE
+
+          app-store-connect fetch-signing-files "$WIDGET_BUNDLE_ID" \
+            --type IOS_APP_STORE
+
+          # 4. Apply provisioning profiles to the Xcode project
+          xcode-project use-profiles \
+            --project "$XCODE_PROJECT"
+
+          # 5. Build IPA
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags "DEVELOPMENT_TEAM=$TEAM_ID"        script: |
+          # 1. Initialize Keychain
+          keychain initialize
           find ~/Library -name "*.mobileprovision" -delete
           
           # 2. Fetch signing files for both App and Widget
