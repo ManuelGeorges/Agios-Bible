@@ -4,6 +4,8 @@ import { kv } from "../../../lib/kv";
 
 export const dynamic = "force-dynamic";
 
+const MODEL_NAME = "gemini-3.1-flash-lite";
+
 /* =========================================================
    GEMINI
 ========================================================= */
@@ -36,7 +38,7 @@ const corsHeaders = {
 };
 
 /* =========================================================
-   ANALYSIS PROMPT
+   ANALYSIS PROMPTS
 ========================================================= */
 
 const ANALYSIS_PROMPTS = {
@@ -200,7 +202,7 @@ const ANALYSIS_PROMPTS = {
 إذا لم توجد شبهة مهمة مرتبطة مباشرة بالنص، قل ذلك باختصار بدلاً من اختراع اعتراض وهمي.
 
 ==================================================
-شكل الإجابة
+شكل الإجابة (مهم جداً)
 ==================================================
 
 لا تستخدم Markdown.
@@ -213,7 +215,7 @@ const ANALYSIS_PROMPTS = {
 -
 عناوين Markdown
 
-استخدم عناوين نصية بسيطة فقط.
+اكتب نصاً عادياً فقط.
 
 يجب أن تكون الإجابة شاملة وعميقة وليست مختصرة.
 
@@ -223,29 +225,29 @@ const ANALYSIS_PROMPTS = {
 
 يجب أن تعطي مساحة كافية لتفسير النص بالكامل.
 
-رتّب الإجابة كالتالي:
+قواعد التنسيق الإلزامية:
 
-مقدمة عن النص وسياقه
+- الإجابة مقسمة إلى عشرة أقسام مرقمة بالأرقام من 1 إلى 10 بالترتيب الموضح أدناه.
+- كل عنوان يُكتب في سطر مستقل بالشكل: رقم ثم نقطة ثم مسافة ثم اسم القسم ثم نقطتان رأسيتان.
+- لا تكتب أي محتوى في نفس سطر العنوان.
+- ابدأ المحتوى في سطر جديد.
+- افصل بين الفقرات بسطر فارغ.
+- لا تستخدم الترقيم (1. 2. 3.) في أي مكان آخر داخل المحتوى، الترقيم مخصص لعناوين الأقسام العشرة فقط.
 
-شرح النص كاملاً من أوله إلى آخره
+الأقسام بالترتيب:
 
-المعاني اللغوية للكلمات المحورية
+1. مقدمة عن النص وسياقه:
+2. شرح النص كاملاً من أوله إلى آخره:
+3. المعاني اللغوية للكلمات المحورية:
+4. الخلفية التاريخية:
+5. التفسير الكتابي والروحي:
+6. التفسير الآبائي الموثق إن توفر:
+7. العلاقة بين أجزاء الآية والفكرة الرئيسية:
+8. التطبيق الحياتي:
+9. الشبهات والأسئلة المرتبطة بالنص إن وجدت:
+10. خلاصة مركزة:
 
-الخلفية التاريخية
-
-التفسير الكتابي والروحي
-
-التفسير الآبائي الموثق إن توفر
-
-العلاقة بين أجزاء الآية والفكرة الرئيسية
-
-التطبيق الحياتي
-
-الشبهات والأسئلة المرتبطة بالنص إن وجدت
-
-خلاصة مركزة
-
-وفي النهاية أضف حرفياً:
+وفي النهاية، بعد القسم العاشر، أضف في سطر مستقل حرفياً:
 
 ودائماً ننصح بالرجوع لأب اعترافك.
 
@@ -269,10 +271,12 @@ const ANALYSIS_PROMPTS = {
 
 هل خلطت بين معلومات مؤكدة واستنتاج شخصي؟
 
+هل التزمت بعناوين الأقسام المرقمة كل عنوان في سطر مستقل؟
+
 إذا كانت الإجابة على أي من هذه الأسئلة "نعم"، صحح الإجابة قبل إرسالها.
 `,
 
-  en: (reference, verseText) => `
+  en: (reference, verseText, answerLanguage = "English") => `
 You are "Agios Intelligent Assistant", specialized in careful Biblical study.
 
 Your task is to provide a complete and accurate analysis of the exact Biblical passage supplied below.
@@ -365,32 +369,38 @@ RESPONSE QUALITY:
 Provide a substantial, deep answer.
 Do not unnecessarily shorten the response.
 
-Use plain-text section headings.
-Do not use Markdown formatting.
+LANGUAGE:
 
-Use these sections:
+Write the entire answer, including all section headings, in ${answerLanguage}.
 
-Introduction and context
+FORMAT (VERY IMPORTANT):
 
-Complete explanation of the passage
+Do not use Markdown formatting (no *, **, #, or - bullets).
+Write plain text only.
 
-Key linguistic meanings
+Mandatory formatting rules:
 
-Historical background
+- The answer has TEN numbered sections, numbered 1 to 10, in the order below.
+- Each heading goes on its own line in the form: number, dot, space, section name, colon.
+- Never put content on the same line as a heading.
+- Start the content on a new line.
+- Separate paragraphs with a blank line.
+- Do not use numbered lists (1. 2. 3.) anywhere else inside the content. Numbering is reserved for the ten section headings only.
 
-Biblical and spiritual interpretation
+Sections, in order:
 
-Documented patristic interpretation, if reliably known
+1. Introduction and context:
+2. Complete explanation of the passage:
+3. Key linguistic meanings:
+4. Historical background:
+5. Biblical and spiritual interpretation:
+6. Documented patristic interpretation, if reliably known:
+7. Relationship between the parts of the passage:
+8. Life application:
+9. Relevant objections and questions:
+10. Conclusion:
 
-Relationship between the parts of the passage
-
-Life application
-
-Relevant objections and questions
-
-Conclusion
-
-End with:
+After section 10, on a separate line, end with:
 
 We always encourage you to refer back to your father of confession.
 
@@ -403,7 +413,8 @@ Before sending the answer, verify that:
 - no missing text was invented;
 - no unsupported attribution was made;
 - no source was fabricated;
-- facts and interpretation are clearly distinguished.
+- facts and interpretation are clearly distinguished;
+- every heading is numbered and on its own line.
 `,
 };
 
@@ -572,26 +583,46 @@ Avoid unnecessary repetition.
 };
 
 /* =========================================================
-   HELPERS
+   LANGUAGE
 ========================================================= */
 
-function getLanguage(lang) {
-  if (lang === "en") return "en";
-  return "ar";
+const ANSWER_LANGUAGE_NAMES = {
+  en: "English",
+  fr: "French",
+  de: "German",
+};
+
+function resolveLanguage(lang) {
+  if (lang === "ar" || !lang) {
+    return {
+      promptLang: "ar",
+      answerLanguage: "Arabic",
+    };
+  }
+
+  return {
+    promptLang: "en",
+    answerLanguage: ANSWER_LANGUAGE_NAMES[lang] || "English",
+  };
 }
+
+/* =========================================================
+   ANALYSIS PAYLOAD
+========================================================= */
 
 function normalizeAnalysisPayload(payload = {}) {
   /*
-    IMPORTANT:
-
     The frontend MUST send the COMPLETE selected verse.
 
-    Supported:
+    Supported references:
       payload.reference
       payload.targetText
-      payload.verseText
+      payload.ref
 
-    We deliberately do not try to reconstruct a missing verse here.
+    Supported verse text:
+      payload.verseText
+      payload.fullVerseText
+      payload.text
   */
 
   const reference =
@@ -612,6 +643,10 @@ function normalizeAnalysisPayload(payload = {}) {
   };
 }
 
+/* =========================================================
+   VALIDATION
+========================================================= */
+
 function validateAnalysisInput(reference, verseText) {
   if (!reference) {
     return {
@@ -629,12 +664,8 @@ function validateAnalysisInput(reference, verseText) {
   }
 
   /*
-    Very short text is suspicious.
-
-    We do NOT reject a genuinely short verse automatically,
-    because some Biblical verses are naturally short.
-    This is only a basic protection against accidentally
-    sending an empty/partial UI string.
+    We do not reject genuinely short Biblical verses automatically.
+    This is only protection against empty or obviously invalid UI data.
   */
 
   if (verseText.length < 3) {
@@ -650,43 +681,242 @@ function validateAnalysisInput(reference, verseText) {
 }
 
 /* =========================================================
-   OPTIONS
+   GENERATION CONFIG
 ========================================================= */
 
 function getGenerationConfig(task) {
+  switch (task) {
+    case "analysis":
+      return {
+        maxOutputTokens: 8192,
+        temperature: 0.15,
+      };
+
+    case "studyPlan":
+      return {
+        maxOutputTokens: 4096,
+        temperature: 0.65,
+      };
+
+    case "derivatives":
+    case "semantic":
+      return {
+        maxOutputTokens: 4096,
+        temperature: 0.1,
+      };
+
+    default:
+      return {
+        maxOutputTokens: 4096,
+        temperature: 0.2,
+      };
+  }
+}
+
+/* =========================================================
+   PROMPT BUILDER
+========================================================= */
+
+function buildPrompt(
+  task,
+  payload,
+  { promptLang, answerLanguage }
+) {
+  /* -------------------------------------------------------
+     ANALYSIS
+  ------------------------------------------------------- */
+
   if (task === "analysis") {
+    const {
+      reference,
+      verseText,
+    } = normalizeAnalysisPayload(payload);
+
+    const validation = validateAnalysisInput(
+      reference,
+      verseText
+    );
+
+    if (!validation.valid) {
+      return {
+        error: validation.error,
+      };
+    }
+
+    const factory =
+      PROMPTS.analysis[promptLang] ||
+      PROMPTS.analysis.ar;
+
     return {
-      maxOutputTokens: 8192,
-      temperature: 0.15,
+      prompt: factory(
+        reference,
+        verseText,
+        answerLanguage
+      ),
+      metadata: {
+        reference,
+        verseText,
+      },
     };
   }
 
-  if (task === "studyPlan") {
-    return {
-      maxOutputTokens: 4096,
-      temperature: 0.65,
-    };
-  }
+  /* -------------------------------------------------------
+     DERIVATIVES
+  ------------------------------------------------------- */
 
   if (task === "derivatives") {
+    const word = String(
+      payload.word ||
+        payload.text ||
+        ""
+    ).trim();
+
+    if (!word) {
+      return {
+        error: "Missing word.",
+      };
+    }
+
+    const factory =
+      PROMPTS.derivatives[promptLang] ||
+      PROMPTS.derivatives.ar;
+
     return {
-      maxOutputTokens: 4096,
-      temperature: 0.1,
+      prompt: factory(word),
     };
   }
 
+  /* -------------------------------------------------------
+     SEMANTIC
+  ------------------------------------------------------- */
+
   if (task === "semantic") {
+    const concept = String(
+      payload.concept ||
+        payload.query ||
+        ""
+    ).trim();
+
+    const context = String(
+      payload.context ||
+        ""
+    );
+
+    if (!concept) {
+      return {
+        error: "Missing semantic concept.",
+      };
+    }
+
+    const factory =
+      PROMPTS.semantic[promptLang] ||
+      PROMPTS.semantic.ar;
+
     return {
-      maxOutputTokens: 4096,
-      temperature: 0.1,
+      prompt: factory(
+        concept,
+        context
+      ),
+    };
+  }
+
+  /* -------------------------------------------------------
+     STUDY PLAN
+  ------------------------------------------------------- */
+
+  if (task === "studyPlan") {
+    const factory =
+      PROMPTS.studyPlan[promptLang] ||
+      PROMPTS.studyPlan.ar;
+
+    return {
+      prompt: factory(payload),
     };
   }
 
   return {
-    maxOutputTokens: 4096,
-    temperature: 0.2,
+    error: `Unknown task: ${task}`,
   };
 }
+
+/* =========================================================
+   GEMINI GENERATION
+========================================================= */
+
+async function generateText(
+  prompt,
+  task,
+  attempt
+) {
+  const genAI = getGenAI(attempt);
+
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+  });
+
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    generationConfig:
+      getGenerationConfig(task),
+  });
+
+  const text =
+    result.response.text();
+
+  if (!text || !text.trim()) {
+    throw new Error(
+      `Gemini returned an empty ${task} response.`
+    );
+  }
+
+  return text;
+}
+
+/* =========================================================
+   SERVER CACHE
+========================================================= */
+
+function getServerCacheKey(cacheKey) {
+  if (
+    typeof cacheKey !== "string" ||
+    !cacheKey.trim()
+  ) {
+    return null;
+  }
+
+  /*
+    Keep the server cache separate from the client cache.
+
+    Client:
+      cacheKey
+
+    Server:
+      srv:cacheKey
+  */
+
+  return `srv:${cacheKey.trim()}`;
+}
+
+/* =========================================================
+   RETRYABLE STATUSES
+========================================================= */
+
+const RETRYABLE_STATUSES = [
+  429,
+  500,
+  502,
+  503,
+  504,
+];
 
 /* =========================================================
    POST
@@ -698,10 +928,17 @@ export async function POST(request) {
        Static export
     ------------------------------------------------------- */
 
-    if (process.env.NEXT_PUBLIC_EXPORT === "true") {
+    if (
+      process.env.NEXT_PUBLIC_EXPORT === "true"
+    ) {
       return NextResponse.json(
-        { static: true },
-        { status: 200, headers: corsHeaders }
+        {
+          static: true,
+        },
+        {
+          status: 200,
+          headers: corsHeaders,
+        }
       );
     }
 
@@ -709,7 +946,8 @@ export async function POST(request) {
        Parse request
     ------------------------------------------------------- */
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const {
       task,
@@ -717,24 +955,100 @@ export async function POST(request) {
       payload = {},
       attempt = 0,
       cacheKey,
-    } = body;
-
-    const language = getLanguage(lang);
+    } = body || {};
 
     /* -------------------------------------------------------
-       Cache
+       Validate task
     ------------------------------------------------------- */
 
-    if (cacheKey) {
+    if (
+      !task ||
+      !PROMPTS[task]
+    ) {
+      return NextResponse.json(
+        {
+          error: `Unknown task: ${task}`,
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    /* -------------------------------------------------------
+       Language
+    ------------------------------------------------------- */
+
+    const languageInfo =
+      resolveLanguage(lang);
+
+    /* -------------------------------------------------------
+       Build prompt
+    ------------------------------------------------------- */
+
+    const built =
+      buildPrompt(
+        task,
+        payload || {},
+        languageInfo
+      );
+
+    if (built.error) {
+      return NextResponse.json(
+        {
+          error: built.error,
+        },
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
+      );
+    }
+
+    /* -------------------------------------------------------
+       Server cache key
+    ------------------------------------------------------- */
+
+    const serverKey =
+      getServerCacheKey(cacheKey);
+
+    /* -------------------------------------------------------
+       Cache read
+    ------------------------------------------------------- */
+
+    if (serverKey) {
       try {
-        const cached = await kv.get(cacheKey);
+        const cached =
+          await kv.get(serverKey);
 
         if (cached) {
+          /*
+            Preserve the original analysis metadata behavior.
+
+            Cached responses normally contain the generated text.
+            For analysis, reference and verseText are reconstructed
+            from the current validated request payload.
+          */
+
+          const responseData = {
+            cached: true,
+            data: cached,
+          };
+
+          if (
+            task === "analysis" &&
+            built.metadata
+          ) {
+            responseData.reference =
+              built.metadata.reference;
+
+            responseData.verseText =
+              built.metadata.verseText;
+          }
+
           return NextResponse.json(
-            {
-              cached: true,
-              data: cached,
-            },
+            responseData,
             {
               status: 200,
               headers: corsHeaders,
@@ -742,315 +1056,92 @@ export async function POST(request) {
           );
         }
       } catch (cacheError) {
-        console.error("KV GET error:", cacheError);
-      }
-    }
-
-    /* -------------------------------------------------------
-       ANALYSIS
-    ------------------------------------------------------- */
-
-    if (task === "analysis") {
-      const {
-        reference,
-        verseText,
-      } = normalizeAnalysisPayload(payload);
-
-      const validation = validateAnalysisInput(
-        reference,
-        verseText
-      );
-
-      if (!validation.valid) {
-        return NextResponse.json(
-          {
-            error: validation.error,
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
+        console.error(
+          "KV GET error:",
+          cacheError
         );
       }
+    }
 
-      /*
-        This is the critical part.
+    /* -------------------------------------------------------
+       Generate
+    ------------------------------------------------------- */
 
-        Gemini receives:
-        1. the exact reference
-        2. the complete verse text selected by the user
-
-        The model is explicitly forbidden from reconstructing
-        or substituting the verse.
-      */
-
-      const prompt = PROMPTS.analysis[language](
-        reference,
-        verseText
+    const text =
+      await generateText(
+        built.prompt,
+        task,
+        Number(attempt) || 0
       );
 
-      const genAI = getGenAI(Number(attempt) || 0);
+    /* -------------------------------------------------------
+       Cache write
+    ------------------------------------------------------- */
 
-      const model = genAI.getGenerativeModel({
-        model: "gemini-3.1-flash-lite",
-      });
-
-      const generationConfig = getGenerationConfig("analysis");
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: prompt,
-              },
-            ],
-          },
-        ],
-        generationConfig,
-      });
-
-      const response = result.response;
-      const text = response.text();
-
-      if (!text || !text.trim()) {
-        throw new Error(
-          "Gemini returned an empty analysis response."
+    if (serverKey) {
+      try {
+        await kv.set(
+          serverKey,
+          text
+        );
+      } catch (cacheError) {
+        console.error(
+          "KV SET error:",
+          cacheError
         );
       }
-
-      /* -----------------------------------------------------
-         Cache analysis
-      ----------------------------------------------------- */
-
-      if (cacheKey) {
-        try {
-          await kv.set(cacheKey, text);
-        } catch (cacheError) {
-          console.error("KV SET error:", cacheError);
-        }
-      }
-
-      return NextResponse.json(
-        {
-          data: text,
-          cached: false,
-
-          /*
-            Useful for debugging and ensuring the server actually
-            received the intended passage.
-          */
-          reference,
-          verseText,
-        },
-        {
-          status: 200,
-          headers: corsHeaders,
-        }
-      );
     }
 
     /* -------------------------------------------------------
-       DERIVATIVES
+       Response
     ------------------------------------------------------- */
 
-    if (task === "derivatives") {
-      const word =
-        payload.word ||
-        payload.text ||
-        "";
+    const responseData = {
+      data: text,
+      cached: false,
+    };
 
-      if (!word.trim()) {
-        return NextResponse.json(
-          {
-            error: "Missing word.",
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
-        );
-      }
+    /*
+      Preserve the first version's analysis response fields.
+    */
 
-      const promptFactory =
-        PROMPTS.derivatives[language] ||
-        PROMPTS.derivatives.ar;
+    if (
+      task === "analysis" &&
+      built.metadata
+    ) {
+      responseData.reference =
+        built.metadata.reference;
 
-      const prompt = promptFactory(word);
-
-      const genAI = getGenAI(Number(attempt) || 0);
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-3.1-flash-lite",
-      });
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: getGenerationConfig("derivatives"),
-      });
-
-      const text = result.response.text();
-
-      if (cacheKey) {
-        try {
-          await kv.set(cacheKey, text);
-        } catch (cacheError) {
-          console.error("KV SET error:", cacheError);
-        }
-      }
-
-      return NextResponse.json(
-        {
-          data: text,
-        },
-        {
-          status: 200,
-          headers: corsHeaders,
-        }
-      );
+      responseData.verseText =
+        built.metadata.verseText;
     }
-
-    /* -------------------------------------------------------
-       SEMANTIC
-    ------------------------------------------------------- */
-
-    if (task === "semantic") {
-      const concept =
-        payload.concept ||
-        payload.query ||
-        "";
-
-      const context =
-        payload.context ||
-        "";
-
-      if (!concept.trim()) {
-        return NextResponse.json(
-          {
-            error: "Missing semantic concept.",
-          },
-          {
-            status: 400,
-            headers: corsHeaders,
-          }
-        );
-      }
-
-      const promptFactory =
-        PROMPTS.semantic[language] ||
-        PROMPTS.semantic.ar;
-
-      const prompt = promptFactory(
-        concept,
-        context
-      );
-
-      const genAI = getGenAI(Number(attempt) || 0);
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-3.1-flash-lite",
-      });
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: getGenerationConfig("semantic"),
-      });
-
-      const text = result.response.text();
-
-      if (cacheKey) {
-        try {
-          await kv.set(cacheKey, text);
-        } catch (cacheError) {
-          console.error("KV SET error:", cacheError);
-        }
-      }
-
-      return NextResponse.json(
-        {
-          data: text,
-        },
-        {
-          status: 200,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    /* -------------------------------------------------------
-       STUDY PLAN
-    ------------------------------------------------------- */
-
-    if (task === "studyPlan") {
-      const promptFactory =
-        PROMPTS.studyPlan[language] ||
-        PROMPTS.studyPlan.ar;
-
-      const prompt = promptFactory(payload);
-
-      const genAI = getGenAI(Number(attempt) || 0);
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-3.1-flash-lite",
-      });
-
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: getGenerationConfig("studyPlan"),
-      });
-
-      const text = result.response.text();
-
-      if (cacheKey) {
-        try {
-          await kv.set(cacheKey, text);
-        } catch (cacheError) {
-          console.error("KV SET error:", cacheError);
-        }
-      }
-
-      return NextResponse.json(
-        {
-          data: text,
-        },
-        {
-          status: 200,
-          headers: corsHeaders,
-        }
-      );
-    }
-
-    /* -------------------------------------------------------
-       UNKNOWN TASK
-    ------------------------------------------------------- */
 
     return NextResponse.json(
+      responseData,
       {
-        error: `Unknown task: ${task}`,
-      },
-      {
-        status: 400,
+        status: 200,
         headers: corsHeaders,
       }
     );
   } catch (error) {
-    console.error("Gemini API error:", error);
+    console.error(
+      "Gemini API error:",
+      error
+    );
+
+    /* -------------------------------------------------------
+       Upstream status
+    ------------------------------------------------------- */
+
+    const upstreamStatus =
+      Number(error?.status);
+
+    const status =
+      RETRYABLE_STATUSES.includes(
+        upstreamStatus
+      )
+        ? upstreamStatus
+        : 500;
 
     return NextResponse.json(
       {
@@ -1060,7 +1151,7 @@ export async function POST(request) {
             : "Unknown server error",
       },
       {
-        status: 500,
+        status,
         headers: corsHeaders,
       }
     );
@@ -1072,10 +1163,13 @@ export async function POST(request) {
 ========================================================= */
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: corsHeaders,
-  });
+  return new NextResponse(
+    null,
+    {
+      status: 204,
+      headers: corsHeaders,
+    }
+  );
 }
 
 /* =========================================================

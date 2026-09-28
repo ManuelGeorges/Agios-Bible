@@ -30,8 +30,8 @@ import { kv, CACHE_KEYS } from '../../../lib/kv';
 import { useLanguage } from '../../context/LanguageContext';
 import { languageManager } from '../../../services/languageManager';
 
-// FIX: needed to resolve any book name (any language) to its canonical index.
-// Same file LanguageContext imports. Adjust the ../ count if your page lives elsewhere.
+// Resolves any book name (any language) to its canonical index.
+// Same file LanguageContext imports. Adjust the ../ count if needed.
 import allBookNames from '../../data/bookNames.json';
 
 import { getAuth } from 'firebase/auth';
@@ -65,25 +65,9 @@ const API_BASE_URL = 'https://www.agiosbible.com';
    IN-MEMORY CACHES
 ========================================================= */
 
-/*
- * Bible files cached in RAM, so Bible page -> Analysis page ->
- * another analysis does not re-read the translation file.
- */
 const bibleFileMemoryCache = new Map();
-
-/*
- * Prevents duplicate simultaneous loads of the same file.
- */
 const bibleFilePromises = new Map();
-
-/*
- * Extracted Bible text.  Example key:  ar:matthew:5:1,2,3
- */
 const extractedTextCache = new Map();
-
-/*
- * Completed AI responses.
- */
 const analysisMemoryCache = new Map();
 
 
@@ -96,7 +80,6 @@ const fontOptionsMap = {
   Amiri: "'Amiri', serif",
   Almarai: "'Almarai', sans-serif",
   Tajawal: "'Tajawal', sans-serif",
-  // FIX: removed the stray trailing quote that made this value invalid CSS
   ReemKufi: "'Reem Kufi', sans-serif",
 };
 
@@ -171,6 +154,112 @@ async function withRetry(
 
 
 /* =========================================================
+   ANALYSIS TEXT NORMALIZATION  (FIX)
+
+   The server answers with JSON: { data: "...", cached, ... }.
+   Older cache entries may also be JSON strings such as
+   {"ar":"..."} or {"data":"..."}, and may contain literal "\n"
+   sequences instead of real line breaks.
+
+   extractAnalysisText() unwraps every one of those shapes and
+   always returns clean plain text.
+========================================================= */
+
+const cleanAnalysisText = text =>
+  String(text)
+    .replace(/\r\n/g, '\n')
+    .replace(/\\r\\n|\\n/g, '\n')
+    .replace(/\\t/g, ' ')
+    .replace(/\\"/g, '"')
+    .trim();
+
+const extractAnalysisText = (data, language) => {
+  if (data === null || data === undefined) {
+    return '';
+  }
+
+  let value = data;
+
+  // Unwrap up to 3 nested layers (object -> JSON string -> object ...)
+  for (let depth = 0; depth < 3; depth++) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+
+      if (!trimmed.startsWith('{')) {
+        break;
+      }
+
+      try {
+        value = JSON.parse(trimmed);
+      } catch {
+        break;
+      }
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const next =
+        value[language] ??
+        value.data ??
+        value.text ??
+        value.analysis ??
+        value.content ??
+        value.ar ??
+        value.en ??
+        value.fr ??
+        value.de;
+
+      if (next === undefined) {
+        return '';
+      }
+
+      value = next;
+    } else {
+      break;
+    }
+  }
+
+  return typeof value === 'string' ? cleanAnalysisText(value) : '';
+};
+
+
+/* =========================================================
+   SECTION HEADER PARSING  (FIX)
+
+   Accepts headings numbered 1..99, Latin or Arabic-Indic digits:
+     "1. مقدمة عن النص:"
+     "١٠. خلاصة مركزة"
+   If the model puts content on the same line after the colon,
+   it is returned as `rest`.
+========================================================= */
+
+const HEADER_WITH_COLON = /^([0-9٠-٩]{1,2}[.)]\s+[^:]{1,80}):\s*(.*)$/;
+
+const HEADER_ALONE = /^([0-9٠-٩]{1,2}[.)]\s+.{1,80})$/;
+
+const HEADER_NUMBER_PREFIX = /^[0-9٠-٩]{1,2}[.)]\s+/;
+
+const parseSectionHeader = cleanLine => {
+  const withColon = cleanLine.match(HEADER_WITH_COLON);
+
+  if (withColon) {
+    return {
+      title: withColon[1].trim(),
+      rest: withColon[2].trim(),
+    };
+  }
+
+  const alone = cleanLine.match(HEADER_ALONE);
+
+  if (alone) {
+    return {
+      title: alone[1].trim(),
+      rest: '',
+    };
+  }
+
+  return null;
+};
+
+
+/* =========================================================
    TRANSLATION CONFIG
 ========================================================= */
 
@@ -231,7 +320,7 @@ const normalizeNumber = value => {
 /* =========================================================
    NORMALIZE BOOK NAME
 
-   FIX: Arabic-Indic digits are converted to 0-9, so
+   Arabic-Indic digits are converted to 0-9, so
    "١ كورنثوس" and "1 كورنثوس" are treated the same.
 ========================================================= */
 
@@ -307,12 +396,10 @@ const BOOK_ALIASES = {
 
 
 /* =========================================================
-   BOOK INDEX LOOKUP  (FIX)
+   BOOK INDEX LOOKUP
 
-   One lookup: any book name in ANY language (from bookNames.json)
-   or any alias  ->  canonical book index (0..65).
-   This is what lets us find the right book whatever the
-   Bible file happens to call it.
+   Any book name in ANY language (from bookNames.json) or any alias
+   -> canonical book index (0..65).
 ========================================================= */
 
 const CANONICAL_BOOK_COUNT = 66;
@@ -360,7 +447,7 @@ const BOOK_INDEX_LOOKUP = (() => {
 
 
 /* =========================================================
-   BOOK MATCH  (legacy fuzzy matching, now a last resort)
+   BOOK MATCH  (legacy fuzzy matching, last resort)
 ========================================================= */
 
 const bookMatches = (candidate, target) => {
@@ -441,13 +528,12 @@ const getBookNames = bookData => {
 
 
 /* =========================================================
-   FIND BOOK INDEX  (FIX)
+   FIND BOOK INDEX
 
    Order:
      1. exact name match against the names inside the Bible file
-     2. canonical index (works whatever the file calls the book,
-        as long as the file has the standard 66 books in order)
-     3. the old fuzzy alias matching, as a last resort
+     2. canonical index (file has the standard 66 books in order)
+     3. legacy fuzzy alias matching, as a last resort
 ========================================================= */
 
 const findBookIndex = (books, requestedBook) => {
@@ -562,8 +648,6 @@ const extractBibleText = (
   const bookIndex = findBookIndex(books, requestedBook);
 
   if (bookIndex === -1) {
-    // FIX: log what the file actually calls its books, to make any
-    // future mismatch easy to diagnose.
     console.warn(
       'Book not found.',
       'Requested:',
@@ -622,9 +706,7 @@ const extractBibleText = (
       throw new Error('أرقام الآيات المطلوبة غير صحيحة.');
     }
 
-    /*
-     * Remove duplicates and sort.  5,2,5,3  ->  2,3,5
-     */
+    // Remove duplicates and sort.  5,2,5,3  ->  2,3,5
     const uniqueVerseNumbers = [...new Set(requestedVerseNumbers)].sort(
       (a, b) => a - b
     );
@@ -729,7 +811,6 @@ const loadVerseText = async (language, book, chapter, verses) => {
     book
   )}:${normalizeNumber(chapter)}:${verses || 'all'}`;
 
-  // RAM cache
   if (extractedTextCache.has(textCacheKey)) {
     return extractedTextCache.get(textCacheKey);
   }
@@ -757,9 +838,12 @@ const buildAnalysisCacheKey = (language, book, chapter, verses) => {
 
 /* =========================================================
    READ CACHED ANALYSIS
+
+   FIX: uses extractAnalysisText, so entries that were stored broken
+   (JSON wrapper / literal \n) are repaired on read.
 ========================================================= */
 
-const readCachedAnalysis = async cacheKey => {
+const readCachedAnalysis = async (cacheKey, language) => {
   // RAM first
   if (analysisMemoryCache.has(cacheKey)) {
     return analysisMemoryCache.get(cacheKey);
@@ -773,28 +857,7 @@ const readCachedAnalysis = async cacheKey => {
       return null;
     }
 
-    let content = '';
-
-    try {
-      const parsed =
-        typeof cachedRaw === 'string' ? JSON.parse(cachedRaw) : cachedRaw;
-
-      if (typeof parsed === 'string') {
-        content = parsed;
-      } else if (parsed && typeof parsed === 'object') {
-        /*
-         * New format:  { ar: "...", en: "..." }
-         */
-        content = parsed.ar || parsed.en || parsed.fr || parsed.de || '';
-      }
-    } catch {
-      /*
-       * Old format: plain string
-       */
-      if (typeof cachedRaw === 'string') {
-        content = cachedRaw;
-      }
-    }
+    const content = extractAnalysisText(cachedRaw, language);
 
     if (content) {
       analysisMemoryCache.set(cacheKey, content);
@@ -873,6 +936,8 @@ function AnalysisContent() {
   const [status, setStatus] = useState('');
   const [countdown, setCountdown] = useState(0);
   const [copied, setCopied] = useState(false);
+
+  // [{ id: 'section-3', label: 'مقدمة عن النص وسياقه' }, ...]
   const [sectionAnchors, setSectionAnchors] = useState([]);
 
   const hasFetched = useRef(false);
@@ -910,6 +975,9 @@ function AnalysisContent() {
 
   /* =====================================================
      SECTION ANCHORS
+
+     FIX: labels come from the actual headings in the response,
+     so the nav works for any number of sections and any language.
   ===================================================== */
 
   useEffect(() => {
@@ -918,26 +986,18 @@ function AnalysisContent() {
       return;
     }
 
-    const lines = analysis.split('\n');
-
     const anchors = [];
 
-    lines.forEach((line, index) => {
+    analysis.split('\n').forEach((line, index) => {
       const cleanLine = line.replace(/[#*]/g, '').trim();
 
-      /*
-       * Matches:
-       *   1. مقدمة
-       *   1. مقدمة:
-       *   ١. مقدمة
-       *   2. اللغويات:
-       */
-      const headerMatch = cleanLine.match(
-        /^[123456١٢٣٤٥٦]\.\s+[^:]{1,80}:?$/
-      );
+      const header = parseSectionHeader(cleanLine);
 
-      if (headerMatch) {
-        anchors.push(`section-${index}`);
+      if (header) {
+        anchors.push({
+          id: `section-${index}`,
+          label: header.title.replace(HEADER_NUMBER_PREFIX, ''),
+        });
       }
     });
 
@@ -1077,13 +1137,11 @@ function AnalysisContent() {
     const cacheKey = buildAnalysisCacheKey(language, book, chapter, verses);
 
     /*
-     * ===============================================
      * 1. RAM / KV CACHE
-     * ===============================================
      */
 
     try {
-      const cached = await readCachedAnalysis(cacheKey);
+      const cached = await readCachedAnalysis(cacheKey, language);
 
       if (cached && !controller.signal.aborted) {
         setAnalysis(cached);
@@ -1099,15 +1157,17 @@ function AnalysisContent() {
 
         return;
       }
-    } catch (error) {
-      console.error('Cache read error:', error);
+    } catch (cacheError) {
+      console.error('Cache read error:', cacheError);
+    }
+
+    if (controller.signal.aborted) {
+      return;
     }
 
 
     /*
-     * ===============================================
      * 2. LOCAL RATE LIMIT
-     * ===============================================
      */
 
     const { now, recentRequests } = getRateLimitState();
@@ -1126,9 +1186,7 @@ function AnalysisContent() {
 
 
     /*
-     * ===============================================
      * 3. REGISTER REQUEST
-     * ===============================================
      */
 
     const updatedRequests = [...recentRequests, now];
@@ -1137,9 +1195,7 @@ function AnalysisContent() {
 
 
     /*
-     * ===============================================
      * 4. RESET UI
-     * ===============================================
      */
 
     setIsLoading(true);
@@ -1150,9 +1206,7 @@ function AnalysisContent() {
 
 
     /*
-     * ===============================================
      * 5. REFERENCE
-     * ===============================================
      */
 
     const targetText = verses
@@ -1161,9 +1215,7 @@ function AnalysisContent() {
 
 
     /*
-     * ===============================================
      * 6. EXACT BIBLE TEXT
-     * ===============================================
      */
 
     let verseText = '';
@@ -1184,10 +1236,6 @@ function AnalysisContent() {
       if (controller.signal.aborted) {
         return;
       }
-
-      console.log('Agios AI reference:', targetText);
-
-      console.log('Agios AI exact Bible text:', verseText);
     } catch (textError) {
       if (textError?.name === 'AbortError') {
         return;
@@ -1208,9 +1256,11 @@ function AnalysisContent() {
 
 
     /*
-     * ===============================================
      * 7. GEMINI REQUEST
-     * ===============================================
+
+     * FIX: the server answers with JSON ({ data: "..." }), not a text
+     * stream. We parse it properly. The stream reader stays as a
+     * fallback in case the server is ever switched to real streaming.
      */
 
     const attemptGeneration = async attemptIndex => {
@@ -1230,10 +1280,7 @@ function AnalysisContent() {
 
           attempt: attemptIndex,
 
-          /*
-           * IMPORTANT:
-           * This allows the server to cache the response too.
-           */
+          // Lets the server cache the response too (under its own key)
           cacheKey,
 
           payload: {
@@ -1245,16 +1292,58 @@ function AnalysisContent() {
       });
 
       if (!response.ok) {
-        const message = await response.text();
+        let message = '';
 
-        const error = new Error(
+        try {
+          const raw = await response.text();
+
+          try {
+            message = JSON.parse(raw)?.error || raw;
+          } catch {
+            message = raw;
+          }
+        } catch {
+          message = '';
+        }
+
+        const requestError = new Error(
           message || `Gemini request failed with ${response.status}`
         );
 
-        error.status = response.status;
+        requestError.status = response.status;
 
-        throw error;
+        throw requestError;
       }
+
+      const contentType = response.headers.get('content-type') || '';
+
+      /* ---------- JSON response (current server behaviour) ---------- */
+
+      if (contentType.includes('application/json')) {
+        const json = await response.json();
+
+        if (json?.error) {
+          throw new Error(json.error);
+        }
+
+        const jsonText = extractAnalysisText(json, language);
+
+        if (!jsonText) {
+          throw new Error('Gemini returned an empty analysis response.');
+        }
+
+        if (controller.signal.aborted) {
+          return '';
+        }
+
+        setAnalysis(jsonText);
+
+        analysisRef.current = jsonText;
+
+        return jsonText;
+      }
+
+      /* ---------- Stream fallback ---------- */
 
       if (!response.body) {
         throw new Error('Gemini returned an empty response stream.');
@@ -1273,9 +1362,7 @@ function AnalysisContent() {
           break;
         }
 
-        const chunkText = decoder.decode(value, { stream: true });
-
-        text += chunkText;
+        text += decoder.decode(value, { stream: true });
 
         if (controller.signal.aborted) {
           try {
@@ -1285,30 +1372,34 @@ function AnalysisContent() {
           return '';
         }
 
-        // Render immediately
-        setAnalysis(text);
+        // Do not flash a half-received JSON wrapper on screen
+        if (!text.trimStart().startsWith('{')) {
+          const partial = cleanAnalysisText(text);
 
-        analysisRef.current = text;
+          setAnalysis(partial);
+
+          analysisRef.current = partial;
+        }
       }
 
-      // Flush decoder
       text += decoder.decode();
 
-      // Final UI update
-      if (text) {
-        setAnalysis(text);
+      const finalStreamText = extractAnalysisText(text, language);
 
-        analysisRef.current = text;
+      if (!finalStreamText) {
+        throw new Error('Gemini returned an empty analysis response.');
       }
 
-      return text;
+      setAnalysis(finalStreamText);
+
+      analysisRef.current = finalStreamText;
+
+      return finalStreamText;
     };
 
 
     /*
-     * ===============================================
      * 8. RUN WITH RETRY
-     * ===============================================
      */
 
     try {
@@ -1317,7 +1408,7 @@ function AnalysisContent() {
       const finalText = await withRetry(
         attemptGeneration,
 
-        (attempt, maxAttempts) => {
+        attempt => {
           setStatus(
             language === 'ar'
               ? `محاولة ${formatNumber(
@@ -1341,9 +1432,7 @@ function AnalysisContent() {
       }
 
       /*
-       * =============================================
        * 9. CACHE FINAL RESULT
-       * =============================================
        */
 
       if (finalText) {
@@ -1362,9 +1451,7 @@ function AnalysisContent() {
 
       console.error('Final Analysis Error:', err);
 
-      /*
-       * If Gemini streamed a meaningful partial answer, keep it.
-       */
+      // Keep a meaningful partial answer if we have one
       if (analysisRef.current.trim().length > 100) {
         setIsLoading(false);
 
@@ -1388,7 +1475,19 @@ function AnalysisContent() {
 
   /* =====================================================
      INITIAL FETCH
+
+     FIX: the effect depends only on the request identity
+     (book / chapter / verses / language). fetchAnalysis is read
+     through a ref, so a re-created callback (for example when
+     `strings` changes) no longer aborts the in-flight request and
+     leaves the page stuck on the loading screen.
   ===================================================== */
+
+  const fetchAnalysisRef = useRef(fetchAnalysis);
+
+  useEffect(() => {
+    fetchAnalysisRef.current = fetchAnalysis;
+  }, [fetchAnalysis]);
 
   useEffect(() => {
     if (!book || !chapter) {
@@ -1403,15 +1502,8 @@ function AnalysisContent() {
 
     hasFetched.current = requestId;
 
-    void fetchAnalysis();
-
-    return () => {
-      // Abort only the current request when dependencies change
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [book, chapter, verses, language, fetchAnalysis]);
+    void fetchAnalysisRef.current();
+  }, [book, chapter, verses, language]);
 
 
   /* =====================================================
@@ -1449,7 +1541,10 @@ function AnalysisContent() {
 
 
   /* =====================================================
-     CLEANUP
+     CLEANUP (unmount)
+
+     Also resets hasFetched so a remount (e.g. React strict mode)
+     fetches again instead of staying on the loading screen.
   ===================================================== */
 
   useEffect(() => {
@@ -1457,6 +1552,8 @@ function AnalysisContent() {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+
+      hasFetched.current = false;
     };
   }, []);
 
@@ -1479,8 +1576,8 @@ function AnalysisContent() {
 
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch(error => {
-        console.error('Copy error:', error);
+      .catch(copyError => {
+        console.error('Copy error:', copyError);
       });
   }, [analysis, strings]);
 
@@ -1583,9 +1680,7 @@ function AnalysisContent() {
   ===================================================== */
 
   const renderParagraph = (content, key, originalRaw) => {
-    /*
-     * Support simple **bold**
-     */
+    // Support simple **bold**
     const parts = content.split(/(\*\*.*?\*\*)/g);
 
     const formattedLine = parts.map((part, index) => {
@@ -1612,8 +1707,8 @@ function AnalysisContent() {
                 .then(() => {
                   toast.success(strings.analysis.toast_copy_paragraph);
                 })
-                .catch(error => {
-                  console.error('Copy paragraph error:', error);
+                .catch(copyError => {
+                  console.error('Copy paragraph error:', copyError);
                 });
             }}
             className={styles.miniActionBtn}
@@ -1651,61 +1746,35 @@ function AnalysisContent() {
         return <div key={index} className={styles.spacer} />;
       }
 
-      /*
-       * Header examples:
-       *   1. مقدمة:
-       *   2. معاني الكلمات:
-       *   3. الخلفية التاريخية:
-       */
-      const headerMatch = cleanLine.match(
-        /^([123456١٢٣٤٥٦]\.\s+[^:]{1,80}:?)(?:\s*)(.*)$/
-      );
+      const header = parseSectionHeader(cleanLine);
 
-      /*
-       * Only consider it a section when the line actually starts
-       * with one of the expected section numbers.
-       */
-      if (headerMatch && /^[123456١٢٣٤٥٦]\.\s+/.test(cleanLine)) {
-        const headerPart = headerMatch[1].trim();
-
-        const contentPart = headerMatch[2].trim();
-
+      if (header) {
         const anchorId = `section-${index}`;
 
-        /*
-         * If the AI puts the content after the header on the same
-         * line, render it below.
-         */
-        if (contentPart && contentPart !== ':') {
-          return (
-            <React.Fragment key={index}>
-              <h3
-                id={anchorId}
-                ref={element => {
-                  sectionRefs.current[anchorId] = element;
-                }}
-                className={styles.sectionHeader}
-              >
-                {headerPart}
-              </h3>
-
-              {renderParagraph(contentPart, `extra-${index}`, contentPart)}
-            </React.Fragment>
-          );
-        }
-
-        return (
+        const headerNode = (
           <h3
             id={anchorId}
             ref={element => {
               sectionRefs.current[anchorId] = element;
             }}
-            key={index}
             className={styles.sectionHeader}
           >
-            {headerPart}
+            {header.title}
           </h3>
         );
+
+        // Content on the same line as the heading is rendered below it
+        if (header.rest) {
+          return (
+            <React.Fragment key={index}>
+              {headerNode}
+
+              {renderParagraph(header.rest, `extra-${index}`, header.rest)}
+            </React.Fragment>
+          );
+        }
+
+        return <React.Fragment key={index}>{headerNode}</React.Fragment>;
       }
 
       return renderParagraph(line, index, cleanLine);
@@ -1722,50 +1791,6 @@ function AnalysisContent() {
         chapter
       )} : ${formatNumber(verses)}`
     : `${strings.analysis.title_prefix} ${book} ${formatNumber(chapter)}`;
-
-
-  /* =====================================================
-     SECTION LABELS
-  ===================================================== */
-
-  const getSectionLabels = () => {
-    if (language === 'ar') {
-      return ['مقدمة', 'لغويات', 'تاريخ', 'تفسير', 'تطبيق', 'شبهات'];
-    }
-
-    if (language === 'fr') {
-      return [
-        'Introduction',
-        'Linguistique',
-        'Contexte historique',
-        'Exégèse',
-        'Application',
-        'Objections',
-      ];
-    }
-
-    if (language === 'de') {
-      return [
-        'Einleitung',
-        'Linguistik',
-        'Historischer Hintergrund',
-        'Exegese',
-        'Anwendung',
-        'Einwände',
-      ];
-    }
-
-    return [
-      'Introduction',
-      'Linguistics',
-      'Historical background',
-      'Exegesis',
-      'Application',
-      'Objections',
-    ];
-  };
-
-  const sectionLabels = getSectionLabels();
 
 
   /* =====================================================
@@ -1818,11 +1843,11 @@ function AnalysisContent() {
           <div className={styles.sectionNav}>
             {sectionAnchors.map((anchor, index) => (
               <button
-                key={anchor}
-                onClick={() => scrollToSection(anchor)}
+                key={anchor.id}
+                onClick={() => scrollToSection(anchor.id)}
                 className={styles.sectionNavBtn}
               >
-                {sectionLabels[index] ||
+                {anchor.label ||
                   `${language === 'ar' ? 'قسم' : 'Section'} ${index + 1}`}
               </button>
             ))}

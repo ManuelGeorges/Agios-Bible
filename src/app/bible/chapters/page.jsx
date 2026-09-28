@@ -1,105 +1,444 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from 'react';
-import styles from './chapters.module.css';
-import { useSearchParams, useRouter } from 'next/navigation';
+import React, {
+  useState,
+  useEffect,
+  Suspense,
+  useMemo,
+} from "react";
+
+import styles from "./chapters.module.css";
+
 import {
-    Sun, Compass, Flame, MapPin,
-    Sword, Shield, Heart, Crown, Landmark, History,
-    Hammer, Star, Anchor, Music, Lightbulb, Wind,
-    Eye, Feather, Sparkles, Ghost, Mountain, Lamp,
-    Cross, Users, MessageCircle, Scroll, Book as BookIcon
-} from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useLanguage } from '../../context/LanguageContext';
+  useSearchParams,
+  useRouter,
+} from "next/navigation";
+
+import {
+  Sun,
+  Compass,
+  Flame,
+  MapPin,
+  Sword,
+  Shield,
+  Heart,
+  Crown,
+  Landmark,
+  History,
+  Hammer,
+  Star,
+  Anchor,
+  Music,
+  Lightbulb,
+  Wind,
+  Eye,
+  Feather,
+  Sparkles,
+  Ghost,
+  Mountain,
+  Lamp,
+  Cross,
+  Users,
+  MessageCircle,
+  Scroll,
+  Book as BookIcon,
+} from "lucide-react";
+
+import { useLanguage } from "../../context/LanguageContext";
+
+/* =========================================================
+   BOOK ICONS
+========================================================= */
 
 const bookIconMap = {
-    "Gen": <Sun size={24} />, "Exo": <Compass size={24} />, "LEV": <Flame size={24} />, "NUM": <MapPin size={24} />, "DEU": <Scroll size={24} />,
-    "JOS": <Sword size={24} />, "JDG": <Shield size={24} />, "RUT": <Heart size={24} />, "1SA": <Crown size={24} />, "2SA": <Crown size={24} />,
-    "1KI": <Landmark size={24} />, "2KI": <Landmark size={24} />, "1CH": <History size={24} />, "2CH": <History size={24} />,
-    "EZR": <Hammer size={24} />, "NEH": <Hammer size={24} />, "EST": <Star size={24} />, "JOB": <Anchor size={24} />,
-    "PSA": <Music size={24} />, "PRO": <Lightbulb size={24} />, "ECC": <Wind size={24} />, "SNG": <Heart size={24} />,
-    "ISA": <Eye size={24} />, "JER": <Feather size={24} />, "LAM": <Feather size={24} />, "EZK": <Sparkles size={24} />,
-    "DAN": <Ghost size={24} />, "HOS": <Heart size={24} />, "JOL": <Flame size={24} />, "AMO": <Mountain size={24} />,
-    "OBA": <Shield size={24} />, "JON": <Anchor size={24} />, "MIC": <Landmark size={24} />, "NAM": <Sword size={24} />,
-    "HAB": <Lamp size={24} />, "ZEP": <Sun size={24} />, "HAG": <Hammer size={24} />, "ZEC": <Sparkles size={24} />,
-    "MAL": <Star size={24} />, "MAT": <Crown size={24} />, "MRK": <Cross size={24} />, "LUK": <Star size={24} />,
-    "JHN": <Sparkles size={24} />, "ACT": <Users size={24} />, "ROM": <Scroll size={24} />, "1CO": <MessageCircle size={24} />,
-    "2CO": <MessageCircle size={24} />, "GAL": <Feather size={24} />, "EPH": <Shield size={24} />, "PHP": <Heart size={24} />,
-    "COL": <Anchor size={24} />, "1TH": <Wind size={24} />, "2TH": <Wind size={24} />, "1TI": <Landmark size={24} />,
-    "2TI": <Landmark size={24} />, "TIT": <Hammer size={24} />, "PHM": <Feather size={24} />, "HEB": <Scroll size={24} />,
-    "JAS": <Hammer size={24} />, "1PE": <Anchor size={24} />, "2PE": <Anchor size={24} />, "1JN": <Heart size={24} />,
-    "2JN": <Heart size={24} />, "3JN": <Heart size={24} />, "JUD": <Shield size={24} />, "REV": <Eye size={24} />,
+  Gen: Sun,
+  Exo: Compass,
+  LEV: Flame,
+  NUM: MapPin,
+  DEU: Scroll,
+
+  JOS: Sword,
+  JDG: Shield,
+  RUT: Heart,
+  "1SA": Crown,
+  "2SA": Crown,
+
+  "1KI": Landmark,
+  "2KI": Landmark,
+  "1CH": History,
+  "2CH": History,
+
+  EZR: Hammer,
+  NEH: Hammer,
+  EST: Star,
+  JOB: Anchor,
+
+  PSA: Music,
+  PRO: Lightbulb,
+  ECC: Wind,
+  SNG: Heart,
+
+  ISA: Eye,
+  JER: Feather,
+  LAM: Feather,
+  EZK: Sparkles,
+
+  DAN: Ghost,
+  HOS: Heart,
+  JOL: Flame,
+  AMO: Mountain,
+
+  OBA: Shield,
+  JON: Anchor,
+  MIC: Landmark,
+  NAM: Sword,
+
+  HAB: Lamp,
+  ZEP: Sun,
+  HAG: Hammer,
+  ZEC: Sparkles,
+
+  MAL: Star,
+
+  MAT: Crown,
+  MRK: Cross,
+  LUK: Star,
+  JHN: Sparkles,
+
+  ACT: Users,
+  ROM: Scroll,
+
+  "1CO": MessageCircle,
+  "2CO": MessageCircle,
+
+  GAL: Feather,
+  EPH: Shield,
+  PHP: Heart,
+  COL: Anchor,
+
+  "1TH": Wind,
+  "2TH": Wind,
+
+  "1TI": Landmark,
+  "2TI": Landmark,
+
+  TIT: Hammer,
+  PHM: Feather,
+  HEB: Scroll,
+  JAS: Hammer,
+
+  "1PE": Anchor,
+  "2PE": Anchor,
+
+  "1JN": Heart,
+  "2JN": Heart,
+  "3JN": Heart,
+
+  JUD: Shield,
+  REV: Eye,
 };
 
-const bookHues = [210, 145, 35, 280, 110, 60, 0, 25, 330, 180, 230, 45];
+/* =========================================================
+   BOOK HUES
+========================================================= */
+
+const bookHues = [
+  210,
+  145,
+  35,
+  280,
+  110,
+  60,
+  0,
+  25,
+  330,
+  180,
+  230,
+  45,
+];
+
 const getBookHue = (id) => {
-    if (!id) return 210;
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-        hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return bookHues[Math.abs(hash) % bookHues.length];
+  if (!id) return 210;
+
+  let hash = 0;
+
+  for (let i = 0; i < id.length; i++) {
+    hash =
+      id.charCodeAt(i) +
+      ((hash << 5) - hash);
+  }
+
+  return bookHues[
+    Math.abs(hash) % bookHues.length
+  ];
 };
+
+/* =========================================================
+   ARABIC NUMBERS
+========================================================= */
+
+const arabicNumbers = [
+  "٠",
+  "١",
+  "٢",
+  "٣",
+  "٤",
+  "٥",
+  "٦",
+  "٧",
+  "٨",
+  "٩",
+];
+
+const formatChapterNumber = (
+  number,
+  language
+) => {
+  if (language !== "ar") {
+    return String(number);
+  }
+
+  return String(number)
+    .split("")
+    .map(
+      (digit) =>
+        arabicNumbers[Number(digit)] ??
+        digit
+    )
+    .join("");
+};
+
+/* =========================================================
+   CHAPTER BUTTON
+========================================================= */
+
+const ChapterButton = React.memo(
+  function ChapterButton({
+    chapter,
+    displayNumber,
+    onClick,
+  }) {
+    return (
+      <button
+        type="button"
+        className={styles.chapterItem}
+        onClick={() => onClick(chapter)}
+        aria-label={`Chapter ${chapter}`}
+      >
+        {displayNumber}
+      </button>
+    );
+  }
+);
+
+/* =========================================================
+   CHAPTERS CONTENT
+========================================================= */
 
 function ChaptersContent() {
-    const { strings, language, bookNames } = useLanguage();
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const [book, setBook] = useState(null);
-    const bookNameParam = searchParams.get('book');
+  const {
+    strings,
+    language,
+    bookNames,
+  } = useLanguage();
 
-    useEffect(() => {
-        if (bookNames.length > 0 && bookNameParam) {
-            const found = bookNames.find(b => b.name === decodeURIComponent(bookNameParam));
-            if (found) setBook(found);
-        }
-    }, [bookNames, bookNameParam]);
+  const searchParams =
+    useSearchParams();
 
-    if (!book) return <div className={styles.container}>{strings.common.loading}</div>;
+  const router = useRouter();
 
-    const hue = getBookHue(book.book_id || book.id);
+  const bookNameParam =
+    searchParams.get("book");
 
-    const formatNumber = (num) => {
-        if (language !== 'ar') return num.toString();
-        const arabicNums = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-        return num.toString().split('').map(d => arabicNums[+d] || d).join('');
-    };
+  const [book, setBook] =
+    useState(null);
 
-    return (
-        <main className={styles.container} style={{ '--book-hue': hue }}>
-            <header className={styles.header}>
-                <div className={styles.bookInfo}>
-                    <h1 className={styles.title}>{book.name}</h1>
-                    <div className={styles.iconWrapper}>
-                        {bookIconMap[book.book_id] || (book.testament === 'OT' ? <Scroll size={24} /> : <BookIcon size={24} />)}
-                    </div>
-                </div>
-            </header>
+  /* =======================================================
+     FIND BOOK
+  ======================================================= */
 
-            <p className={styles.subtitle}>{strings.bible.chapters_subtitle}</p>
+  useEffect(() => {
+    if (
+      !bookNames ||
+      bookNames.length === 0 ||
+      !bookNameParam
+    ) {
+      return;
+    }
 
-            <div className={styles.chaptersGrid}>
-                {Array.from({ length: book.chapters || 1 }).map((_, i) => (
-                    <motion.button
-                        key={i}
-                        className={styles.chapterItem}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => router.push(`/bible?book=${encodeURIComponent(book.name)}&chapter=${i + 1}`)}
-                    >
-                        {formatNumber(i + 1)}
-                    </motion.button>
-                ))}
-            </div>
-        </main>
+    const decodedBookName =
+      decodeURIComponent(
+        bookNameParam
+      );
+
+    const foundBook =
+      bookNames.find(
+        (item) =>
+          item.name ===
+          decodedBookName
+      );
+
+    setBook(foundBook || null);
+  }, [
+    bookNames,
+    bookNameParam,
+  ]);
+
+  /* =======================================================
+     BOOK HUE
+  ======================================================= */
+
+  const bookHue = useMemo(() => {
+    if (!book) return 210;
+
+    return getBookHue(
+      book.book_id || book.id
     );
+  }, [book]);
+
+  /* =======================================================
+     CHAPTERS
+  ======================================================= */
+
+  const chapters = useMemo(() => {
+    if (!book) return [];
+
+    const total =
+      Number(book.chapters) || 1;
+
+    return Array.from(
+      { length: total },
+      (_, index) => index + 1
+    );
+  }, [book]);
+
+  /* =======================================================
+     NAVIGATION
+  ======================================================= */
+
+  const handleChapterClick = (
+    chapter
+  ) => {
+    if (!book) return;
+
+    router.push(
+      `/bible?book=${encodeURIComponent(
+        book.name
+      )}&chapter=${chapter}`
+    );
+  };
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
+
+  if (!book) {
+    return (
+      <main className={styles.container}>
+        <div className={styles.loading}>
+          {strings.common.loading}
+        </div>
+      </main>
+    );
+  }
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
+  return (
+    <main
+      className={styles.container}
+      style={{
+        "--book-hue": bookHue,
+      }}
+    >
+      {/* ===================================================
+          HEADER
+      =================================================== */}
+
+      <header className={styles.header}>
+        <div className={styles.bookInfo}>
+          <h1 className={styles.title}>
+            {book.name}
+          </h1>
+
+          <div
+            className={styles.iconWrapper}
+          >
+            {(() => {
+              const Icon =
+                bookIconMap[
+                  book.book_id
+                ] ||
+                (book.testament === "OT"
+                  ? Scroll
+                  : BookIcon);
+
+              return (
+                <Icon
+                  size={24}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
+              );
+            })()}
+          </div>
+        </div>
+      </header>
+
+      {/* ===================================================
+          SUBTITLE
+      =================================================== */}
+
+      <p className={styles.subtitle}>
+        {strings.bible.chapters_subtitle}
+      </p>
+
+      {/* ===================================================
+          CHAPTER GRID
+      =================================================== */}
+
+      <div
+        className={styles.chaptersGrid}
+      >
+        {chapters.map((chapter) => (
+          <ChapterButton
+            key={chapter}
+            chapter={chapter}
+            displayNumber={formatChapterNumber(
+              chapter,
+              language
+            )}
+            onClick={
+              handleChapterClick
+            }
+          />
+        ))}
+      </div>
+    </main>
+  );
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 export default function ChaptersPage() {
-    const { strings } = useLanguage();
-    return (
-        <Suspense fallback={<div>{strings.common.loading}</div>}>
-            <ChaptersContent />
-        </Suspense>
-    );
+  const { strings } =
+    useLanguage();
+
+  return (
+    <Suspense
+      fallback={
+        <div
+          className={styles.loading}
+        >
+          {strings.common.loading}
+        </div>
+      }
+    >
+      <ChaptersContent />
+    </Suspense>
+  );
 }

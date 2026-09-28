@@ -1,125 +1,348 @@
 "use client";
 
-import React, { useState, useMemo, Suspense, useEffect } from 'react';
-import styles from './books.module.css';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useLanguage } from '../../context/LanguageContext';
+import React, {
+  useState,
+  useMemo,
+  Suspense,
+  useEffect,
+} from "react";
+
+import styles from "./books.module.css";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useLanguage } from "../../context/LanguageContext";
+
 import {
-     Search, Scroll, Sun, Compass, Flame, MapPin, Sword, Shield, Heart, Crown,
-    Landmark, History, Hammer, Star, Anchor, Music, Lightbulb, Wind,
-    Eye, Feather, Sparkles, Ghost, Mountain, Lamp, Users, Cross,
-    MessageCircle, BookOpen
-} from 'lucide-react';
+  Search,
+  Scroll,
+  Sun,
+  Compass,
+  Flame,
+  MapPin,
+  Sword,
+  Shield,
+  Heart,
+  Crown,
+  Landmark,
+  History,
+  Hammer,
+  Star,
+  Anchor,
+  Music,
+  Lightbulb,
+  Wind,
+  Eye,
+  Feather,
+  Sparkles,
+  Ghost,
+  Mountain,
+  Lamp,
+  Users,
+  Cross,
+  MessageCircle,
+  BookOpen,
+} from "lucide-react";
+
+/* =========================================================
+   BOOK ICONS
+========================================================= */
 
 const bookIconMap = {
-    "Gen": <Sun size={24} />, "Exo": <Compass size={24} />, "LEV": <Flame size={24} />,
-    "NUM": <MapPin size={24} />, "DEU": <Scroll size={24} />, "JOS": <Sword size={24} />,
-    "JDG": <Shield size={24} />, "RUT": <Heart size={24} />, "1SA": <Crown size={24} />,
-    "2SA": <Crown size={24} />, "1KI": <Landmark size={24} />, "2KI": <Landmark size={24} />,
-    "1CH": <History size={24} />, "2CH": <History size={24} />, "EZR": <Hammer size={24} />,
-    "NEH": <Hammer size={24} />, "EST": <Star size={24} />, "JOB": <Anchor size={24} />,
-    "PSA": <Music size={24} />, "PRO": <Lightbulb size={24} />, "ECC": <Wind size={24} />,
-    "SNG": <Heart size={24} />, "ISA": <Eye size={24} />, "JER": <Feather size={24} />,
-    "LAM": <Feather size={24} />, "EZK": <Sparkles size={24} />, "DAN": <Ghost size={24} />,
-    "HOS": <Heart size={24} />, "JOL": <Flame size={24} />, "AMO": <Mountain size={24} />,
-    "OBA": <Shield size={24} />, "JON": <Anchor size={24} />, "MIC": <Landmark size={24} />,
-    "NAM": <Sword size={24} />, "HAB": <Lamp size={24} />, "ZEP": <Sun size={24} />,
-    "HAG": <Hammer size={24} />, "ZEC": <Sparkles size={24} />, "MAL": <Star size={24} />,
-    "MAT": <Crown size={24} />, "MRK": <Cross size={24} />, "LUK": <Star size={24} />,
-    "JHN": <Sparkles size={24} />, "ACT": <Users size={24} />, "ROM": <Scroll size={24} />,
-    "1CO": <MessageCircle size={24} />, "2CO": <MessageCircle size={24} />, "GAL": <Feather size={24} />,
-    "EPH": <Shield size={24} />, "PHP": <Heart size={24} />, "COL": <Anchor size={24} />,
-    "1TH": <Wind size={24} />, "2TH": <Wind size={24} />, "1TI": <Landmark size={24} />,
-    "2TI": <Landmark size={24} />, "TIT": <Hammer size={24} />, "PHM": <Feather size={24} />,
-    "HEB": <Scroll size={24} />, "JAS": <Hammer size={24} />, "1PE": <Anchor size={24} />,
-    "2PE": <Anchor size={24} />, "1JN": <Heart size={24} />, "2JN": <Heart size={24} />,
-    "3JN": <Heart size={24} />, "JUD": <Shield size={24} />, "REV": <Eye size={24} />,
+  Gen: Sun,
+  Exo: Compass,
+  LEV: Flame,
+  NUM: MapPin,
+  DEU: Scroll,
+  JOS: Sword,
+  JDG: Shield,
+  RUT: Heart,
+  "1SA": Crown,
+  "2SA": Crown,
+  "1KI": Landmark,
+  "2KI": Landmark,
+  "1CH": History,
+  "2CH": History,
+  EZR: Hammer,
+  NEH: Hammer,
+  EST: Star,
+  JOB: Anchor,
+  PSA: Music,
+  PRO: Lightbulb,
+  ECC: Wind,
+  SNG: Heart,
+  ISA: Eye,
+  JER: Feather,
+  LAM: Feather,
+  EZK: Sparkles,
+  DAN: Ghost,
+  HOS: Heart,
+  JOL: Flame,
+  AMO: Mountain,
+  OBA: Shield,
+  JON: Anchor,
+  MIC: Landmark,
+  NAM: Sword,
+  HAB: Lamp,
+  ZEP: Sun,
+  HAG: Hammer,
+  ZEC: Sparkles,
+  MAL: Star,
+  MAT: Crown,
+  MRK: Cross,
+  LUK: Star,
+  JHN: Sparkles,
+  ACT: Users,
+  ROM: Scroll,
+  "1CO": MessageCircle,
+  "2CO": MessageCircle,
+  GAL: Feather,
+  EPH: Shield,
+  PHP: Heart,
+  COL: Anchor,
+  "1TH": Wind,
+  "2TH": Wind,
+  "1TI": Landmark,
+  "2TI": Landmark,
+  TIT: Hammer,
+  PHM: Feather,
+  HEB: Scroll,
+  JAS: Hammer,
+  "1PE": Anchor,
+  "2PE": Anchor,
+  "1JN": Heart,
+  "2JN": Heart,
+  "3JN": Heart,
+  JUD: Shield,
+  REV: Eye,
 };
+
+/* =========================================================
+   ARABIC SEARCH NORMALIZATION
+========================================================= */
 
 const normalizeArabic = (text) => {
-    if (!text) return "";
-    return text.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[\u064B-\u0652]/g, '').trim();
+  if (!text) return "";
+
+  return text
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[\u064B-\u0652]/g, "")
+    .trim()
+    .toLowerCase();
 };
 
+/* =========================================================
+   BOOK CARD
+========================================================= */
+
+const BookCard = React.memo(function BookCard({
+  book,
+  onClick,
+}) {
+  const Icon =
+    bookIconMap[book.book_id] ||
+    (book.testament === "OT" ? Scroll : BookOpen);
+
+  return (
+    <button
+      type="button"
+      className={styles.bookItem}
+      onClick={() => onClick(book.name)}
+    >
+      <div className={styles.iconWrapper}>
+        <Icon
+          size={24}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+      </div>
+
+      <span className={styles.bookName}>
+        {book.name}
+      </span>
+    </button>
+  );
+});
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
 function BooksContent() {
-    const { strings, language, bookNames } = useLanguage();
-    const router = useRouter();
-    const searchParams = useSearchParams();
+  const { strings, language, bookNames } = useLanguage();
 
-    // الحصول على التبويب النشط من الروابط لضمان توجيه المستخدم للمكان الصحيح
-    const initialTab = searchParams.get('tab') || 'OT';
-    const [activeTab, setActiveTab] = useState(initialTab);
-    const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-    useEffect(() => {
-        const tab = searchParams.get('tab');
-        if (tab) setActiveTab(tab);
-    }, [searchParams]);
+  const initialTab =
+    searchParams.get("tab") || "OT";
 
-    const filteredBooks = useMemo(() => {
-        const normalizedQuery = normalizeArabic(searchQuery);
-        return bookNames.filter(b => {
-            const matchesTab = b.testament === activeTab;
-            const matchesSearch = normalizeArabic(b.name).includes(normalizedQuery);
-            return matchesTab && matchesSearch;
-        });
-    }, [bookNames, activeTab, searchQuery]);
+  const [activeTab, setActiveTab] =
+    useState(initialTab);
 
-    return (
-        <div dir={language === 'ar' ? 'rtl' : 'ltr'} lang={language} className={styles.container}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>{strings.bible.books_title}</h1>
-            </header>
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
-            <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === 'OT' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('OT')}
-                >
-                    {strings.bible.testament_ot}
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'NT' ? styles.activeTab : ''}`}
-                    onClick={() => setActiveTab('NT')}
-                >
-                    {strings.bible.testament_nt}
-                </button>
-            </div>
+  /* =======================================================
+     SYNC TAB WITH URL
+  ======================================================= */
 
-            <div className={styles.searchWrapper}>
-                <Search size={18} className={styles.searchIcon} />
-                <input
-                    type="text"
-                    className={styles.searchInput}
-                    placeholder={strings.bible.search_book}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-            </div>
+  useEffect(() => {
+    const tab = searchParams.get("tab");
 
-            <div className={styles.grid}>
-                {filteredBooks.map((book) => (
-                    <button
-                        key={book.book_id}
-                        className={styles.bookItem}
-                        onClick={() => router.push(`/bible/chapters?book=${encodeURIComponent(book.name)}`)}
-                    >
-                        <div className={styles.iconWrapper}>
-                            {bookIconMap[book.book_id] || (book.testament === 'OT' ? <Scroll size={24} /> : <BookOpen size={24} />)}
-                        </div>
-                        <span className={styles.bookName}>{book.name}</span>
-                    </button>
-                ))}
-            </div>
-        </div>
+    if (tab === "OT" || tab === "NT") {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  /* =======================================================
+     FILTER BOOKS
+  ======================================================= */
+
+  const filteredBooks = useMemo(() => {
+    const normalizedQuery =
+      normalizeArabic(searchQuery);
+
+    return bookNames.filter((book) => {
+      if (book.testament !== activeTab) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return normalizeArabic(book.name).includes(
+        normalizedQuery
+      );
+    });
+  }, [
+    bookNames,
+    activeTab,
+    searchQuery,
+  ]);
+
+  /* =======================================================
+     NAVIGATION
+  ======================================================= */
+
+  const handleBookClick = (bookName) => {
+    router.push(
+      `/bible/chapters?book=${encodeURIComponent(
+        bookName
+      )}`
     );
+  };
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
+  return (
+    <div
+      dir={language === "ar" ? "rtl" : "ltr"}
+      lang={language}
+      className={styles.container}
+    >
+      {/* HEADER */}
+
+      <header className={styles.header}>
+        <h1 className={styles.title}>
+          {strings.bible.books_title}
+        </h1>
+      </header>
+
+      {/* TABS */}
+
+      <div
+        className={styles.tabs}
+        role="tablist"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "OT"}
+          className={`${styles.tab} ${
+            activeTab === "OT"
+              ? styles.activeTab
+              : ""
+          }`}
+          onClick={() => setActiveTab("OT")}
+        >
+          {strings.bible.testament_ot}
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "NT"}
+          className={`${styles.tab} ${
+            activeTab === "NT"
+              ? styles.activeTab
+              : ""
+          }`}
+          onClick={() => setActiveTab("NT")}
+        >
+          {strings.bible.testament_nt}
+        </button>
+      </div>
+
+      {/* SEARCH */}
+
+      <div className={styles.searchWrapper}>
+        <Search
+          size={18}
+          strokeWidth={2}
+          className={styles.searchIcon}
+          aria-hidden="true"
+        />
+
+        <input
+          type="search"
+          className={styles.searchInput}
+          placeholder={
+            strings.bible.search_book
+          }
+          value={searchQuery}
+          onChange={(event) =>
+            setSearchQuery(event.target.value)
+          }
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+
+      {/* BOOK GRID */}
+
+      <div className={styles.grid}>
+        {filteredBooks.map((book) => (
+          <BookCard
+            key={book.book_id}
+            book={book}
+            onClick={handleBookClick}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 export default function BooksPage() {
-    const { strings } = useLanguage();
-    return (
-        <Suspense fallback={<div>{strings.common.loading}</div>}>
-            <BooksContent />
-        </Suspense>
-    );
+  const { strings } = useLanguage();
+
+  return (
+    <Suspense
+      fallback={
+        <div className={styles.loading}>
+          {strings.common.loading}
+        </div>
+      }
+    >
+      <BooksContent />
+    </Suspense>
+  );
 }

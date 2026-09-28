@@ -1,8 +1,13 @@
+/* =========================================================
+   CONTAINER
+========================================================= */
+
 .container {
   min-height: 100vh;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+
   padding:
     calc(18px + var(--safe-top, 0px))
     16px
@@ -21,53 +26,81 @@
     );
 
   overflow-x: hidden;
+
   display: flex;
   flex-direction: column;
+
   position: relative;
+
+  /*
+   * مهم للأداء:
+   * لا يوجد backdrop-filter على الصفحة كلها.
+   */
+  isolation: isolate;
 }
 
+/* =========================================================
+   TOP GLOW
+========================================================= */
+
 .container::before {
-  content: '';
-  position: fixed;
-  width: 360px;
-  height: 360px;
-  top: -190px;
+  content: "";
+
+  position: absolute;
+
+  width: 320px;
+  height: 320px;
+
+  top: -180px;
   left: 50%;
+
   transform: translateX(-50%);
+
   background:
     radial-gradient(
       circle,
       var(--color-accent),
       transparent 68%
     );
-  opacity: 0.055;
-  filter: blur(35px);
+
+  opacity: 0.045;
+
   pointer-events: none;
-  z-index: 0;
+
+  z-index: -1;
 }
 
-/* =========================
+/* =========================================================
    HEADER
-========================= */
+========================================================= */
 
 .header {
   display: flex;
   align-items: center;
   justify-content: center;
+
   margin-bottom: 22px;
   padding: 8px 0;
+
   width: 100%;
+
   position: relative;
   z-index: 1;
 }
 
 .title {
   font-size: clamp(1.55rem, 6vw, 2rem);
+
   font-weight: 900;
+
   margin: 0;
+
   text-align: center;
+
   line-height: 1.2;
+
   letter-spacing: -0.4px;
+
   color: var(--color-text-primary);
 
   background:
@@ -80,31 +113,36 @@
 
   -webkit-background-clip: text;
   background-clip: text;
+
   -webkit-text-fill-color: transparent;
 
-  filter:
-    drop-shadow(
-      0 3px 8px
-      color-mix(
-        in srgb,
-        var(--color-accent) 12%,
-        transparent
-      )
+  /*
+   * أخف من filter/drop-shadow السابق.
+   */
+  text-shadow:
+    0 2px 8px
+    color-mix(
+      in srgb,
+      var(--color-accent) 10%,
+      transparent
     );
 }
 
-/* =========================
+/* =========================================================
    TABS
-========================= */
+========================================================= */
 
 .tabs {
   display: flex;
+
   gap: 5px;
 
   width: 100%;
+
   box-sizing: border-box;
 
   padding: 5px;
+
   margin-bottom: 20px;
 
   border-radius: 17px;
@@ -112,62 +150,87 @@
   background:
     color-mix(
       in srgb,
-      var(--color-card-bg) 78%,
+      var(--color-card-bg) 90%,
       var(--color-border)
     );
 
   border: 1px solid var(--color-border);
 
   box-shadow:
-    0 10px 28px var(--color-shadow-medium),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    0 6px 18px var(--color-shadow-medium);
 
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /*
+   * Glass effect retained only here.
+   */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
   position: relative;
+
   z-index: 1;
+
+  contain: layout paint;
 }
+
+/* =========================================================
+   TAB
+========================================================= */
 
 .tab {
   flex: 1;
+
   min-width: 0;
 
   padding: 10px 6px;
 
   border: 1px solid transparent;
+
   border-radius: 12px;
 
   background: transparent;
+
   color: var(--color-text-secondary);
 
   font-weight: 750;
-  font-size: clamp(0.72rem, 2.6vw, 0.9rem);
+
+  font-size:
+    clamp(
+      0.72rem,
+      2.6vw,
+      0.9rem
+    );
 
   cursor: pointer;
 
   text-align: center;
+
   line-height: 1.25;
 
   white-space: normal;
+
   overflow-wrap: anywhere;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
+  /*
+   * Only GPU-friendly properties.
+   */
   transition:
-    transform 0.22s var(--transition-smooth),
-    background 0.22s ease,
-    color 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
+    transform 0.16s ease,
+    background-color 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease;
 
   -webkit-tap-highlight-color: transparent;
+
+  touch-action: manipulation;
 }
 
 .tab:active {
-  transform: scale(0.96);
+  transform: scale(0.97);
 }
 
 .activeTab {
@@ -192,14 +255,17 @@
     );
 
   box-shadow:
-    0 5px 15px
+    0 4px 12px
     color-mix(
       in srgb,
-      var(--color-accent) 12%,
+      var(--color-accent) 9%,
       transparent
-    ),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    );
 }
+
+/* =========================================================
+   TAB HOVER
+========================================================= */
 
 @media (hover: hover) {
   .tab:not(.activeTab):hover {
@@ -208,21 +274,25 @@
     background:
       color-mix(
         in srgb,
-        var(--color-accent) 6%,
+        var(--color-accent) 5%,
         transparent
       );
   }
 }
 
-/* =========================
+/* =========================================================
    SEARCH
-========================= */
+========================================================= */
 
 .searchWrapper {
   position: relative;
+
   width: 100%;
+
   box-sizing: border-box;
+
   margin-bottom: 20px;
+
   z-index: 1;
 }
 
@@ -230,25 +300,32 @@
   position: absolute;
 
   inset-inline-end: 15px;
+
   top: 50%;
 
   transform: translateY(-50%);
 
   color: var(--color-text-secondary);
+
   opacity: 0.65;
 
   pointer-events: none;
 
   transition:
-    color 0.2s ease,
-    opacity 0.2s ease;
+    color 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .searchInput {
   width: 100%;
+
   box-sizing: border-box;
 
-  padding: 13px 42px 13px 14px;
+  padding:
+    13px
+    42px
+    13px
+    14px;
 
   border-radius: 17px;
 
@@ -257,7 +334,7 @@
   background:
     color-mix(
       in srgb,
-      var(--color-card-bg) 88%,
+      var(--color-card-bg) 94%,
       transparent
     );
 
@@ -266,23 +343,29 @@
   outline: none;
 
   font-size: 1rem;
+
   font-weight: 550;
 
   box-shadow:
-    0 8px 24px var(--color-shadow-medium),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    0 6px 18px var(--color-shadow-medium);
 
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /*
+   * أخف من  blur الأصلي.
+   */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 
   transition:
-    border-color 0.22s ease,
-    box-shadow 0.22s ease,
-    background 0.22s ease;
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
+
+  -webkit-tap-highlight-color: transparent;
 }
 
 .searchInput::placeholder {
   color: var(--color-text-muted);
+
   opacity: 0.8;
 }
 
@@ -295,13 +378,13 @@
     );
 
   box-shadow:
-    0 0 0 4px
+    0 0 0 3px
     color-mix(
       in srgb,
-      var(--color-accent) 9%,
+      var(--color-accent) 8%,
       transparent
     ),
-    0 12px 30px
+    0 8px 20px
     var(--color-shadow-medium);
 }
 
@@ -310,9 +393,9 @@
   opacity: 1;
 }
 
-/* =========================
+/* =========================================================
    BOOK GRID
-========================= */
+========================================================= */
 
 .grid {
   display: grid;
@@ -326,26 +409,38 @@
   gap: 12px;
 
   width: 100%;
+
   box-sizing: border-box;
 
   position: relative;
+
   z-index: 1;
+
+  /*
+   * يخلي layout داخل الـgrid أكثر استقلالًا.
+   */
+  contain: layout style;
 }
 
-/* =========================
+/* =========================================================
    BOOK CARD
-========================= */
+========================================================= */
 
 .bookItem {
   min-width: 0;
+
   aspect-ratio: 1 / 1.08;
+
   box-sizing: border-box;
 
   padding: 12px 5px;
 
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
+
   justify-content: center;
 
   gap: 8px;
@@ -363,7 +458,7 @@
       145deg,
       color-mix(
         in srgb,
-        var(--color-card-bg) 94%,
+        var(--color-card-bg) 96%,
         white
       ),
       var(--color-card-bg)
@@ -371,109 +466,141 @@
 
   color: var(--color-text-primary);
 
+  /*
+   * أخف كثيرًا من النسخة الأصلية.
+   */
   box-shadow:
-    0 9px 25px var(--color-shadow-medium),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    0 5px 14px var(--color-shadow-medium);
 
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  /*
+   * إزالة backdrop-filter من كل card.
+   */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 
   overflow: hidden;
+
   position: relative;
 
+  /*
+   * مهم للـGPU.
+   */
+  will-change: transform;
+
+  /*
+   * يحتوي الرسم الداخلي.
+   */
+  contain: layout paint style;
+
   transition:
-    transform 0.24s var(--transition-bounce),
-    border-color 0.24s ease,
-    box-shadow 0.24s ease,
-    background 0.24s ease;
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background-color 0.16s ease;
 
   -webkit-tap-highlight-color: transparent;
+
+  touch-action: manipulation;
 }
 
+/* =========================================================
+   CARD LIGHT
+========================================================= */
+
 .bookItem::before {
-  content: '';
+  content: "";
 
   position: absolute;
+
   inset: 0;
 
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.20),
+      rgba(255, 255, 255, 0.14),
       transparent 42%
     );
 
   pointer-events: none;
 }
 
+/*
+ * لا يوجد blur هنا.
+ * مجرد glow خفيف جدًا.
+ */
 .bookItem::after {
-  content: '';
+  content: "";
 
   position: absolute;
 
-  width: 65px;
-  height: 65px;
+  width: 58px;
+  height: 58px;
 
-  top: -35px;
-  right: -35px;
+  top: -30px;
+  right: -30px;
 
   border-radius: 50%;
 
   background: var(--color-accent);
 
-  opacity: 0.045;
-
-  filter: blur(12px);
+  opacity: 0.035;
 
   pointer-events: none;
 }
 
+/* =========================================================
+   CARD HOVER
+========================================================= */
+
 @media (hover: hover) {
   .bookItem:hover {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
 
     border-color:
       color-mix(
         in srgb,
-        var(--color-accent) 28%,
+        var(--color-accent) 25%,
         var(--color-border)
       );
 
     box-shadow:
-      0 16px 34px
+      0 10px 22px
       color-mix(
         in srgb,
-        var(--color-accent) 10%,
+        var(--color-accent) 8%,
         transparent
-      ),
-      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      );
   }
 }
 
+/* =========================================================
+   CARD PRESS
+========================================================= */
+
 .bookItem:active {
-  transform: scale(0.94);
+  transform: scale(0.96);
 
   background:
     color-mix(
       in srgb,
-      var(--color-accent) 10%,
+      var(--color-accent) 8%,
       var(--color-card-bg)
     );
 
   border-color:
     color-mix(
       in srgb,
-      var(--color-accent) 30%,
+      var(--color-accent) 28%,
       transparent
     );
 
   transition:
-    transform 0.08s ease;
+    transform 0.06s ease;
 }
 
-/* =========================
+/* =========================================================
    BOOK ICON
-========================= */
+========================================================= */
 
 .iconWrapper {
   width: 38px;
@@ -482,6 +609,7 @@
   flex-shrink: 0;
 
   display: flex;
+
   align-items: center;
   justify-content: center;
 
@@ -492,12 +620,12 @@
       145deg,
       color-mix(
         in srgb,
-        var(--color-accent) 16%,
+        var(--color-accent) 14%,
         transparent
       ),
       color-mix(
         in srgb,
-        var(--color-accent) 7%,
+        var(--color-accent) 6%,
         transparent
       )
     );
@@ -508,125 +636,135 @@
     1px solid
     color-mix(
       in srgb,
-      var(--color-accent) 13%,
+      var(--color-accent) 12%,
       transparent
     );
 
   box-shadow:
-    0 6px 16px
+    0 4px 11px
     color-mix(
       in srgb,
-      var(--color-accent) 9%,
+      var(--color-accent) 7%,
       transparent
-    ),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    );
 
   position: relative;
 
   transition:
-    transform 0.22s var(--transition-bounce),
-    box-shadow 0.22s ease;
+    transform 0.16s ease;
 }
 
-.bookItem:hover .iconWrapper {
-  transform: translateY(-2px) scale(1.04);
+@media (hover: hover) {
+  .bookItem:hover .iconWrapper {
+    transform:
+      translateY(-1px)
+      scale(1.03);
+  }
 }
 
-/* =========================
+/* =========================================================
    BOOK NAME
-========================= */
+========================================================= */
 
 .bookName {
   width: 100%;
+
   padding: 0 3px;
+
   box-sizing: border-box;
 
   color: var(--color-text-primary);
 
   font-size: 0.76rem;
+
   font-weight: 750;
 
   line-height: 1.2;
 
   word-wrap: break-word;
+
   overflow-wrap: anywhere;
+
   word-break: break-word;
+
   hyphens: auto;
 
   display: -webkit-box;
+
   -webkit-line-clamp: 2;
+
   -webkit-box-orient: vertical;
 
   overflow: hidden;
 }
 
-/* =========================
+/* =========================================================
    DARK THEME
-========================= */
+========================================================= */
 
-:global([data-theme='dark']) .bookItem {
+:global([data-theme="dark"]) .bookItem {
   background:
     linear-gradient(
       145deg,
-      rgba(30, 41, 59, 0.78),
-      rgba(15, 23, 42, 0.90)
+      rgba(30, 41, 59, 0.88),
+      rgba(15, 23, 42, 0.94)
     );
 
   border-color:
-    rgba(148, 163, 184, 0.10);
+    rgba(148, 163, 184, 0.09);
 
   box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    0 7px 18px rgba(0, 0, 0, 0.24);
 }
 
-:global([data-theme='dark']) .bookItem::before {
+:global([data-theme="dark"]) .bookItem::before {
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.045),
       transparent 42%
     );
 }
 
-:global([data-theme='dark']) .tabs {
+:global([data-theme="dark"]) .tabs {
   background:
-    rgba(15, 23, 42, 0.68);
+    rgba(15, 23, 42, 0.84);
 
   border-color:
-    rgba(148, 163, 184, 0.10);
+    rgba(148, 163, 184, 0.09);
+
+  box-shadow:
+    0 7px 18px rgba(0, 0, 0, 0.22);
 }
 
-:global([data-theme='dark']) .activeTab {
+:global([data-theme="dark"]) .activeTab {
   background:
     linear-gradient(
       145deg,
-      rgba(56, 189, 248, 0.14),
-      rgba(15, 23, 42, 0.90)
+      rgba(56, 189, 248, 0.13),
+      rgba(15, 23, 42, 0.92)
     );
 
   box-shadow:
-    0 7px 20px rgba(0, 0, 0, 0.28),
-    0 0 18px rgba(56, 189, 248, 0.05);
+    0 5px 15px rgba(0, 0, 0, 0.23);
 }
 
-:global([data-theme='dark']) .searchInput {
+:global([data-theme="dark"]) .searchInput {
   background:
-    rgba(15, 23, 42, 0.72);
+    rgba(15, 23, 42, 0.86);
 
   border-color:
-    rgba(148, 163, 184, 0.11);
+    rgba(148, 163, 184, 0.10);
 
   box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 7px 19px rgba(0, 0, 0, 0.22);
 }
 
-/* =========================
+/* =========================================================
    GOLD THEME
-========================= */
+========================================================= */
 
-:global([data-theme='gold']) .title {
+:global([data-theme="gold"]) .title {
   background:
     linear-gradient(
       180deg,
@@ -639,132 +777,154 @@
 
   -webkit-background-clip: text;
   background-clip: text;
+
   -webkit-text-fill-color: transparent;
 
-  filter:
-    drop-shadow(
-      0 3px 6px
-      rgba(0, 0, 0, 0.75)
-    );
+  text-shadow:
+    0 2px 7px
+    rgba(0, 0, 0, 0.65);
 }
 
-:global([data-theme='gold']) .tabs {
+:global([data-theme="gold"]) .tabs {
   background:
-    rgba(12, 10, 7, 0.82);
+    rgba(12, 10, 7, 0.90);
 
   border-color:
-    rgba(212, 175, 55, 0.17);
+    rgba(212, 175, 55, 0.15);
 
   box-shadow:
-    0 14px 35px rgba(0, 0, 0, 0.60),
-    inset 0 1px 0 rgba(255, 244, 180, 0.05);
+    0 8px 21px
+    rgba(0, 0, 0, 0.48);
 }
 
-:global([data-theme='gold']) .activeTab {
+:global([data-theme="gold"]) .activeTab {
   background:
     linear-gradient(
       145deg,
-      rgba(212, 175, 55, 0.18),
-      rgba(25, 22, 13, 0.94)
+      rgba(212, 175, 55, 0.16),
+      rgba(25, 22, 13, 0.95)
     );
 
   color: #f5d76e;
 
   border-color:
-    rgba(212, 175, 55, 0.25);
+    rgba(212, 175, 55, 0.23);
 
   box-shadow:
-    0 7px 22px rgba(212, 175, 55, 0.07),
-    inset 0 1px 0 rgba(255, 245, 190, 0.06);
+    0 5px 16px
+    rgba(212, 175, 55, 0.055);
 }
 
-:global([data-theme='gold']) .searchInput {
+:global([data-theme="gold"]) .searchInput {
   background:
-    rgba(10, 9, 7, 0.82);
+    rgba(10, 9, 7, 0.90);
 
   border-color:
-    rgba(212, 175, 55, 0.17);
+    rgba(212, 175, 55, 0.15);
 
   box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.60),
-    inset 0 1px 0 rgba(255, 244, 180, 0.035);
+    0 8px 21px
+    rgba(0, 0, 0, 0.48);
 }
 
-:global([data-theme='gold']) .searchInput:focus {
+:global([data-theme="gold"]) .searchInput:focus {
   border-color:
-    rgba(212, 175, 55, 0.48);
+    rgba(212, 175, 55, 0.44);
 
   box-shadow:
-    0 0 0 4px rgba(212, 175, 55, 0.07),
-    0 15px 35px rgba(0, 0, 0, 0.65);
+    0 0 0 3px
+    rgba(212, 175, 55, 0.06),
+    0 9px 23px
+    rgba(0, 0, 0, 0.52);
 }
 
-:global([data-theme='gold']) .bookItem {
+:global([data-theme="gold"]) .bookItem {
   background:
     linear-gradient(
       145deg,
-      rgba(25, 22, 13, 0.94),
-      rgba(7, 7, 6, 0.97)
+      rgba(25, 22, 13, 0.95),
+      rgba(7, 7, 6, 0.98)
     );
 
   color: #f8edc5;
 
   border-color:
-    rgba(212, 175, 55, 0.17);
+    rgba(212, 175, 55, 0.15);
 
   box-shadow:
-    0 13px 32px rgba(0, 0, 0, 0.60),
-    inset 0 1px 0 rgba(255, 244, 180, 0.035);
+    0 8px 20px
+    rgba(0, 0, 0, 0.48);
 }
 
-:global([data-theme='gold']) .bookItem::before {
+:global([data-theme="gold"]) .bookItem::before {
   background:
     linear-gradient(
       135deg,
-      rgba(255, 244, 180, 0.07),
+      rgba(255, 244, 180, 0.055),
       transparent 40%
     );
 }
 
-:global([data-theme='gold']) .iconWrapper {
+:global([data-theme="gold"]) .iconWrapper {
   background:
     linear-gradient(
       145deg,
-      rgba(212, 175, 55, 0.18),
-      rgba(212, 175, 55, 0.045)
+      rgba(212, 175, 55, 0.16),
+      rgba(212, 175, 55, 0.04)
     );
 
   color: #e6c85c;
 
   border-color:
-    rgba(212, 175, 55, 0.24);
+    rgba(212, 175, 55, 0.21);
 
   box-shadow:
-    0 7px 20px rgba(212, 175, 55, 0.07),
-    inset 0 1px 0 rgba(255, 245, 190, 0.07);
+    0 5px 13px
+    rgba(212, 175, 55, 0.055);
 }
 
-:global([data-theme='gold']) .bookName {
+:global([data-theme="gold"]) .bookName {
   color: #f8edc5;
 }
 
 @media (hover: hover) {
-  :global([data-theme='gold']) .bookItem:hover {
+  :global([data-theme="gold"]) .bookItem:hover {
     color: #fff4bb;
 
     border-color:
-      rgba(212, 175, 55, 0.38);
+      rgba(212, 175, 55, 0.34);
 
     box-shadow:
-      0 18px 40px rgba(0, 0, 0, 0.67),
-      0 0 25px rgba(212, 175, 55, 0.055),
-      inset 0 1px 0 rgba(255, 245, 190, 0.06);
+      0 11px 24px
+      rgba(0, 0, 0, 0.55);
   }
 }
 
-/* =========================
-   RESPONSIVE
-========================= */
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+  min-height: 100vh;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  color: var(--color-text-secondary);
+
+  padding:
+    var(--safe-top, 0px)
+    16px
+    var(--safe-bottom, 0px);
+
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   RESPONSIVE — MOBILE
+========================================================= */
 
 @media (max-width: 480px) {
   .container {
@@ -784,11 +944,16 @@
 
   .tabs {
     margin-bottom: 17px;
+
     border-radius: 15px;
+
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
   }
 
   .tab {
     padding: 9px 4px;
+
     font-size: 0.72rem;
   }
 
@@ -799,7 +964,11 @@
   .searchInput {
     padding-top: 12px;
     padding-bottom: 12px;
+
     border-radius: 15px;
+
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
   }
 
   .grid {
@@ -814,21 +983,33 @@
 
   .bookItem {
     border-radius: 16px;
+
     padding: 9px 3px;
+
     gap: 7px;
+
+    box-shadow:
+      0 4px 11px
+      var(--color-shadow-medium);
   }
 
   .iconWrapper {
     width: 33px;
     height: 33px;
+
     border-radius: 10px;
   }
 
   .bookName {
     font-size: 0.69rem;
+
     line-height: 1.15;
   }
 }
+
+/* =========================================================
+   VERY SMALL DEVICES
+========================================================= */
 
 @media (max-width: 330px) {
   .grid {
@@ -843,6 +1024,7 @@
 
   .tab {
     font-size: 0.65rem;
+
     padding-inline: 3px;
   }
 
@@ -855,10 +1037,16 @@
   }
 }
 
+/* =========================================================
+   TABLET / DESKTOP
+========================================================= */
+
 @media (min-width: 768px) {
   .container {
     max-width: 720px;
+
     margin: 0 auto;
+
     padding-left: 22px;
     padding-right: 22px;
   }
@@ -878,11 +1066,16 @@
   }
 }
 
+/* =========================================================
+   REDUCE MOTION
+========================================================= */
+
 @media (prefers-reduced-motion: reduce) {
   .bookItem,
   .tab,
   .iconWrapper,
-  .searchInput {
+  .searchInput,
+  .searchIcon {
     transition: none !important;
   }
 }

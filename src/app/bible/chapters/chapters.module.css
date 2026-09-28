@@ -1,6 +1,12 @@
+/* =========================================================
+   CONTAINER
+========================================================= */
+
 .container {
   min-height: 100vh;
   width: 100%;
+
+  box-sizing: border-box;
 
   padding:
     calc(20px + var(--safe-top, 0px))
@@ -23,23 +29,29 @@
   flex-direction: column;
 
   position: relative;
-  overflow: hidden;
+
+  overflow-x: hidden;
+
+  /*
+   * يمنع بعض عمليات الـcompositing
+   * غير الضرورية.
+   */
+  isolation: isolate;
 }
 
-
-/* ============================================================
+/* =========================================================
    AMBIENT BACKGROUND
-   ============================================================ */
+========================================================= */
 
 .container::before {
-  content: '';
+  content: "";
 
-  position: fixed;
+  position: absolute;
 
-  width: 320px;
-  height: 320px;
+  width: 300px;
+  height: 300px;
 
-  top: -160px;
+  top: -155px;
   left: 50%;
 
   transform: translateX(-50%);
@@ -51,19 +63,21 @@
       transparent 68%
     );
 
-  opacity: 0.07;
+  opacity: 0.045;
 
-  filter: blur(30px);
+  /*
+   * تمت إزالة filter: blur()
+   * لأنه غير ضروري هنا.
+   */
 
   pointer-events: none;
 
-  z-index: 0;
+  z-index: -1;
 }
 
-
-/* ============================================================
+/* =========================================================
    HEADER
-   ============================================================ */
+========================================================= */
 
 .header {
   display: flex;
@@ -76,13 +90,13 @@
   padding-top: 4px;
 
   position: relative;
+
   z-index: 1;
 }
 
-
-/* ============================================================
+/* =========================================================
    BOOK INFO
-   ============================================================ */
+========================================================= */
 
 .bookInfo {
   display: flex;
@@ -96,10 +110,9 @@
   position: relative;
 }
 
-
-/* ============================================================
+/* =========================================================
    BOOK ICON
-   ============================================================ */
+========================================================= */
 
 .iconWrapper {
   width: 72px;
@@ -110,12 +123,26 @@
   background:
     linear-gradient(
       145deg,
-      hsla(var(--book-hue), 85%, 50%, 0.16),
-      hsla(var(--book-hue), 85%, 50%, 0.055)
+      hsla(
+        var(--book-hue),
+        85%,
+        50%,
+        0.16
+      ),
+      hsla(
+        var(--book-hue),
+        85%,
+        50%,
+        0.055
+      )
     );
 
   color:
-    hsl(var(--book-hue), 80%, 46%);
+    hsl(
+      var(--book-hue),
+      80%,
+      46%
+    );
 
   display: flex;
 
@@ -124,27 +151,47 @@
 
   border:
     1px solid
-    hsla(var(--book-hue), 75%, 50%, 0.15);
+    hsla(
+      var(--book-hue),
+      75%,
+      50%,
+      0.15
+    );
 
+  /*
+   * أخف من الـshadow القديم.
+   */
   box-shadow:
-    0 14px 35px
-    hsla(var(--book-hue), 80%, 40%, 0.12),
-
-    inset 0 1px 0
-    rgba(255, 255, 255, 0.35);
+    0 8px 20px
+    hsla(
+      var(--book-hue),
+      80%,
+      40%,
+      0.09
+    );
 
   position: relative;
 
   transition:
-    transform 0.25s var(--transition-smooth),
-    box-shadow 0.25s ease;
+    transform 0.16s ease;
+
+  /*
+   * animation-friendly.
+   */
+  will-change: transform;
+
+  contain: layout paint;
+
+  -webkit-tap-highlight-color:
+    transparent;
 }
 
-
-/* Icon inner glow */
+/* =========================================================
+   ICON INNER REFLECTION
+========================================================= */
 
 .iconWrapper::before {
-  content: '';
+  content: "";
 
   position: absolute;
 
@@ -155,109 +202,143 @@
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.20),
+      rgba(
+        255,
+        255,
+        255,
+        0.16
+      ),
       transparent 45%
     );
 
   pointer-events: none;
 }
 
-
 .iconWrapper:active {
-  transform:
-    scale(0.94);
+  transform: scale(0.95);
 }
 
-
-/* ============================================================
+/* =========================================================
    DARK ICON
-   ============================================================ */
+========================================================= */
 
-:global([data-theme='dark']) .iconWrapper {
+:global(
+  [data-theme="dark"]
+)
+.iconWrapper {
   background:
     linear-gradient(
       145deg,
-      hsla(var(--book-hue), 90%, 65%, 0.17),
-      hsla(var(--book-hue), 90%, 65%, 0.055)
+      hsla(
+        var(--book-hue),
+        90%,
+        65%,
+        0.17
+      ),
+      hsla(
+        var(--book-hue),
+        90%,
+        65%,
+        0.055
+      )
     );
 
   color:
-    hsl(var(--book-hue), 90%, 72%);
+    hsl(
+      var(--book-hue),
+      90%,
+      72%
+    );
 
   border-color:
-    hsla(var(--book-hue), 80%, 70%, 0.16);
+    hsla(
+      var(--book-hue),
+      80%,
+      70%,
+      0.16
+    );
 
   box-shadow:
-    0 16px 40px
-    rgba(0, 0, 0, 0.35),
-
-    0 0 25px
-    hsla(var(--book-hue), 90%, 65%, 0.07),
-
-    inset 0 1px 0
-    rgba(255, 255, 255, 0.06);
+    0 9px 23px
+    rgba(0, 0, 0, 0.28);
 }
 
-
-/* ============================================================
+/* =========================================================
    GOLD ICON
-   ============================================================ */
+========================================================= */
 
-:global([data-theme='gold']) .iconWrapper {
+:global(
+  [data-theme="gold"]
+)
+.iconWrapper {
   background:
     linear-gradient(
       145deg,
-      rgba(212, 175, 55, 0.20),
-      rgba(212, 175, 55, 0.045)
+      rgba(
+        212,
+        175,
+        55,
+        0.20
+      ),
+      rgba(
+        212,
+        175,
+        55,
+        0.045
+      )
     );
 
-  color:
-    #e6c85c;
+  color: #e6c85c;
 
   border-color:
-    rgba(212, 175, 55, 0.28);
+    rgba(
+      212,
+      175,
+      55,
+      0.26
+    );
 
   box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.60),
-    0 0 28px rgba(212, 175, 55, 0.08),
-    inset 0 1px 0 rgba(255, 245, 190, 0.12);
+    0 10px 25px
+    rgba(0, 0, 0, 0.45);
 }
 
-
-/* ============================================================
+/* =========================================================
    TITLE
-   ============================================================ */
+========================================================= */
 
 .title {
   font-size:
-    clamp(1.75rem, 6vw, 2.15rem);
+    clamp(
+      1.75rem,
+      6vw,
+      2.15rem
+    );
 
-  font-weight:
-    900;
+  font-weight: 900;
 
-  margin:
-    0;
+  margin: 0;
 
   color:
     var(--color-text-primary);
 
-  text-align:
-    center;
+  text-align: center;
 
-  line-height:
-    1.15;
+  line-height: 1.15;
 
-  letter-spacing:
-    -0.5px;
+  letter-spacing: -0.5px;
 
-  position:
-    relative;
+  position: relative;
 }
 
+/* =========================================================
+   GOLD TITLE
+========================================================= */
 
-/* Gold title */
-
-:global([data-theme='gold']) .title {
+:global(
+  [data-theme="gold"]
+)
+.title {
   background:
     linear-gradient(
       180deg,
@@ -268,64 +349,53 @@
       #8c6719 100%
     );
 
-  -webkit-background-clip:
-    text;
-
-  background-clip:
-    text;
+  -webkit-background-clip: text;
+  background-clip: text;
 
   -webkit-text-fill-color:
     transparent;
 
-  filter:
-    drop-shadow(
-      0 3px 5px
-      rgba(0, 0, 0, 0.7)
-    );
+  /*
+   * استبدال filter: drop-shadow
+   * بـtext-shadow.
+   */
+  text-shadow:
+    0 2px 5px
+    rgba(0, 0, 0, 0.60);
 }
 
-
-/* ============================================================
+/* =========================================================
    SUBTITLE
-   ============================================================ */
+========================================================= */
 
 .subtitle {
-  font-size:
-    1rem;
+  font-size: 1rem;
 
   color:
     var(--color-text-secondary);
 
-  font-weight:
-    600;
+  font-weight: 600;
 
   margin:
     -2px auto 30px;
 
-  text-align:
-    center;
+  text-align: center;
 
-  line-height:
-    1.65;
+  line-height: 1.65;
 
-  max-width:
-    520px;
+  max-width: 520px;
 
-  opacity:
-    0.9;
+  opacity: 0.9;
 
-  position:
-    relative;
+  position: relative;
 }
 
-
-/* ============================================================
+/* =========================================================
    CHAPTER GRID
-   ============================================================ */
+========================================================= */
 
 .chaptersGrid {
-  display:
-    grid;
+  display: grid;
 
   grid-template-columns:
     repeat(
@@ -333,55 +403,60 @@
       minmax(68px, 1fr)
     );
 
-  gap:
-    12px;
+  gap: 12px;
 
   padding:
     4px 2px 45px;
 
-  position:
-    relative;
+  position: relative;
 
-  z-index:
-    1;
+  z-index: 1;
+
+  /*
+   * يساعد المتصفح في إدارة
+   * محتوى الـgrid.
+   */
+  contain: layout style;
 }
 
-
-/* ============================================================
+/* =========================================================
    CHAPTER CARD
-   ============================================================ */
+========================================================= */
 
 .chapterItem {
-  aspect-ratio:
-    1;
+  aspect-ratio: 1;
 
-  min-width:
-    0;
+  min-width: 0;
+
+  box-sizing: border-box;
 
   background:
     linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.78),
-      rgba(255, 255, 255, 0.52)
+      rgba(
+        255,
+        255,
+        255,
+        0.78
+      ),
+      rgba(
+        255,
+        255,
+        255,
+        0.52
+      )
     );
 
-  border-radius:
-    19px;
+  border-radius: 19px;
 
-  display:
-    flex;
+  display: flex;
 
-  align-items:
-    center;
+  align-items: center;
+  justify-content: center;
 
-  justify-content:
-    center;
+  font-size: 1.18rem;
 
-  font-size:
-    1.18rem;
-
-  font-weight:
-    800;
+  font-weight: 800;
 
   color:
     var(--color-text-primary);
@@ -390,81 +465,95 @@
     1px solid
     var(--color-border);
 
-  cursor:
-    pointer;
+  cursor: pointer;
 
-  position:
-    relative;
+  position: relative;
 
-  overflow:
-    hidden;
+  overflow: hidden;
 
+  /*
+   * Shadow أخف بكثير.
+   */
   box-shadow:
-    0 7px 20px
-    rgba(15, 23, 42, 0.055),
+    0 5px 13px
+    rgba(
+      15,
+      23,
+      42,
+      0.05
+    );
 
-    inset 0 1px 0
-    rgba(255, 255, 255, 0.65);
+  /*
+   * لا backdrop-filter.
+   * لا blur.
+   */
 
   transition:
-    transform 0.22s var(--transition-bounce),
-    background 0.22s ease,
-    border-color 0.22s ease,
-    box-shadow 0.22s ease,
-    color 0.22s ease;
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    background-color 0.14s ease;
+
+  /*
+   * يسمح للـGPU بمعالجة
+   * transform بكفاءة.
+   */
+  will-change: transform;
+
+  contain: layout paint style;
 
   -webkit-tap-highlight-color:
     transparent;
+
+  /*
+   * يمنع بعض سلوكيات اللمس
+   * التي قد تؤثر على الاستجابة.
+   */
+  touch-action: manipulation;
 }
 
-
-/* Top glass reflection */
+/* =========================================================
+   CARD REFLECTION
+========================================================= */
 
 .chapterItem::before {
-  content:
-    '';
+  content: "";
 
-  position:
-    absolute;
+  position: absolute;
 
-  inset:
-    0;
+  inset: 0;
 
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.20),
+      rgba(
+        255,
+        255,
+        255,
+        0.15
+      ),
       transparent 42%
     );
 
-  pointer-events:
-    none;
+  pointer-events: none;
 }
 
-
-/* Tiny accent glow */
+/* =========================================================
+   ACCENT CORNER
+========================================================= */
 
 .chapterItem::after {
-  content:
-    '';
+  content: "";
 
-  position:
-    absolute;
+  position: absolute;
 
-  width:
-    45px;
+  width: 42px;
+  height: 42px;
 
-  height:
-    45px;
+  top: -22px;
+  right: -22px;
 
-  top:
-    -25px;
-
-  right:
-    -25px;
-
-  border-radius:
-    50%;
+  border-radius: 50%;
 
   background:
     hsl(
@@ -473,23 +562,19 @@
       55%
     );
 
-  opacity:
-    0.055;
+  /*
+   * لا filter: blur().
+   */
+  opacity: 0.035;
 
-  filter:
-    blur(10px);
-
-  pointer-events:
-    none;
+  pointer-events: none;
 }
 
-
-/* ============================================================
+/* =========================================================
    DESKTOP HOVER
-   ============================================================ */
+========================================================= */
 
 @media (hover: hover) {
-
   .chapterItem:hover {
     transform:
       translateY(-3px);
@@ -499,36 +584,32 @@
         var(--book-hue),
         70%,
         50%,
-        0.28
+        0.25
       );
 
     box-shadow:
-      0 12px 28px
+      0 9px 20px
       hsla(
         var(--book-hue),
         70%,
         35%,
-        0.10
-      ),
-
-      inset 0 1px 0
-      rgba(255, 255, 255, 0.7);
+        0.075
+      );
   }
 
   .iconWrapper:hover {
     transform:
-      translateY(-3px);
+      translateY(-2px);
   }
 }
 
-
-/* ============================================================
+/* =========================================================
    ACTIVE / PRESS
-   ============================================================ */
+========================================================= */
 
 .chapterItem:active {
   transform:
-    scale(0.91);
+    scale(0.93);
 
   background:
     linear-gradient(
@@ -545,8 +626,7 @@
       )
     );
 
-  color:
-    #ffffff;
+  color: #ffffff;
 
   border-color:
     hsl(
@@ -556,77 +636,114 @@
     );
 
   box-shadow:
-    0 8px 22px
+    0 5px 14px
     hsla(
       var(--book-hue),
       80%,
       40%,
-      0.25
+      0.18
     );
 
   transition:
-    transform 0.08s ease;
+    transform 0.06s ease;
 }
 
-
-/* ============================================================
+/* =========================================================
    DARK CHAPTER CARDS
-   ============================================================ */
+========================================================= */
 
-:global([data-theme='dark']) .chapterItem {
+:global(
+  [data-theme="dark"]
+)
+.chapterItem {
   background:
     linear-gradient(
       145deg,
-      rgba(30, 41, 59, 0.82),
-      rgba(15, 23, 42, 0.88)
+      rgba(
+        30,
+        41,
+        59,
+        0.82
+      ),
+      rgba(
+        15,
+        23,
+        42,
+        0.90
+      )
     );
 
   border-color:
-    rgba(148, 163, 184, 0.10);
+    rgba(
+      148,
+      163,
+      184,
+      0.09
+    );
 
   box-shadow:
-    0 9px 24px
-    rgba(0, 0, 0, 0.24),
-
-    inset 0 1px 0
-    rgba(255, 255, 255, 0.045);
+    0 6px 16px
+    rgba(
+      0,
+      0,
+      0,
+      0.22
+    );
 }
 
-
-:global([data-theme='dark']) .chapterItem::before {
+:global(
+  [data-theme="dark"]
+)
+.chapterItem::before {
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.055),
+      rgba(
+        255,
+        255,
+        255,
+        0.045
+      ),
       transparent 42%
     );
 }
 
+/* =========================================================
+   DARK HOVER
+========================================================= */
 
-:global([data-theme='dark']) .chapterItem:hover {
-  border-color:
-    hsla(
-      var(--book-hue),
-      80%,
-      70%,
-      0.24
-    );
+@media (hover: hover) {
+  :global(
+    [data-theme="dark"]
+  )
+  .chapterItem:hover {
+    border-color:
+      hsla(
+        var(--book-hue),
+        80%,
+        70%,
+        0.22
+      );
 
-  box-shadow:
-    0 14px 30px
-    rgba(0, 0, 0, 0.35),
-
-    0 0 20px
-    hsla(
-      var(--book-hue),
-      80%,
-      65%,
-      0.055
-    );
+    box-shadow:
+      0 10px 22px
+      rgba(
+        0,
+        0,
+        0,
+        0.28
+      );
+  }
 }
 
+/* =========================================================
+   DARK ACTIVE
+========================================================= */
 
-:global([data-theme='dark']) .chapterItem:active {
+:global(
+  [data-theme="dark"]
+)
+.chapterItem:active {
   background:
     linear-gradient(
       145deg,
@@ -642,8 +759,7 @@
       )
     );
 
-  color:
-    #020617;
+  color: #020617;
 
   border-color:
     hsl(
@@ -653,79 +769,122 @@
     );
 }
 
-
-/* ============================================================
+/* =========================================================
    GOLD CHAPTER CARDS
-   ============================================================ */
+========================================================= */
 
-:global([data-theme='gold']) .chapterItem {
+:global(
+  [data-theme="gold"]
+)
+.chapterItem {
   background:
     linear-gradient(
       145deg,
-      rgba(25, 22, 13, 0.92),
-      rgba(7, 7, 6, 0.96)
+      rgba(
+        25,
+        22,
+        13,
+        0.92
+      ),
+      rgba(
+        7,
+        7,
+        6,
+        0.97
+      )
     );
 
-  color:
-    #f8edc5;
+  color: #f8edc5;
 
   border-color:
-    rgba(212, 175, 55, 0.17);
+    rgba(
+      212,
+      175,
+      55,
+      0.16
+    );
 
   box-shadow:
-    0 12px 30px
-    rgba(0, 0, 0, 0.55),
-
-    inset 0 1px 0
-    rgba(255, 244, 180, 0.035);
+    0 8px 20px
+    rgba(
+      0,
+      0,
+      0,
+      0.45
+    );
 }
 
+/* =========================================================
+   GOLD REFLECTION
+========================================================= */
 
-:global([data-theme='gold']) .chapterItem::before {
+:global(
+  [data-theme="gold"]
+)
+.chapterItem::before {
   background:
     linear-gradient(
       135deg,
-      rgba(255, 244, 180, 0.075),
+      rgba(
+        255,
+        244,
+        180,
+        0.06
+      ),
       transparent 40%
     );
 }
 
+:global(
+  [data-theme="gold"]
+)
+.chapterItem::after {
+  background: #d4af37;
 
-:global([data-theme='gold']) .chapterItem::after {
-  background:
-    #d4af37;
-
-  opacity:
-    0.045;
+  opacity: 0.035;
 }
 
+/* =========================================================
+   GOLD HOVER
+========================================================= */
 
 @media (hover: hover) {
-
-  :global([data-theme='gold']) .chapterItem:hover {
+  :global(
+    [data-theme="gold"]
+  )
+  .chapterItem:hover {
     transform:
       translateY(-3px);
 
-    color:
-      #fff4bb;
+    color: #fff4bb;
 
     border-color:
-      rgba(212, 175, 55, 0.38);
+      rgba(
+        212,
+        175,
+        55,
+        0.34
+      );
 
     box-shadow:
-      0 18px 40px
-      rgba(0, 0, 0, 0.65),
-
-      0 0 25px
-      rgba(212, 175, 55, 0.055),
-
-      inset 0 1px 0
-      rgba(255, 245, 190, 0.06);
+      0 11px 25px
+      rgba(
+        0,
+        0,
+        0,
+        0.55
+      );
   }
 }
 
+/* =========================================================
+   GOLD ACTIVE
+========================================================= */
 
-:global([data-theme='gold']) .chapterItem:active {
+:global(
+  [data-theme="gold"]
+)
+.chapterItem:active {
   background:
     linear-gradient(
       145deg,
@@ -735,137 +894,142 @@
       #9b741e
     );
 
-  color:
-    #080808;
+  color: #080808;
 
-  border-color:
-    #d4af37;
+  border-color: #d4af37;
 
   box-shadow:
-    0 10px 30px
-    rgba(212, 175, 55, 0.18);
+    0 7px 18px
+    rgba(
+      212,
+      175,
+      55,
+      0.15
+    );
 }
 
+/* =========================================================
+   LOADING
+========================================================= */
 
-/* ============================================================
+.loading {
+  min-height: 100vh;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  color:
+    var(--color-text-secondary);
+
+  font-size: 0.95rem;
+
+  padding:
+    var(--safe-top, 0px)
+    16px
+    var(--safe-bottom, 0px);
+
+  box-sizing: border-box;
+}
+
+/* =========================================================
    MOBILE
-   ============================================================ */
+========================================================= */
 
 @media (max-width: 480px) {
-
   .container {
-    padding-left:
-      14px;
-
-    padding-right:
-      14px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   .header {
-    margin-bottom:
-      22px;
+    margin-bottom: 22px;
   }
 
   .iconWrapper {
-    width:
-      66px;
+    width: 66px;
+    height: 66px;
 
-    height:
-      66px;
-
-    border-radius:
-      21px;
+    border-radius: 21px;
   }
 
   .title {
-    font-size:
-      1.8rem;
+    font-size: 1.8rem;
   }
 
   .subtitle {
-    font-size:
-      0.94rem;
+    font-size: 0.94rem;
 
-    margin-bottom:
-      24px;
+    margin-bottom: 24px;
   }
 
   .chaptersGrid {
     grid-template-columns:
-      repeat(4, 1fr);
+      repeat(
+        4,
+        minmax(0, 1fr)
+      );
 
-    gap:
-      10px;
+    gap: 10px;
 
-    padding-left:
-      1px;
-
-    padding-right:
-      1px;
+    padding-left: 1px;
+    padding-right: 1px;
   }
 
   .chapterItem {
-    border-radius:
-      17px;
+    border-radius: 17px;
 
-    font-size:
-      1.08rem;
+    font-size: 1.08rem;
+
+    box-shadow:
+      0 4px 10px
+      rgba(
+        15,
+        23,
+        42,
+        0.045
+      );
   }
 }
 
-
-/* ============================================================
+/* =========================================================
    VERY SMALL DEVICES
-   ============================================================ */
+========================================================= */
 
 @media (max-width: 360px) {
-
   .container {
-    padding-left:
-      11px;
-
-    padding-right:
-      11px;
+    padding-left: 11px;
+    padding-right: 11px;
   }
 
   .chaptersGrid {
-    gap:
-      8px;
+    gap: 8px;
   }
 
   .chapterItem {
-    border-radius:
-      15px;
+    border-radius: 15px;
 
-    font-size:
-      1rem;
+    font-size: 1rem;
   }
 
   .title {
-    font-size:
-      1.65rem;
+    font-size: 1.65rem;
   }
 }
 
-
-/* ============================================================
+/* =========================================================
    TABLET / DESKTOP
-   ============================================================ */
+========================================================= */
 
 @media (min-width: 768px) {
-
   .container {
-    max-width:
-      620px;
+    max-width: 620px;
 
-    margin:
-      0 auto;
+    margin: 0 auto;
 
-    padding-left:
-      22px;
-
-    padding-right:
-      22px;
+    padding-left: 22px;
+    padding-right: 22px;
   }
 
   .chaptersGrid {
@@ -875,26 +1039,28 @@
         minmax(72px, 1fr)
       );
 
-    gap:
-      13px;
+    gap: 13px;
   }
 
   .chapterItem {
-    border-radius:
-      20px;
+    border-radius: 20px;
   }
 }
 
-
-/* ============================================================
+/* =========================================================
    REDUCED MOTION
-   ============================================================ */
+========================================================= */
 
 @media (prefers-reduced-motion: reduce) {
-
   .chapterItem,
   .iconWrapper {
-    transition:
-      none !important;
+    transition: none !important;
+  }
+
+  .chapterItem:active,
+  .chapterItem:hover,
+  .iconWrapper:active,
+  .iconWrapper:hover {
+    transform: none !important;
   }
 }
