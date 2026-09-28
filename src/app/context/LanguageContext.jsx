@@ -956,6 +956,7 @@ export function LanguageProvider({ children }) {
             language,
             parallelLanguage,
             useTashkeel,
+            setUseTashkeel,
             keepAppAwake,
             keepBibleAwake,
             strings,

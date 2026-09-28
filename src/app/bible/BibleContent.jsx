@@ -509,17 +509,16 @@ export default function BibleContent() {
     triggerBadgeUnlock
   } = useBadge();
 
-
-  const {
-    language,
-    useTashkeel,
-    parallelLanguage,
-    strings,
-    dir: pageDir,
-    bookNames: bookNamesData,
-    allBookNames,
-    formatNumber
-  } = useLanguage();
+const {
+  language,
+  useTashkeel,
+  parallelLanguage,
+  strings,
+  dir: pageDir,
+  bookNames: bookNamesData,
+  allBookNames,
+  formatNumber
+} = useLanguage();;
 
 
   const {
@@ -661,34 +660,17 @@ export default function BibleContent() {
   // First Arabic Bible Reading Preference
   // =========================================================
 
-  const handleTashkeelChoice =
-    useCallback((enabled) => {
+const handleTashkeelChoice = useCallback((enabled) => {
+  localStorage.setItem(
+    'bibleTashkeelPromptAnswered',
+    'true'
+  );
 
-      // حفظ أن المستخدم اختار بالفعل
-      localStorage.setItem(
-        'bibleTashkeelPromptAnswered',
-        'true'
-      );
+  setUseTashkeel(enabled);
 
-      // حفظ الاختيار الفعلي
-      localStorage.setItem(
-        'useTashkeel',
-        enabled
-          ? 'true'
-          : 'false'
-      );
-
-      // إغلاق الـ Modal
-      setShowTashkeelPrompt(
-        false
-      );
-
-      // إعادة تحميل الصفحة حتى LanguageContext
-      // يقرأ الاختيار الجديد قبل تحميل ملف الكتاب
-      window.location.reload();
-
-    }, []);
-
+  setShowTashkeelPrompt(false);
+  setTashkeelPreferenceChecked(true);
+}, [setUseTashkeel]);
 
   useEffect(() => {
 
@@ -1314,6 +1296,7 @@ export default function BibleContent() {
   }, [
     language,
     useTashkeel,
+    setUseTashkeel,
     parallelLanguage,
     bookNamesData,
     searchParams,
