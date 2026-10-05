@@ -528,59 +528,117 @@ Never invent Biblical references.
 `,
   },
 
-  studyPlan: {
-    ar: (payload) => `
+studyPlan: {
+  ar: (payload) => `
 أنت مساعد آجيوس لإنشاء خطة قراءة كتابية.
 
-أنشئ خطة بناءً على البيانات التالية:
+أنشئ خطة قراءة كتابية بناءً على البيانات التالية:
 
 ${JSON.stringify(payload, null, 2)}
 
-أرجع JSON صالحاً فقط.
+يجب أن تستخدم فقط الأسفار الموجودة في allowedBooks.
 
-لا تخترع أسماء أسفار أو أرقام إصحاحات.
-يجب أن تكون الخطة منطقية ومتدرجة وغير مكررة قدر الإمكان.
+أرجع JSON صالحاً فقط، بدون Markdown وبدون أي نص خارج JSON.
+
+الشكل الإلزامي:
 
 {
   "title": "",
   "description": "",
-  "days": [
+  "readings": [
     {
       "day": 1,
       "title": "",
-      "book": "",
-      "chapter": 0,
+      "books": [
+        "اسم السفر رقم الإصحاح"
+      ],
       "reason": ""
     }
   ]
 }
+
+قواعد مهمة:
+
+عدد عناصر readings يجب أن يساوي عدد الأيام المطلوب.
+
+كل reading يجب أن يحتوي على:
+day
+title
+books
+reason
+
+books يجب أن تكون مصفوفة نصوص.
+
+كل عنصر داخل books يجب أن يحتوي على اسم السفر ورقم الإصحاح.
+
+لا تستخدم أي سفر غير موجود في allowedBooks.
+
+لا تخترع أسماء أسفار.
+
+لا تخترع أرقام إصحاحات.
+
+يجب أن تكون أرقام الإصحاحات صحيحة.
+
+يجب أن تكون الخطة منطقية ومتدرجة ومناسبة لمدة الخطة ومستوى القراءة.
+
+لا تضع Markdown.
+
+أعد JSON فقط.
 `,
 
-    en: (payload) => `
-Create a structured Biblical reading plan using:
+  en: (payload) => `
+You are the Agios Bible reading-plan assistant.
+
+Create a structured Biblical reading plan based on:
 
 ${JSON.stringify(payload, null, 2)}
 
-Return valid JSON only.
+Use only books contained in allowedBooks.
 
-Do not invent books or chapter numbers.
-Avoid unnecessary repetition.
+Return valid JSON only. Do not use Markdown or any text outside JSON.
+
+Required structure:
 
 {
   "title": "",
   "description": "",
-  "days": [
+  "readings": [
     {
       "day": 1,
       "title": "",
-      "book": "",
-      "chapter": 0,
+      "books": [
+        "Book name chapter number"
+      ],
       "reason": ""
     }
   ]
 }
+
+Rules:
+
+The number of readings must equal the requested number of days.
+
+Each reading must contain:
+day
+title
+books
+reason
+
+books must be an array of strings.
+
+Each item in books must contain a valid Biblical book name and chapter number.
+
+Do not use books outside allowedBooks.
+
+Do not invent Biblical books.
+
+Do not invent chapter numbers.
+
+The plan must be logical, progressive, and appropriate for the requested duration and intensity.
+
+Return JSON only.
 `,
-  },
+},
 };
 
 /* =========================================================
@@ -1041,10 +1099,13 @@ export async function POST(
           );
 
         if (cached) {
-          const responseData = {
-            cached: true,
-            data: cached,
-          };
+const responseData = {
+  cached: true,
+  data: cached,
+  text: typeof cached === "string"
+    ? cached
+    : JSON.stringify(cached),
+};
 
           /*
             Preserve old analysis
@@ -1111,10 +1172,11 @@ export async function POST(
        Response
     ------------------------------------------------------- */
 
-    const responseData = {
-      data: text,
-      cached: false,
-    };
+const responseData = {
+  data: text,
+  text: text,
+  cached: false,
+};
 
     /*
       Preserve old analysis
