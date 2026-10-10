@@ -906,7 +906,7 @@ function buildPrompt(
     return {
       prompt: factory(payload),
     };
-  }
+  };
 
   return {
     error: `Unknown task: ${task}`,
