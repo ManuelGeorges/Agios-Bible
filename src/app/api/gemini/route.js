@@ -857,14 +857,17 @@ function buildPrompt(
         ? payload
         : {};
 
-    const candidates = [
-      semanticPayload.concept,
-      semanticPayload.query,
-      semanticPayload.text,
-      semanticPayload.searchQuery,
-      semanticPayload.semanticConcept,
-      semanticPayload.keyword,
-    ];
+
+const candidates = [
+  semanticPayload.concept,
+  semanticPayload.query,
+  semanticPayload.term,
+  semanticPayload.text,
+  semanticPayload.searchQuery,
+  semanticPayload.semanticConcept,
+  semanticPayload.keyword,
+];
+
 
     const concept = String(
       candidates.find(
