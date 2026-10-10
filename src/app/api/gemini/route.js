@@ -846,21 +846,37 @@ function buildPrompt(
     };
   }
 
+
   /* -------------------------------------------------------
      SEMANTIC
   ------------------------------------------------------- */
 
   if (task === "semantic") {
+    const semanticPayload =
+      payload && typeof payload === "object"
+        ? payload
+        : {};
+
+    const candidates = [
+      semanticPayload.concept,
+      semanticPayload.query,
+      semanticPayload.text,
+      semanticPayload.searchQuery,
+      semanticPayload.semanticConcept,
+      semanticPayload.keyword,
+    ];
+
     const concept = String(
-      payload.concept ||
-        payload.query ||
-        ""
+      candidates.find(
+        (value) =>
+          typeof value === "string" &&
+          value.trim().length > 0
+      ) ?? ""
     ).trim();
 
     const context = String(
-      payload.context ||
-        ""
-    );
+      semanticPayload.context ?? ""
+    ).trim();
 
     if (!concept) {
       return {
@@ -873,12 +889,10 @@ function buildPrompt(
       PROMPTS.semantic.ar;
 
     return {
-      prompt: factory(
-        concept,
-        context
-      ),
+      prompt: factory(concept, context),
     };
   }
+
 
   /* -------------------------------------------------------
      STUDY PLAN
