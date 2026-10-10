@@ -420,7 +420,6 @@ Before sending the answer, verify that:
 
 /* =========================================================
    OTHER PROMPTS
-   OLD / ORIGINAL PROMPTS PRESERVED
 ========================================================= */
 
 const PROMPTS = {
@@ -434,7 +433,7 @@ const PROMPTS = {
 
 "${word}"
 
-أرجع JSON صالحاً فقط.
+أرجع JSON صالحاً فقط، بدون Markdown وبدون أي نص خارج JSON.
 
 يجب التفريق بين:
 - الجذر.
@@ -444,12 +443,18 @@ const PROMPTS = {
 
 لا تخترع مشتقات.
 إذا لم تكن متأكداً من كلمة، لا تضعها ضمن المشتقات المؤكدة.
+اكتب المشتقات بدون تشكيل.
+
+isStatic تكون true فقط إذا كانت الكلمة ثابتة وليس لها مشتقات حقيقية (اسم علم، حرف، أداة، كلمة جامدة)، وفي هذه الحالة اكتب شرحاً مختصراً في explanation.
+وإلا اجعلها false واترك explanation فارغاً.
 
 الشكل:
 {
   "root": "",
   "derivatives": [],
   "relatedWords": [],
+  "isStatic": false,
+  "explanation": "",
   "confidence": ""
 }
 `,
@@ -459,77 +464,86 @@ Analyze the following word linguistically:
 
 "${word}"
 
-Return valid JSON only.
+Return valid JSON only, no Markdown and no text outside the JSON.
 
 Do not invent derivatives.
 Clearly distinguish actual derivatives from merely related words.
+
+"isStatic" must be true ONLY if the word has no real derivatives (a proper noun, particle, or fixed word). In that case give a short explanation in "explanation".
+Otherwise set it to false and leave "explanation" empty.
 
 {
   "root": "",
   "derivatives": [],
   "relatedWords": [],
+  "isStatic": false,
+  "explanation": "",
   "confidence": ""
 }
 `,
   },
 
   semantic: {
-    ar: (concept, context = "") => `
+    ar: (concept, context = "", allowedBooks = "") => `
 أنت مساعد آجيوس.
 
-ابحث من معرفتك الكتابية عن أكثر الآيات ارتباطاً بالمفهوم التالي:
-
+ابحث عن أكثر الآيات ارتباطاً بالمفهوم التالي:
 "${concept}"
 
 السياق الإضافي:
 "${context}"
 
-أرجع JSON صالحاً فقط.
+أسماء الأسفار المسموح بها فقط (استخدم الاسم حرفياً كما هو):
+${allowedBooks}
 
+أرجع JSON صالحاً فقط، بدون Markdown.
 لا تخترع مراجع كتابية.
-إذا لم تكن متأكداً من المرجع، لا تستخدمه.
 
 {
   "results": [
     {
       "title": "",
-      "book": "",
-      "chapter": 0,
-      "verses": "",
+      "book": "اسم السفر من القائمة بالضبط",
+      "chapter": 1,
+      "verses": [1, 2, 3],
       "reason": ""
     }
   ]
 }
+
+verses يجب أن تكون مصفوفة أرقام صحيحة، وليست نصاً.
+chapter يجب أن يكون رقماً صحيحاً.
 `,
 
-    en: (concept, context = "") => `
-Find the most relevant Biblical passages for:
+    en: (concept, context = "", allowedBooks = "") => `
+Find the most relevant Biblical passages for: "${concept}"
 
-"${concept}"
+Additional context: "${context}"
 
-Additional context:
-"${context}"
+Allowed book names (use them EXACTLY as written):
+${allowedBooks}
 
-Return valid JSON only.
-
-Never invent Biblical references.
+Return valid JSON only, no Markdown. Never invent references.
 
 {
   "results": [
     {
       "title": "",
-      "book": "",
-      "chapter": 0,
-      "verses": "",
+      "book": "exact name from the allowed list",
+      "chapter": 1,
+      "verses": [1, 2, 3],
       "reason": ""
     }
   ]
 }
+
+"verses" must be an array of integers, not a string.
+"chapter" must be an integer.
 `,
   },
 
-studyPlan: {
-  ar: (payload) => `
+  studyPlan: {
+    ar: (payload) => `
 أنت مساعد آجيوس لإنشاء خطة قراءة كتابية.
 
 أنشئ خطة قراءة كتابية بناءً على البيانات التالية:
@@ -586,7 +600,7 @@ books يجب أن تكون مصفوفة نصوص.
 أعد JSON فقط.
 `,
 
-  en: (payload) => `
+    en: (payload) => `
 You are the Agios Bible reading-plan assistant.
 
 Create a structured Biblical reading plan based on:
@@ -638,7 +652,7 @@ The plan must be logical, progressive, and appropriate for the requested duratio
 
 Return JSON only.
 `,
-},
+  },
 };
 
 /* =========================================================
@@ -661,8 +675,7 @@ function resolveLanguage(lang) {
 
   return {
     promptLang: "en",
-    answerLanguage:
-      ANSWER_LANGUAGE_NAMES[lang] || "English",
+    answerLanguage: ANSWER_LANGUAGE_NAMES[lang] || "English",
   };
 }
 
@@ -686,16 +699,10 @@ function normalizeAnalysisPayload(payload = {}) {
   */
 
   const reference =
-    payload.reference ||
-    payload.targetText ||
-    payload.ref ||
-    "";
+    payload.reference || payload.targetText || payload.ref || "";
 
   const verseText =
-    payload.verseText ||
-    payload.fullVerseText ||
-    payload.text ||
-    "";
+    payload.verseText || payload.fullVerseText || payload.text || "";
 
   return {
     reference: String(reference).trim(),
@@ -707,10 +714,7 @@ function normalizeAnalysisPayload(payload = {}) {
    VALIDATION
 ========================================================= */
 
-function validateAnalysisInput(
-  reference,
-  verseText
-) {
+function validateAnalysisInput(reference, verseText) {
   if (!reference) {
     return {
       valid: false,
@@ -729,8 +733,7 @@ function validateAnalysisInput(
   if (verseText.length < 3) {
     return {
       valid: false,
-      error:
-        "The supplied Biblical text is too short.",
+      error: "The supplied Biblical text is too short.",
     };
   }
 
@@ -776,26 +779,15 @@ function getGenerationConfig(task) {
    PROMPT BUILDER
 ========================================================= */
 
-function buildPrompt(
-  task,
-  payload,
-  { promptLang, answerLanguage }
-) {
+function buildPrompt(task, payload, { promptLang, answerLanguage }) {
   /* -------------------------------------------------------
      ANALYSIS
   ------------------------------------------------------- */
 
   if (task === "analysis") {
-    const {
-      reference,
-      verseText,
-    } = normalizeAnalysisPayload(payload);
+    const { reference, verseText } = normalizeAnalysisPayload(payload);
 
-    const validation =
-      validateAnalysisInput(
-        reference,
-        verseText
-      );
+    const validation = validateAnalysisInput(reference, verseText);
 
     if (!validation.valid) {
       return {
@@ -803,16 +795,10 @@ function buildPrompt(
       };
     }
 
-    const factory =
-      PROMPTS.analysis[promptLang] ||
-      PROMPTS.analysis.ar;
+    const factory = PROMPTS.analysis[promptLang] || PROMPTS.analysis.ar;
 
     return {
-      prompt: factory(
-        reference,
-        verseText,
-        answerLanguage
-      ),
+      prompt: factory(reference, verseText, answerLanguage),
       metadata: {
         reference,
         verseText,
@@ -825,10 +811,9 @@ function buildPrompt(
   ------------------------------------------------------- */
 
   if (task === "derivatives") {
+    // The client sends { term }, so "term" must be accepted here.
     const word = String(
-      payload.word ||
-        payload.text ||
-        ""
+      payload.word || payload.term || payload.text || ""
     ).trim();
 
     if (!word) {
@@ -838,14 +823,12 @@ function buildPrompt(
     }
 
     const factory =
-      PROMPTS.derivatives[promptLang] ||
-      PROMPTS.derivatives.ar;
+      PROMPTS.derivatives[promptLang] || PROMPTS.derivatives.ar;
 
     return {
       prompt: factory(word),
     };
   }
-
 
   /* -------------------------------------------------------
      SEMANTIC
@@ -853,33 +836,34 @@ function buildPrompt(
 
   if (task === "semantic") {
     const semanticPayload =
-      payload && typeof payload === "object"
-        ? payload
-        : {};
+      payload && typeof payload === "object" ? payload : {};
 
-
-const candidates = [
-  semanticPayload.concept,
-  semanticPayload.query,
-  semanticPayload.term,
-  semanticPayload.text,
-  semanticPayload.searchQuery,
-  semanticPayload.semanticConcept,
-  semanticPayload.keyword,
-];
-
+    const candidates = [
+      semanticPayload.concept,
+      semanticPayload.query,
+      semanticPayload.term,
+      semanticPayload.text,
+      semanticPayload.searchQuery,
+      semanticPayload.semanticConcept,
+      semanticPayload.keyword,
+    ];
 
     const concept = String(
       candidates.find(
-        (value) =>
-          typeof value === "string" &&
-          value.trim().length > 0
+        (value) => typeof value === "string" && value.trim().length > 0
       ) ?? ""
     ).trim();
 
-    const context = String(
-      semanticPayload.context ?? ""
-    ).trim();
+    const allowedBooks = String(semanticPayload.allowedBooks ?? "").trim();
+    const filterContext = String(semanticPayload.filterContext ?? "").trim();
+
+    const context = [
+      filterContext,
+      String(semanticPayload.context ?? "").trim(),
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
 
     if (!concept) {
       return {
@@ -887,29 +871,24 @@ const candidates = [
       };
     }
 
-    const factory =
-      PROMPTS.semantic[promptLang] ||
-      PROMPTS.semantic.ar;
+    const factory = PROMPTS.semantic[promptLang] || PROMPTS.semantic.ar;
 
     return {
-      prompt: factory(concept, context),
+      prompt: factory(concept, context, allowedBooks),
     };
   }
-
 
   /* -------------------------------------------------------
      STUDY PLAN
   ------------------------------------------------------- */
 
   if (task === "studyPlan") {
-    const factory =
-      PROMPTS.studyPlan[promptLang] ||
-      PROMPTS.studyPlan.ar;
+    const factory = PROMPTS.studyPlan[promptLang] || PROMPTS.studyPlan.ar;
 
     return {
       prompt: factory(payload),
     };
-  };
+  }
 
   return {
     error: `Unknown task: ${task}`,
@@ -920,61 +899,93 @@ const candidates = [
    GEMINI GENERATION
 ========================================================= */
 
-async function generateText(
-  prompt,
-  task,
-  attempt
-) {
-  const genAI =
-    getGenAI(attempt);
+async function generateText(prompt, task, attempt) {
+  const genAI = getGenAI(attempt);
 
-  const model =
-    genAI.getGenerativeModel({
-      model: MODEL_NAME,
-    });
+  const model = genAI.getGenerativeModel({
+    model: MODEL_NAME,
+  });
 
-  const result =
-    await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      generationConfig:
-        getGenerationConfig(task),
-    });
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    generationConfig: getGenerationConfig(task),
+  });
 
-  const text =
-    result.response.text();
+  const text = result.response.text();
 
-  if (
-    !text ||
-    !text.trim()
-  ) {
-    throw new Error(
-      `Gemini returned an empty ${task} response.`
-    );
+  if (!text || !text.trim()) {
+    throw new Error(`Gemini returned an empty ${task} response.`);
   }
 
   return text;
 }
 
 /* =========================================================
+   SEMANTIC OUTPUT NORMALIZER
+   Makes sure "verses" is always an array of integers
+   and "chapter" is always a number, so the client works
+   without any changes.
+========================================================= */
+
+function parseVerses(verses) {
+  if (Array.isArray(verses)) {
+    return verses.map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  }
+  if (typeof verses === "number") return [verses];
+  if (typeof verses !== "string") return [];
+
+  const out = [];
+  verses
+    .replace(/[،؛;]/g, ",")
+    .replace(/[–—]/g, "-")
+    .split(",")
+    .forEach((part) => {
+      const p = part.trim();
+      const range = p.match(/^(\d+)\s*-\s*(\d+)$/);
+      if (range) {
+        const start = parseInt(range[1], 10);
+        const end = Math.min(parseInt(range[2], 10), start + 50);
+        for (let n = start; n <= end; n++) out.push(n);
+      } else if (/^\d+$/.test(p)) {
+        out.push(parseInt(p, 10));
+      }
+    });
+  return out;
+}
+
+function normalizeSemanticOutput(text) {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return text;
+  try {
+    const data = JSON.parse(match[0]);
+    const results = (Array.isArray(data.results) ? data.results : [])
+      .map((r) => ({
+        ...r,
+        chapter: Number(r.chapter),
+        verses: parseVerses(r.verses),
+      }))
+      .filter((r) => r.book && r.chapter > 0 && r.verses.length > 0);
+    return JSON.stringify({ results });
+  } catch {
+    return text;
+  }
+}
+
+/* =========================================================
    SERVER CACHE
 ========================================================= */
 
-function getServerCacheKey(
-  cacheKey
-) {
-  if (
-    typeof cacheKey !== "string" ||
-    !cacheKey.trim()
-  ) {
+function getServerCacheKey(cacheKey) {
+  if (typeof cacheKey !== "string" || !cacheKey.trim()) {
     return null;
   }
 
@@ -996,30 +1007,19 @@ function getServerCacheKey(
    RETRYABLE STATUSES
 ========================================================= */
 
-const RETRYABLE_STATUSES = [
-  429,
-  500,
-  502,
-  503,
-  504,
-];
+const RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
 
 /* =========================================================
    POST
 ========================================================= */
 
-export async function POST(
-  request
-) {
+export async function POST(request) {
   try {
     /* -------------------------------------------------------
        Static export
     ------------------------------------------------------- */
 
-    if (
-      process.env.NEXT_PUBLIC_EXPORT ===
-      "true"
-    ) {
+    if (process.env.NEXT_PUBLIC_EXPORT === "true") {
       return NextResponse.json(
         {
           static: true,
@@ -1035,25 +1035,23 @@ export async function POST(
        Parse request
     ------------------------------------------------------- */
 
-    const body =
-      await request.json();
+    const body = await request.json();
 
-    const {
-      task,
-      lang = "ar",
-      payload = {},
-      attempt = 0,
-      cacheKey,
-    } = body || {};
+    let { task, lang = "ar", payload = {}, attempt = 0, cacheKey } = body || {};
+
+    /*
+      The client calls "derivatives_stream" and reads the body
+      as raw text. Map it to the normal "derivatives" task and
+      remember to return raw text instead of the JSON envelope.
+    */
+    const isStream = task === "derivatives_stream";
+    if (isStream) task = "derivatives";
 
     /* -------------------------------------------------------
        Validate task
     ------------------------------------------------------- */
 
-    if (
-      !task ||
-      !PROMPTS[task]
-    ) {
+    if (!task || !PROMPTS[task]) {
       return NextResponse.json(
         {
           error: `Unknown task: ${task}`,
@@ -1069,19 +1067,13 @@ export async function POST(
        Language
     ------------------------------------------------------- */
 
-    const languageInfo =
-      resolveLanguage(lang);
+    const languageInfo = resolveLanguage(lang);
 
     /* -------------------------------------------------------
        Build prompt
     ------------------------------------------------------- */
 
-    const built =
-      buildPrompt(
-        task,
-        payload || {},
-        languageInfo
-      );
+    const built = buildPrompt(task, payload || {}, languageInfo);
 
     if (built.error) {
       return NextResponse.json(
@@ -1099,10 +1091,7 @@ export async function POST(
        Server cache key
     ------------------------------------------------------- */
 
-    const serverKey =
-      getServerCacheKey(
-        cacheKey
-      );
+    const serverKey = getServerCacheKey(cacheKey);
 
     /* -------------------------------------------------------
        Cache read
@@ -1110,49 +1099,45 @@ export async function POST(
 
     if (serverKey) {
       try {
-        const cached =
-          await kv.get(
-            serverKey
-          );
+        const cached = await kv.get(serverKey);
 
         if (cached) {
-const responseData = {
-  cached: true,
-  data: cached,
-  text: typeof cached === "string"
-    ? cached
-    : JSON.stringify(cached),
-};
+          const cachedText =
+            typeof cached === "string" ? cached : JSON.stringify(cached);
+
+          if (isStream) {
+            return new Response(cachedText, {
+              status: 200,
+              headers: {
+                ...corsHeaders,
+                "Content-Type": "text/plain; charset=utf-8",
+              },
+            });
+          }
+
+          const responseData = {
+            cached: true,
+            data: cached,
+            text: cachedText,
+          };
 
           /*
             Preserve old analysis
             response metadata.
           */
 
-          if (
-            task === "analysis" &&
-            built.metadata
-          ) {
-            responseData.reference =
-              built.metadata.reference;
-
-            responseData.verseText =
-              built.metadata.verseText;
+          if (task === "analysis" && built.metadata) {
+            responseData.reference = built.metadata.reference;
+            responseData.verseText = built.metadata.verseText;
           }
 
-          return NextResponse.json(
-            responseData,
-            {
-              status: 200,
-              headers: corsHeaders,
-            }
-          );
+          return NextResponse.json(responseData, {
+            status: 200,
+            headers: corsHeaders,
+          });
         }
       } catch (cacheError) {
-        console.error(
-          "KV GET error:",
-          cacheError
-        );
+        console.error("KV GET error:", cacheError);
       }
     }
 
@@ -1160,12 +1145,13 @@ const responseData = {
        Generate
     ------------------------------------------------------- */
 
-    const text =
-      await generateText(
-        built.prompt,
-        task,
-        Number(attempt) || 0
-      );
+    let text = await generateText(built.prompt, task, Number(attempt) || 0);
+
+    // Make sure the client always receives clean semantic JSON
+    // (verses = array of integers, chapter = number).
+    if (task === "semantic") {
+      text = normalizeSemanticOutput(text);
+    }
 
     /* -------------------------------------------------------
        Cache write
@@ -1173,77 +1159,67 @@ const responseData = {
 
     if (serverKey) {
       try {
-        await kv.set(
-          serverKey,
-          text
-        );
+        await kv.set(serverKey, text);
       } catch (cacheError) {
-        console.error(
-          "KV SET error:",
-          cacheError
-        );
+        console.error("KV SET error:", cacheError);
       }
+    }
+
+    /* -------------------------------------------------------
+       Raw text response for derivatives_stream
+    ------------------------------------------------------- */
+
+    if (isStream) {
+      return new Response(text, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      });
     }
 
     /* -------------------------------------------------------
        Response
     ------------------------------------------------------- */
 
-const responseData = {
-  data: text,
-  text: text,
-  cached: false,
-};
+    const responseData = {
+      data: text,
+      text: text,
+      cached: false,
+    };
 
     /*
       Preserve old analysis
       response fields.
     */
 
-    if (
-      task === "analysis" &&
-      built.metadata
-    ) {
-      responseData.reference =
-        built.metadata.reference;
-
-      responseData.verseText =
-        built.metadata.verseText;
+    if (task === "analysis" && built.metadata) {
+      responseData.reference = built.metadata.reference;
+      responseData.verseText = built.metadata.verseText;
     }
 
-    return NextResponse.json(
-      responseData,
-      {
-        status: 200,
-        headers: corsHeaders,
-      }
-    );
+    return NextResponse.json(responseData, {
+      status: 200,
+      headers: corsHeaders,
+    });
   } catch (error) {
-    console.error(
-      "Gemini API error:",
-      error
-    );
+    console.error("Gemini API error:", error);
 
     /* -------------------------------------------------------
        Upstream status
     ------------------------------------------------------- */
 
-    const upstreamStatus =
-      Number(error?.status);
+    const upstreamStatus = Number(error?.status);
 
-    const status =
-      RETRYABLE_STATUSES.includes(
-        upstreamStatus
-      )
-        ? upstreamStatus
-        : 500;
+    const status = RETRYABLE_STATUSES.includes(upstreamStatus)
+      ? upstreamStatus
+      : 500;
 
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unknown server error",
+          error instanceof Error ? error.message : "Unknown server error",
       },
       {
         status,
@@ -1258,13 +1234,10 @@ const responseData = {
 ========================================================= */
 
 export async function OPTIONS() {
-  return new NextResponse(
-    null,
-    {
-      status: 204,
-      headers: corsHeaders,
-    }
-  );
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
 }
 
 /* =========================================================
