@@ -1,89 +1,172 @@
 .overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  inset: 0;
+  overflow-y: auto;
+  background: radial-gradient(circle at 50% 42%, rgba(77, 51, 160, 0.38), transparent 38%), rgba(8, 10, 25, 0.84);
+  backdrop-filter: blur(14px) saturate(125%);
   z-index: 1000001;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom));
+  perspective: 1000px;
 }
 
 .modal {
-  background: var(--color-card-bg);
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 26%, rgba(255, 255, 255, 0.11), transparent 48%),
+    linear-gradient(155deg, color-mix(in srgb, var(--color-card-bg) 92%, #4530a5), var(--color-card-bg) 58%);
   width: 100%;
-  max-width: 400px;
-  border-radius: 40px;
+  max-width: 430px;
+  max-height: 100%;
+  overflow-y: auto;
+  border-radius: 36px;
   position: relative;
-  padding: 40px 25px;
+  padding: 34px 28px 28px;
   text-align: center;
-  border: 2px solid var(--color-accent);
-  box-shadow: 0 0 50px rgba(var(--color-accent-rgb), 0.3);
-  animation: modalPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid rgba(255, 255, 255,  0.24);
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.55), 0 0 0 7px rgba(255, 255, 255, 0.045), 0 0 70px rgba(124, 92, 255, 0.26);
 }
 
-@keyframes modalPop {
-  from { transform: scale(0.5); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+.topShine {
+  position: absolute;
+  z-index: -1;
+  height: 210px;
+  width: 150%;
+  left: -25%;
+  top: -165px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  filter: blur(28px);
 }
 
 .closeBtn {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  background: var(--color-border);
-  border: none;
-  width: 35px;
-  height: 35px;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--color-text-primary);
+  transition: transform 180ms ease, background 180ms ease;
+  z-index: 2;
+}
+
+.closeBtn:hover {
+  transform: rotate(90deg) scale(1.08);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .celebrationText {
-  color: var(--color-accent);
+  color: #ffe28a;
   font-weight: 900;
-  font-size: 1.4rem;
-  margin-bottom: 10px;
+  font-size: clamp(1.15rem, 4vw, 1.45rem);
+  margin: 0 24px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-shadow: 0 2px 18px rgba(255, 202, 70, 0.28);
+}
+
+.celebrationText svg {
+  color: #ffd166;
+  animation: twinkle 1.6s ease-in-out infinite alternate;
+}
+
+.celebrationText svg:last-child {
+  animation-delay: 0.5s;
 }
 
 .badgeDisplay {
-  margin: 30px 0;
+  margin: 7px 0 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
+}
+
+.badgeStage {
+  height: 218px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  isolation: isolate;
+}
+
+.badgeStage::before,
+.badgeStage::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.badgeStage::before {
+  width: 184px;
+  height: 184px;
+  background: radial-gradient(circle, rgba(255, 208, 91, 0.24), rgba(130, 89, 255, 0.14) 48%, transparent 72%);
+  animation: auraPulse 2.4s ease-in-out infinite;
+}
+
+.badgeStage::after {
+  width: 148px;
+  height: 148px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.12), inset 0 0 25px rgba(255, 255, 255, 0.08);
+  animation: orbit 12s linear infinite;
 }
 
 .iconWrapper {
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(135deg, var(--color-accent) 0%, #3b82f6 100%);
-  border-radius: 30px;
+  width: 126px;
+  height: 126px;
+  border-radius: 38px;
+  background: linear-gradient(145deg, #fff2b2 0%, #ffc857 25%, #ff8c58 57%, #8d61ff 100%);
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 15px 30px rgba(var(--color-accent-rgb), 0.4);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.32), 0 0 42px rgba(255, 184, 71, 0.35), inset 0 2px 0 rgba(255, 255, 255, 0.72);
   position: relative;
+  z-index: 1;
+  transform-origin: 50% 65%;
+}
+
+.iconInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 34px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #4c38a6 0%, #7049d9 48%, #3b62bb 100%);
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  color: #fff9db;
+  filter: drop-shadow(0 3px 0 rgba(30, 20, 70, 0.28));
+}
+
+.iconInner svg {
+  filter: drop-shadow(0 5px 9px rgba(12, 10, 35, 0.35));
 }
 
 .glow {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  background: inherit;
-  filter: blur(20px);
-  opacity: 0.5;
+  inset: -14px;
+  border-radius: 44px;
+  background: conic-gradient(from 0deg, #ffcf6b, #ff77a8, #8a73ff, #5fe2ca, #ffcf6b);
+  filter: blur(25px);
+  opacity: 0.52;
   z-index: -1;
-  animation: rotateGlow 4s infinite linear;
+  animation: rotateGlow 7s infinite linear;
 }
 
 @keyframes rotateGlow {
@@ -91,26 +174,84 @@
   to { transform: rotate(360deg); }
 }
 
+.rays {
+  position: absolute;
+  width: 204px;
+  height: 204px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 220, 125, 0.22) 0deg 3deg, transparent 3deg 18deg);
+  mask-image: radial-gradient(circle, transparent 0 37%, #000 42% 66%, transparent 72%);
+  animation: raysTurn 24s linear infinite;
+}
+
+.particle {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--particle-color);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--particle-color), transparent 30%);
+  opacity: 0;
+  animation: particleBurst 1.05s cubic-bezier(0.12, 0.65, 0.24, 1) var(--particle-delay) both;
+}
+
+@keyframes particleBurst {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateY(0) scale(0.3); }
+  12% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateY(calc(var(--particle-distance) * -1)) scale(0.7) rotate(130deg); }
+}
+
+@keyframes auraPulse {
+  0%, 100% { transform: scale(0.88); opacity: 0.64; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+@keyframes orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes raysTurn {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes twinkle {
+  from { opacity: 0.58; transform: scale(0.82) rotate(-10deg); }
+  to { opacity: 1; transform: scale(1.12) rotate(10deg); }
+}
+
 .badgeName {
-  font-size: 1.8rem;
+  font-size: clamp(1.55rem, 6vw, 2rem);
+  line-height: 1.2;
   font-weight: 900;
   color: var(--color-text-primary);
+  margin: 0;
+  text-wrap: balance;
+  text-shadow: 0 3px 18px rgba(255, 255, 255, 0.08);
 }
 
 .rarityTag {
-  padding: 4px 15px;
-  border-radius: 20px;
-  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
   font-weight: 800;
-  margin-bottom: 15px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .description {
   color: var(--color-text-secondary);
-  font-size: 1rem;
+  font-size: 0.98rem;
   line-height: 1.6;
-  margin-bottom: 30px;
+  margin: 0 auto 22px;
+  max-width: 340px;
 }
 
 .actions {
@@ -120,27 +261,13 @@
 }
 
 .primaryBtn {
-  background: var(--color-accent);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(110deg, var(--color-accent), #7655ec 58%, #38b8a2);
   color: white;
   border: none;
-  padding: 16px;
-  border-radius: 20px;
-  font-weight: 800;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  transition: transform 0.2s;
-}
-
-.secondaryBtn {
-  background: transparent;
-  color: var(--color-accent);
-  border: 2px solid var(--color-accent);
-  padding: 14px;
-  border-radius: 20px;
+  padding: 15px 16px;
+  border-radius: 18px;
   font-weight: 800;
   font-size: 1rem;
   cursor: pointer;
@@ -148,16 +275,60 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
+  box-shadow: 0 9px 22px rgba(72, 58, 174, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease;
+}
+
+.primaryBtn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 13px 26px rgba(72, 58, 174, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.secondaryBtn {
+  background: transparent;
+  color: var(--color-accent);
+  border: 2px solid var(--color-accent);
+  padding: 13px 14px;
+  border-radius: 18px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.secondaryBtn:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-accent) 9%, transparent);
 }
 
 .primaryBtn:active, .secondaryBtn:active {
   transform: scale(0.95);
 }
 
-/* Rarity Colors */
-.rarity_عادي { background: #94a3b8; color: white; }
-.rarity_مميز { background: #3b82f6; color: white; }
-.rarity_نادر { background: #8b5cf6; color: white; }
-.rarity_أسطوري { background: #f59e0b; color: white; }
-.rarity_خرافي { background: #ef4444; color: white; }
-.rarity_سري { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
+.rarity_common { background: linear-gradient(135deg, #718096, #a0aec0); color: #fff; }
+.rarity_uncommon { background: linear-gradient(135deg, #1976d2, #55b5ff); color: #fff; }
+.rarity_rare { background: linear-gradient(135deg, #7144d8, #b06cff); color: #fff; }
+.rarity_epic { background: linear-gradient(135deg, #e18a12, #ffd166); color: #382300; }
+.rarity_mythic { background: linear-gradient(135deg, #d93863, #ff8a5c); color: #fff; }
+.rarity_secret { background: linear-gradient(135deg, #172033, #374151); color: #f8fafc; border: 1px solid #64748b; }
+
+@media (max-width: 480px) {
+  .overlay { padding-inline: 12px; }
+  .modal { border-radius: 30px; padding: 30px 20px 22px; }
+  .badgeStage { height: 196px; }
+  .iconWrapper { width: 112px; height: 112px; border-radius: 34px; }
+  .iconInner { border-radius: 30px; }
+  .badgeStage::before { width: 164px; height: 164px; }
+  .badgeStage::after { width: 134px; height: 134px; }
+  .rays { width: 184px; height: 184px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebrationText svg, .glow, .badgeStage::before, .badgeStage::after, .rays { animation: none; }
+  .closeBtn, .primaryBtn, .secondaryBtn { transition: none; }
+}

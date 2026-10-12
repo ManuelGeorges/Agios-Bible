@@ -120,6 +120,11 @@ export const StorageService = {
     },
 
     async getLocalStats() {
+        const [badges, legacyBadges] = await Promise.all([
+            this.get(KEYS.LOCAL_BADGES),
+            this.get('local_badges')
+        ]);
+
         return {
             points: (await this.get(KEYS.POINTS)) || 0,
             streak: (await this.get(KEYS.STREAK)) || 0,
@@ -128,6 +133,7 @@ export const StorageService = {
             notes: (await this.get(KEYS.NOTES)) || [],
             favorites: (await this.get(KEYS.FAVORITES)) || {},
             readingHistory: (await this.get(KEYS.READING_HISTORY)) || [],
+            badges: [...new Set([...(Array.isArray(badges) ? badges : []), ...(Array.isArray(legacyBadges) ? legacyBadges : [])])],
         };
     }
 };

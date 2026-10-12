@@ -3,19 +3,24 @@ import { db, auth } from "./firebase";
 import { StorageService, KEYS } from "./storage";
 import { App } from '@capacitor/app';
 
-export const syncLocalDataToFirebase = async (user) => {
-    if (!user || !db) return;
+const activeSyncs = new Map();
 
-    try {
-        const userRef = doc(db, 'users', user.uid);
-        const userSnap = await getDoc(userRef);
+export const syncLocalDataToFirebase = async (user) => {
+        if (!user || !db) return false;
+        if (activeSyncs.has(user.uid)) return activeSyncs.get(user.uid);
+
+        const syncPromise = (async () => {
+            try {
+                const userRef = doc(db, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+                const remoteData = userSnap.exists() ? userSnap.data() : {};
 
         const localStats = await StorageService.getLocalStats();
         const localCompletedPlans = await StorageService.get('local_completed_plans') || {};
         const localCustomPlans = await StorageService.get('local_custom_plans') || {};
         const localHistory = await StorageService.get('points_history') || [];
         const localAnswered = await StorageService.get('answered_questions') || {};
-        const localBadges = await StorageService.get('local_badges') || [];
+        const localBadges = localStats.badges || [];
         const localLastActive = await StorageService.get(KEYS.LAST_ACTIVE);
         const localChapters = await StorageService.get(KEYS.COMPLETED_CHAPTERS) || {};
         const localMapPoints = await StorageService.get('visited_map_points') || [];
@@ -33,6 +38,13 @@ export const syncLocalDataToFirebase = async (user) => {
                 reason: 'دمج النقاط من الجهاز المحلي',
                 timestamp: new Date().toISOString()
             });
+        }
+
+        // Restore the guest streak without replacing a higher account streak.
+        const remoteStreak = Number(remoteData.streak) || 0;
+        const localStreak = Number(localStats.streak) || 0;
+        if (localStreak > remoteStreak) {
+            updates.streak = localStreak;
         }
 
         // 2. مزامنة سجل النقاط
@@ -96,7 +108,8 @@ export const syncLocalDataToFirebase = async (user) => {
         if (localLastRead) {
             updates.lastRead = localLastRead;
         }
-        if (localLastActive) {
+        const remoteLastActive = remoteData.lastActiveDate || remoteData.lastLoginDate;
+        if (localLastActive && (!remoteLastActive || localLastActive > remoteLastActive)) {
             updates.lastActiveDate = localLastActive;
         }
 
@@ -121,6 +134,7 @@ export const syncLocalDataToFirebase = async (user) => {
             await StorageService.save('answered_questions', {});
             await StorageService.save('local_completed_plans', {});
             await StorageService.save('local_custom_plans', {});
+            await StorageService.save(KEYS.LOCAL_BADGES, []);
             await StorageService.save('local_badges', []);
             await StorageService.save(KEYS.COMPLETED_CHAPTERS, {});
             await StorageService.save('visited_map_points', []);
@@ -134,8 +148,18 @@ export const syncLocalDataToFirebase = async (user) => {
         }
 
         console.log("Sync: All data merged successfully");
-    } catch (error) {
+        return true;
+            } catch (error) {
         console.error("Sync Error:", error);
+        return false;
+      }
+    })();
+
+    activeSyncs.set(user.uid, syncPromise);
+    try {
+        return await syncPromise;
+    } finally {
+        activeSyncs.delete(user.uid);
     }
 };
 

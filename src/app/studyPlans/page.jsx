@@ -365,6 +365,11 @@ export default function StudyPlans() {
         {allAvailablePlans.length > 0 ? (
           allAvailablePlans.map(plan => {
             const isSharedPlan = plan.isShared;
+            const isManualPlan = plan.isManual === true || plan.creationMethod === 'manual';
+            const sourcePlanId = String(plan.originalPlanId || plan.id || '');
+            const isAIPlan = plan.creationMethod === 'ai'
+              || (plan.isCustom && !isManualPlan)
+              || (isSharedPlan && !isManualPlan && sourcePlanId.startsWith('ai_'));
             const progress = plan.isCustom 
               ? { percent: plan.completionPercentage || 0, done: Object.values(plan.completedDays || {}).filter(d => d.isCompleted).length }
               : {
@@ -383,10 +388,10 @@ export default function StudyPlans() {
               <div key={plan.id} className={styles.card}>
                 {isPersonalCopy && <button className={styles.deleteBtn} onClick={(e) => handleDeletePlan(e, plan.id)}>✕</button>}
                 <div className={styles.cardContent}>
-                  {plan.isCustom && !plan.isManual && (
+                  {isAIPlan && (
                     <span className={styles.aiBadge}><Sparkles size={14} /> {strings.studyPlans.card.ai_badge}</span>
                   )}
-                  {plan.isCustom && plan.isManual && (
+                  {isManualPlan && (
                     <span className={styles.aiBadge}><PenLine size={14} /> {manualBadgeLabel}</span>
                   )}
                   {isSharedPlan && <span className={styles.sharedBadge}><Share2 size={14} /> {strings.studyPlans.card.shared_badge}</span>}

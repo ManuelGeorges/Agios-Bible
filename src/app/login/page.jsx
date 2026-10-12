@@ -14,6 +14,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Capacitor } from '@capacitor/core';
 import { auth, db } from '../../lib/firebase';
+import { syncLocalDataToFirebase } from '../../lib/SyncService';
 import styles from './login.module.css';
 import { Apple } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -63,6 +64,7 @@ const LoginPage = () => {
         }, { merge: true });
       }
     } catch (err) { console.error("Firestore Sync Error:", err); }
+    await syncLocalDataToFirebase(user);
   };
 
   // وظيفة لضمان مزامنة نسخة الـ JS SDK مع الدخول النيتيف (Native)

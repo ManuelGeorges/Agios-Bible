@@ -14,6 +14,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Capacitor } from '@capacitor/core';
 import { auth, db } from '../../lib/firebase';
+import { syncLocalDataToFirebase } from '../../lib/SyncService';
 import styles from './signup.module.css';
 import { Apple } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -65,6 +66,7 @@ export default function SignUpPage() {
         }, { merge: true });
       }
     } catch (err) { console.error("Firestore Sync Error:", err); }
+    await syncLocalDataToFirebase(user);
   };
 
   const syncAuthAndRedirect = async (nativeResult) => {

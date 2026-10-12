@@ -221,6 +221,7 @@ export default function CustomPlanForm() {
                     ...plan,
                     id: planId,
                     type: 'custom',
+                    creationMethod: 'ai',
                     createdAt: getCairoIsoString(),
                     completedDays: {},
                     completionPercentage: 0,
@@ -250,6 +251,7 @@ export default function CustomPlanForm() {
                         originalPlanId: planId,
                         language: language
                     });
+                    await StorageService.save(KEYS.LAST_SHARED_PLANS_FETCH, 0);
                 }
 
                 toast.success(strings.studyPlans.custom.success_toast);

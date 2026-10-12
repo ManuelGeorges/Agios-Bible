@@ -297,6 +297,7 @@ export default function ManualPlanForm() {
         description: description.trim(),
         type: 'custom',
         isManual: true,
+        creationMethod: 'manual',
         readings,
         createdAt: getCairoIsoString(),
         completedDays: {},
@@ -325,6 +326,7 @@ export default function ManualPlanForm() {
           createdAt: serverTimestamp(),
           originalPlanId: planId,
         });
+        await StorageService.save(KEYS.LAST_SHARED_PLANS_FETCH, 0);
       }
 
       toast.success(t.success);
