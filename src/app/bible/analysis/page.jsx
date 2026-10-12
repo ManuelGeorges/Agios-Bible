@@ -1219,6 +1219,7 @@ function AnalysisContent() {
      */
 
     let verseText = '';
+    let referenceOnlyAnalysis = false;
 
     try {
       setStatus(
@@ -1243,16 +1244,23 @@ function AnalysisContent() {
 
       console.error('Bible text extraction error:', textError);
 
-      setError(
+      // Last-resort fallback: continue with the reference only. This runs
+      // only after the translation loader and its network retries have failed.
+      // The server receives an explicit flag and uses a prompt that does not
+      // claim the exact Biblical text was supplied.
+      referenceOnlyAnalysis = true;
+      setStatus(
         language === 'ar'
-          ? 'تعذر تجهيز نص الكتاب المقدس للتحليل. حاول مرة أخرى.'
-          : 'Could not prepare the Bible text for analysis. Please try again.'
+          ? 'تعذر تحميل النص؛ جاري إعداد تحليل بالمرجع الكتابي فقط...'
+          : 'The text could not be loaded; preparing analysis from the Biblical reference only...'
       );
-
-      setIsLoading(false);
-
-      return;
     }
+
+    // A reference-only response must never replace the normal, exact-text
+    // analysis in either the browser or server cache.
+    const requestCacheKey = referenceOnlyAnalysis
+      ? `${cacheKey}:reference-only`
+      : cacheKey;
 
 
     /*
@@ -1274,19 +1282,23 @@ function AnalysisContent() {
         signal: controller.signal,
 
         body: JSON.stringify({
-          task: 'analysis',
+          // The API still accepts the old `analysis` task; this stream task
+          // lets the user see the answer as Gemini produces it.
+          task: 'analysis_stream',
 
           lang: language,
 
           attempt: attemptIndex,
 
           // Lets the server cache the response too (under its own key)
-          cacheKey,
+          cacheKey: requestCacheKey,
 
           payload: {
             targetText,
 
             verseText,
+
+            referenceOnly: referenceOnlyAnalysis,
           },
         }),
       });
@@ -1437,7 +1449,7 @@ function AnalysisContent() {
 
       if (finalText) {
         // Do not block UI waiting for KV
-        void writeCachedAnalysis(cacheKey, language, finalText);
+        void writeCachedAnalysis(requestCacheKey, language, finalText);
 
         void recordAnalysisGoal();
       }

@@ -418,6 +418,65 @@ Before sending the answer, verify that:
 `,
 };
 
+// Used only when the client could not retrieve the translation file after its
+// normal retries. Keeping this separate prevents the model from treating a
+// missing passage as if the exact text had been provided by the user.
+const REFERENCE_ONLY_ANALYSIS_PROMPTS = {
+  ar: (reference, answerLanguage = "العربية") => `
+أنت "مساعد آجيوس الذكي"، متخصص في دراسة الكتاب المقدس ضمن الإطار القبطي الأرثوذكسي.
+
+تعذر على التطبيق تحميل النص الكتابي محلياً بسبب مشكلة تقنية، لكن المرجع المطلوب هو:
+"${reference}"
+
+قدّم تحليلاً مساعداً اعتماداً على المرجع فقط. لا تقل أو تلمّح أن النص الكامل أُرسل إليك، ولا تنسب اقتباساً حرفياً إلى المرجع إلا إذا كنت متأكداً تماماً منه. إذا كان المرجع واسعاً أو يضم عدة آيات، قدّم شرحاً للسياق والفكرة الرئيسية بدلاً من اختراع كلمات أو تفاصيل غير مؤكدة.
+
+لا تختلق مصادر أو اقتباسات أو نسباً للآباء. ميّز بين المعلومة المؤكدة والاستنتاج، واذكر بإيجاز أن النص لم يكن متاحاً للتحقق الحرفي عند الحاجة.
+
+لا تستخدم Markdown. اكتب الإجابة كاملة بالعربية، وقسّمها إلى الأقسام العشرة التالية، وكل عنوان في سطر مستقل ثم محتواه في سطر جديد:
+
+1. مقدمة عن النص وسياقه:
+2. الفكرة الرئيسية للمرجع:
+3. المعاني اللغوية للكلمات المحورية إن تأكدت:
+4. الخلفية التاريخية:
+5. التفسير الكتابي والروحي:
+6. التفسير الآبائي الموثق إن توفر:
+7. ترابط المرجع مع سياقه:
+8. التطبيق الحياتي:
+9. أسئلة أو نقاط تحتاج الرجوع للنص فيها:
+10. خلاصة مركزة:
+
+وفي النهاية، في سطر مستقل، اكتب حرفياً:
+ودائماً ننصح بالرجوع لأب اعترافك.
+`,
+
+  en: (reference, answerLanguage = "English") => `
+You are "Agios Intelligent Assistant", specialized in Biblical study within a Coptic Orthodox framework.
+
+The app could not retrieve the Biblical text because of a technical problem. The requested reference is:
+"${reference}"
+
+Provide a helpful analysis based on the reference only. Do not state or imply that the full passage was supplied. Do not quote the passage unless you are completely certain of the wording. If the reference spans multiple verses, discuss its context and central theme instead of inventing wording or uncertain details.
+
+Do not fabricate sources, quotations, or patristic attributions. Clearly distinguish reliable information from interpretation, and briefly state when a point cannot be verified against the exact text.
+
+Do not use Markdown. Write the complete response, including headings, in ${answerLanguage}. Use exactly these ten sections, with each heading on its own line and its content starting on the next line:
+
+1. Introduction and context:
+2. Main idea of the reference:
+3. Key linguistic meanings, when certain:
+4. Historical background:
+5. Biblical and spiritual interpretation:
+6. Documented patristic interpretation, if reliably known:
+7. Relationship to the surrounding context:
+8. Life application:
+9. Questions or points requiring the exact text:
+10. Conclusion:
+
+After section 10, on a separate line, end with:
+We always encourage you to refer back to your father of confession.
+`,
+};
+
 /* =========================================================
    OTHER PROMPTS
 ========================================================= */
@@ -707,6 +766,7 @@ function normalizeAnalysisPayload(payload = {}) {
   return {
     reference: String(reference).trim(),
     verseText: String(verseText).trim(),
+    referenceOnly: payload.referenceOnly === true,
   };
 }
 
@@ -714,11 +774,17 @@ function normalizeAnalysisPayload(payload = {}) {
    VALIDATION
 ========================================================= */
 
-function validateAnalysisInput(reference, verseText) {
+function validateAnalysisInput(reference, verseText, referenceOnly = false) {
   if (!reference) {
     return {
       valid: false,
       error: "Missing Biblical reference.",
+    };
+  }
+
+  if (referenceOnly) {
+    return {
+      valid: true,
     };
   }
 
@@ -746,13 +812,27 @@ function validateAnalysisInput(reference, verseText) {
    GENERATION CONFIG
 ========================================================= */
 
-function getGenerationConfig(task) {
+function getGenerationConfig(task, payload = {}) {
   switch (task) {
     case "analysis":
+      // A single verse does not need the chapter-sized 8K output budget.
+      // Keep the previous ceiling for long selections while speeding up the
+      // common short-reference request.
+      {
+        const textLength = String(payload.verseText || "").length;
+        const maxOutputTokens = payload.referenceOnly
+          ? 3072
+          : textLength <= 500
+            ? 3072
+            : textLength <= 2500
+              ? 4608
+              : 8192;
+
       return {
-        maxOutputTokens: 8192,
+        maxOutputTokens,
         temperature: 0.15,
       };
+      }
 
     case "studyPlan":
       return {
@@ -785,9 +865,9 @@ function buildPrompt(task, payload, { promptLang, answerLanguage }) {
   ------------------------------------------------------- */
 
   if (task === "analysis") {
-    const { reference, verseText } = normalizeAnalysisPayload(payload);
+    const { reference, verseText, referenceOnly } = normalizeAnalysisPayload(payload);
 
-    const validation = validateAnalysisInput(reference, verseText);
+    const validation = validateAnalysisInput(reference, verseText, referenceOnly);
 
     if (!validation.valid) {
       return {
@@ -795,13 +875,20 @@ function buildPrompt(task, payload, { promptLang, answerLanguage }) {
       };
     }
 
-    const factory = PROMPTS.analysis[promptLang] || PROMPTS.analysis.ar;
+    const prompts = referenceOnly
+      ? REFERENCE_ONLY_ANALYSIS_PROMPTS
+      : PROMPTS.analysis;
+
+    const factory = prompts[promptLang] || prompts.ar;
 
     return {
-      prompt: factory(reference, verseText, answerLanguage),
+      prompt: referenceOnly
+        ? factory(reference, answerLanguage)
+        : factory(reference, verseText, answerLanguage),
       metadata: {
         reference,
         verseText,
+        referenceOnly,
       },
     };
   }
@@ -899,7 +986,7 @@ function buildPrompt(task, payload, { promptLang, answerLanguage }) {
    GEMINI GENERATION
 ========================================================= */
 
-async function generateText(prompt, task, attempt) {
+async function generateText(prompt, task, attempt, payload) {
   const genAI = getGenAI(attempt);
 
   const model = genAI.getGenerativeModel({
@@ -917,7 +1004,7 @@ async function generateText(prompt, task, attempt) {
         ],
       },
     ],
-    generationConfig: getGenerationConfig(task),
+    generationConfig: getGenerationConfig(task, payload),
   });
 
   const text = result.response.text();
@@ -927,6 +1014,20 @@ async function generateText(prompt, task, attempt) {
   }
 
   return text;
+}
+
+async function* generateTextStream(prompt, task, attempt, payload) {
+  const genAI = getGenAI(attempt);
+  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const result = await model.generateContentStream({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: getGenerationConfig(task, payload),
+  });
+
+  for await (const chunk of result.stream) {
+    const text = chunk.text();
+    if (text) yield text;
+  }
 }
 
 /* =========================================================
@@ -1044,8 +1145,9 @@ export async function POST(request) {
       as raw text. Map it to the normal "derivatives" task and
       remember to return raw text instead of the JSON envelope.
     */
-    const isStream = task === "derivatives_stream";
-    if (isStream) task = "derivatives";
+    const isStream = task === "derivatives_stream" || task === "analysis_stream";
+    if (task === "derivatives_stream") task = "derivatives";
+    if (task === "analysis_stream") task = "analysis";
 
     /* -------------------------------------------------------
        Validate task
@@ -1145,7 +1247,46 @@ export async function POST(request) {
        Generate
     ------------------------------------------------------- */
 
-    let text = await generateText(built.prompt, task, Number(attempt) || 0);
+    if (isStream && task === "analysis") {
+      const encoder = new TextEncoder();
+      let completeText = "";
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of generateTextStream(
+              built.prompt,
+              task,
+              Number(attempt) || 0,
+              payload
+            )) {
+              completeText += chunk;
+              controller.enqueue(encoder.encode(chunk));
+            }
+
+            if (!completeText.trim()) {
+              throw new Error("Gemini returned an empty analysis response.");
+            }
+
+            if (serverKey) {
+              await kv.set(serverKey, completeText);
+            }
+
+            controller.close();
+          } catch (error) {
+            console.error("Gemini stream error:", error);
+            controller.error(error);
+          }
+        },
+      });
+
+      return new Response(stream, {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+
+    let text = await generateText(built.prompt, task, Number(attempt) || 0, payload);
 
     // Make sure the client always receives clean semantic JSON
     // (verses = array of integers, chapter = number).

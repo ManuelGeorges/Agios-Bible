@@ -12,10 +12,13 @@ const STORE_NAME = 'files';
 
 const METADATA_KEY = 'translation_metadata';
 
-// Worst case for a first download = MANIFEST_TIMEOUT + FILE_DOWNLOAD_TIMEOUT (13s).
-// The provider's outer timeout must be larger than this.
-const MANIFEST_TIMEOUT = 3000;
-const FILE_DOWNLOAD_TIMEOUT = 10000;
+// Bible files are several megabytes (Arabic is the largest). The original
+// limits made a first download fail frequently on cellular/slow networks.
+const MANIFEST_TIMEOUT = 8000;
+const FILE_DOWNLOAD_TIMEOUT = 25000;
+const FILE_DOWNLOAD_ATTEMPTS = 2;
+const FILE_RETRY_DELAY_MS = 1000;
+const MANIFEST_ATTEMPTS = 2;
 
 // =========================================================
 // Runtime caches
@@ -67,6 +70,50 @@ function splitKey(key) {
         folder: key.substring(0, index),
         fileName: key.substring(index + 1)
     };
+}
+
+const wait = delay => new Promise(resolve => setTimeout(resolve, delay));
+
+const isRetryableDownloadError = error => {
+    const status = Number(error?.status) || 0;
+
+    // Network failures and timeouts do not include an HTTP status. Do not
+    // retry permanent client errors such as a missing translation file.
+    return status === 0 || status === 408 || status === 429 || status >= 500;
+};
+
+async function fetchManifestWithRetry() {
+    let lastError;
+
+    for (let attempt = 0; attempt < MANIFEST_ATTEMPTS; attempt++) {
+        try {
+            const response = await fetchWithTimeout(MANIFEST_URL, {
+                cache: 'no-store',
+                timeout: MANIFEST_TIMEOUT
+            });
+
+            if (!response.ok) {
+                const error = new Error(`Manifest request failed: ${response.status}`);
+                error.status = response.status;
+                throw error;
+            }
+
+            return await response.json();
+        } catch (error) {
+            lastError = error;
+
+            if (
+                attempt === MANIFEST_ATTEMPTS - 1 ||
+                !isRetryableDownloadError(error)
+            ) {
+                throw error;
+            }
+
+            await wait(FILE_RETRY_DELAY_MS * (attempt + 1));
+        }
+    }
+
+    throw lastError;
 }
 
 // =========================================================
@@ -451,16 +498,7 @@ export const languageManager = {
 
         manifestPromise = (async () => {
             try {
-                const response = await fetchWithTimeout(MANIFEST_URL, {
-                    cache: 'no-store',
-                    timeout: MANIFEST_TIMEOUT
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Manifest request failed: ${response.status}`);
-                }
-
-                manifestCache = await response.json();
+                manifestCache = await fetchManifestWithRetry();
 
                 return true;
             } catch (error) {
@@ -504,16 +542,7 @@ export const languageManager = {
 
         manifestPromise = (async () => {
             try {
-                const response = await fetchWithTimeout(MANIFEST_URL, {
-                    cache: 'no-store',
-                    timeout: MANIFEST_TIMEOUT
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Manifest request failed: ${response.status}`);
-                }
-
-                manifestCache = await response.json();
+                manifestCache = await fetchManifestWithRetry();
 
                 return true;
             } catch (error) {
@@ -746,15 +775,50 @@ export const languageManager = {
         // ---------------------------------------------------
 
         try {
-            const response = await fetchWithTimeout(url, {
-                timeout: FILE_DOWNLOAD_TIMEOUT
-            });
+            let lastError;
 
-            if (!response.ok) {
-                throw new Error(`Failed to download ${url}: ${response.status}`);
+            for (let attempt = 0; attempt < FILE_DOWNLOAD_ATTEMPTS; attempt++) {
+                try {
+                    const response = await fetchWithTimeout(url, {
+                        timeout: FILE_DOWNLOAD_TIMEOUT,
+                        // Do not accept a stale HTTP response after the
+                        // manifest has indicated a new translation version.
+                        cache: 'no-store'
+                    });
+
+                    if (!response.ok) {
+                        const downloadError = new Error(
+                            `Failed to download ${url}: ${response.status}`
+                        );
+                        downloadError.status = response.status;
+                        throw downloadError;
+                    }
+
+                    data = await response.json();
+                    break;
+                } catch (error) {
+                    lastError = error;
+
+                    if (
+                        attempt === FILE_DOWNLOAD_ATTEMPTS - 1 ||
+                        !isRetryableDownloadError(error)
+                    ) {
+                        throw error;
+                    }
+
+                    console.warn(
+                        `[LanguageManager] Retrying ${fileName} after a failed download ` +
+                        `(${attempt + 1}/${FILE_DOWNLOAD_ATTEMPTS})`,
+                        error
+                    );
+
+                    await wait(FILE_RETRY_DELAY_MS * (attempt + 1));
+                }
             }
 
-            data = await response.json();
+            if (!data) {
+                throw lastError || new Error(`Downloaded an empty file: ${url}`);
+            }
         } catch (error) {
             console.warn(
                 `[LanguageManager] Download failed for ${fileName}:`,
