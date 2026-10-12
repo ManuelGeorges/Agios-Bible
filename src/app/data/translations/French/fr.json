@@ -135,13 +135,7 @@
       "streak_bonus": "Bonus de régularité ! +{points} points ",
       "badge_unlocked": " Félicitations ! Vous avez débloqué : {badgeName}",
       "good_morning": "Bonjour {userName} ! +10 points ",
-      "welcome_back": "Bon retour parmi nous ! Série du jour : {streak} ",
-      "streak_celebration_title": "Votre série est en feu !",
-      "streak_celebration_headline": "Vous créez une belle habitude !",
-      "streak_celebration_subtitle": "Un jour de plus dans votre parcours spirituel. Continuez ainsi !",
-      "streak_celebration_days": "JOURS DE SÉRIE",
-      "streak_celebration_reward": "Récompense du jour",
-      "streak_celebration_continue": "Bravo, continuez !"
+      "welcome_back": "Bon retour parmi nous ! Série du jour : {streak} "
     }
   },
   "widgets": {

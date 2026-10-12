@@ -143,13 +143,7 @@
       "streak_bonus": "Beständigkeitsbonus! +{points} Punkte",
       "badge_unlocked": " Herzlichen Glückwunsch! Du hast freigeschaltet: {badgeName}",
       "good_morning": "Guten Morgen {userName}! +10 Punkte ",
-      "welcome_back": "Willkommen zurück! Heutiger Streak: {streak}",
-      "streak_celebration_title": "Deine Serie brennt!",
-      "streak_celebration_headline": "Du baust eine großartige Gewohnheit auf!",
-      "streak_celebration_subtitle": "Ein weiterer Tag auf deinem geistlichen Weg. Bleib dran!",
-      "streak_celebration_days": "TAGE IN FOLGE",
-      "streak_celebration_reward": "Heutige Belohnung",
-      "streak_celebration_continue": "Großartig, weiter so!"
+      "welcome_back": "Willkommen zurück! Heutiger Streak: {streak}"
     }
   },
   "widgets": {

@@ -143,13 +143,7 @@
       "streak_bonus": "بونص الاستمرارية! +{points} نقطة 🔥",
       "badge_unlocked": "🎉 مبروك! حصلت على بادج: {badgeName}",
       "good_morning": "صباح الخير يا {userName}! +10 نقاط ☀️",
-      "welcome_back": "أهلاً بك مجدداً! ستريك اليوم: {streak} 🔥",
-      "streak_celebration_title": "سلسلتك مشتعلة!",
-      "streak_celebration_headline": "أنت تبني عادة عظيمة!",
-      "streak_celebration_subtitle": "يوم جديد من الالتزام. استمر في رحلتك الروحية!",
-      "streak_celebration_days": "يوم ستريك",
-      "streak_celebration_reward": "مكافأة اليوم",
-      "streak_celebration_continue": "رائع، أكمل!"
+      "welcome_back": "أهلاً بك مجدداً! ستريك اليوم: {streak} 🔥"
     }
   },
   "widgets": {

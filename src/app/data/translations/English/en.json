@@ -143,13 +143,7 @@
       "streak_bonus": "Consistency Bonus! +{points} points ",
       "badge_unlocked": " Congratulations! You unlocked: {badgeName}",
       "good_morning": "Good morning {userName}! +10 points ",
-      "welcome_back": "Welcome back! Today's streak: {streak}",
-      "streak_celebration_title": "Your streak is on fire!",
-      "streak_celebration_headline": "You're building an amazing habit!",
-      "streak_celebration_subtitle": "Another day of showing up. Keep your spiritual journey burning bright!",
-      "streak_celebration_days": "DAY STREAK",
-      "streak_celebration_reward": "Today's reward",
-      "streak_celebration_continue": "Amazing, keep going!"
+      "welcome_back": "Welcome back! Today's streak: {streak}"
     }
   },
   "widgets": {

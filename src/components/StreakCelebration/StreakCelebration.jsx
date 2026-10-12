@@ -6,10 +6,45 @@ import { Flame, X, Sparkles, Zap } from 'lucide-react';
 import styles from './StreakCelebration.module.css';
 import { useLanguage } from '../../app/context/LanguageContext';
 
+const streakTranslations = {
+  ar: {
+    title: 'سلسلتك مشتعلة!',
+    headline: 'أنت تبني عادة عظيمة!',
+    subtitle: 'يوم جديد من الالتزام. استمر في رحلتك الروحية!',
+    days: 'يوم ستريك',
+    reward: 'مكافأة اليوم',
+    continue: 'رائع، أكمل!',
+  },
+  en: {
+    title: 'Your streak is on fire!',
+    headline: "You're building an amazing habit!",
+    subtitle: 'Another day of showing up. Keep your spiritual journey burning bright!',
+    days: 'DAY STREAK',
+    reward: "Today's reward",
+    continue: 'Amazing, keep going!',
+  },
+  fr: {
+    title: 'Votre série est en feu !',
+    headline: 'Vous créez une belle habitude !',
+    subtitle: 'Un jour de plus dans votre parcours spirituel. Continuez ainsi !',
+    days: 'JOURS DE SÉRIE',
+    reward: 'Récompense du jour',
+    continue: 'Bravo, continuez !',
+  },
+  de: {
+    title: 'Deine Serie brennt!',
+    headline: 'Du baust eine großartige Gewohnheit auf!',
+    subtitle: 'Ein weiterer Tag auf deinem geistlichen Weg. Bleib dran!',
+    days: 'TAGE IN FOLGE',
+    reward: 'Heutige Belohnung',
+    continue: 'Großartig, weiter so!',
+  },
+};
+
 export default function StreakCelebration({ streak, rewardPoints, onClose }) {
-  const { strings, dir, formatNumber } = useLanguage();
+  const { strings, dir, language, formatNumber } = useLanguage();
   const shouldReduceMotion = useReducedMotion();
-  const copy = strings.home.toasts;
+  const copy = streakTranslations[language] || streakTranslations.en;
   const particles = Array.from({ length: 22 }, (_, index) => ({
     angle: `${index * (360 / 22)}deg`,
     distance: `${84 + (index % 5) * 13}px`,
@@ -56,7 +91,7 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: shouldReduceMotion ? 0 : 0.12 }}
           >
-            <Sparkles size={17} /> {copy.streak_celebration_title} <Sparkles size={17} />
+            <Sparkles size={17} /> {copy.title} <Sparkles size={17} />
           </motion.div>
 
           <div className={styles.fireStage}>
@@ -92,7 +127,7 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             transition={shouldReduceMotion ? { duration: 0.01 } : { delay: 0.62, type: 'spring', stiffness: 340, damping: 16 }}
           >
             <span className={styles.number}>{formatNumber(streak)}</span>
-            <span className={styles.dayLabel}>{copy.streak_celebration_days}</span>
+            <span className={styles.dayLabel}>{copy.days}</span>
           </motion.div>
 
           <motion.h2
@@ -101,14 +136,14 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: shouldReduceMotion ? 0 : 0.78, duration: 0.3 }}
-          >{copy.streak_celebration_headline}</motion.h2>
+          >{copy.headline}</motion.h2>
           <motion.p
             id="streak-subtitle"
             className={styles.subtitle}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: shouldReduceMotion ? 0 : 0.88, duration: 0.3 }}
-          >{copy.streak_celebration_subtitle}</motion.p>
+          >{copy.subtitle}</motion.p>
 
           {rewardPoints > 0 && (
             <motion.div
@@ -118,7 +153,7 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
               transition={{ delay: shouldReduceMotion ? 0 : 0.96, type: 'spring', stiffness: 300, damping: 18 }}
             >
               <Zap size={18} fill="currentColor" />
-              <span>{copy.streak_celebration_reward}</span>
+              <span>{copy.reward}</span>
               <strong>+{formatNumber(rewardPoints)}</strong>
             </motion.div>
           )}
@@ -130,7 +165,7 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: shouldReduceMotion ? 0 : 1.04, duration: 0.3 }}
             whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
-          >{copy.streak_celebration_continue}</motion.button>
+          >{copy.continue}</motion.button>
         </motion.section>
       </motion.div>
   );
