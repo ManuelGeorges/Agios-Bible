@@ -124,7 +124,7 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             className={styles.streakCount}
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={shouldReduceMotion ? { duration: 0.01 } : { delay: 0.62, type: 'spring', stiffness: 340, damping: 16 }}
+            transition={shouldReduceMotion ? { duration: 0.01 } : { delay: 0.3, type: 'spring', stiffness: 340, damping: 16 }}
           >
             <span className={styles.number}>{formatNumber(streak)}</span>
             <span className={styles.dayLabel}>{copy.days}</span>
@@ -135,14 +135,14 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             className={styles.title}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: shouldReduceMotion ? 0 : 0.78, duration: 0.3 }}
+            transition={{ delay: shouldReduceMotion ? 0 : 0.4, duration: 0.24 }}
           >{copy.headline}</motion.h2>
           <motion.p
             id="streak-subtitle"
             className={styles.subtitle}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: shouldReduceMotion ? 0 : 0.88, duration: 0.3 }}
+            transition={{ delay: shouldReduceMotion ? 0 : 0.48, duration: 0.24 }}
           >{copy.subtitle}</motion.p>
 
           {rewardPoints > 0 && (
@@ -150,11 +150,11 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
               className={styles.reward}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: shouldReduceMotion ? 0 : 0.96, type: 'spring', stiffness: 300, damping: 18 }}
+              transition={{ delay: shouldReduceMotion ? 0 : 0.56, type: 'spring', stiffness: 300, damping: 18 }}
             >
               <Zap size={18} fill="currentColor" />
               <span>{copy.reward}</span>
-              <strong>+{formatNumber(rewardPoints)}</strong>
+              <strong dir="ltr">+{formatNumber(rewardPoints)}</strong>
             </motion.div>
           )}
 
@@ -163,7 +163,7 @@ export default function StreakCelebration({ streak, rewardPoints, onClose }) {
             onClick={onClose}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: shouldReduceMotion ? 0 : 1.04, duration: 0.3 }}
+            transition={{ delay: shouldReduceMotion ? 0 : 0.64, duration: 0.24 }}
             whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
           >{copy.continue}</motion.button>
         </motion.section>

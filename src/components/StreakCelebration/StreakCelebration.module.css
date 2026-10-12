@@ -189,13 +189,21 @@
 }
 
 .number {
-  font-size: clamp(3.7rem, 16vw, 5.2rem);
-  line-height: 0.95;
+  display: grid;
+  place-items: center;
+  min-width: 76px;
+  min-height: 76px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 220, 151, 0.48);
+  border-radius: 24px;
+  background: linear-gradient(145deg, rgba(255, 198, 95, 0.2), rgba(255, 100, 57, 0.14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(255, 110, 46, 0.12);
+  font-size: clamp(3.2rem, 14vw, 4.5rem);
+  line-height: 1;
   font-weight: 1000;
   letter-spacing: -0.06em;
-  background: linear-gradient(180deg, #fff5bb 4%, #ffc85f 43%, #ff7846 100%);
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #ffe7a0;
+  -webkit-text-stroke: 1px rgba(255, 244, 198, 0.35);
   filter: drop-shadow(0 5px 0 rgba(132, 47, 38, 0.42));
 }
 
@@ -266,12 +274,13 @@
 @keyframes sparkle { from { opacity: 0.6; transform: scale(0.82) rotate(-9deg); } to { opacity: 1; transform: scale(1.12) rotate(9deg); } }
 
 @media (max-width: 480px) {
-  .card { padding: 28px 20px 22px; border-radius: 30px; }
-  .fireStage { height: 204px; }
-  .flameBadge { width: 118px; height: 118px; border-radius: 36px; }
-  .flameInner { border-radius: 30px; }
-  .fireHalo { width: 170px; height: 170px; }
-  .fireRing { width: 140px; height: 140px; }
+  .card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); padding: 24px 20px 18px; border-radius: 30px; }
+  .fireStage { height: 174px; }
+  .flameBadge { width: 108px; height: 108px; border-radius: 34px; }
+  .flameInner { border-radius: 28px; }
+  .fireHalo { width: 154px; height: 154px; }
+  .fireRing { width: 130px; height: 130px; }
+  .number { min-width: 66px; min-height: 66px; border-radius: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
