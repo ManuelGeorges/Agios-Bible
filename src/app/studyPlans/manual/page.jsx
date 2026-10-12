@@ -14,7 +14,7 @@ import { useLanguage } from '../../context/LanguageContext';
 const MAX_DAYS = 365;
 const MAX_ENTRIES_PER_DAY = 10;
 
-// نصوص الصفحة (يمكن نقلها لاحقاً إلى ملف strings الرئيسي)
+// نصوص الصفحة (يمكن نقلها لاحقاً إلى ملف strings الرئيسي) Amen
 const T = {
   ar: {
     title: 'ألّف خطتك بنفسك',
