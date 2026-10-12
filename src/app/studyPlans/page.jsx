@@ -9,12 +9,26 @@ import { doc, onSnapshot, updateDoc, deleteField, arrayUnion, collection, query,
 import { db } from '../../lib/firebase';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Sparkles, User, Share2, Search, X } from 'lucide-react';
+import { Sparkles, User, Share2, Search, X, PenLine } from 'lucide-react';
 import { useBadge } from '../context/BadgeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { StorageService, KEYS } from '../../lib/storage';
 
 const staticPlans = studyPlansData.plans;
+
+// نصوص زر وبادج الخطة اليدوية (يمكن نقلها لاحقاً إلى ملف strings الرئيسي)
+const manualLabels = {
+  ar: 'ألّف خطتك',
+  en: 'Create manually',
+  fr: 'Créer moi-même',
+  de: 'Selbst erstellen',
+};
+const manualBadgeLabels = {
+  ar: 'يدوية',
+  en: 'Manual',
+  fr: 'Manuel',
+  de: 'Manuell',
+};
 
 const normalizeArabic = (text) => {
   if (!text) return "";
@@ -41,6 +55,9 @@ export default function StudyPlans() {
 
   const filterRef = useRef(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
+
+  const manualLabel = manualLabels[language] || manualLabels.en;
+  const manualBadgeLabel = manualBadgeLabels[language] || manualBadgeLabels.en;
 
   // فلترة الخطط الثابتة حسب اللغة (تظهر في العربية فقط حالياً)
   const availableStaticPlans = useMemo(() => {
@@ -306,9 +323,14 @@ export default function StudyPlans() {
     <div className={styles.container}>
       <div className={styles.heroSection}>
         <h1 className={styles.title}>{strings.studyPlans.title}</h1>
-        <Link href="/studyPlans/custom" className={styles.aiCreateButton}>
-          <Sparkles size={18} /> {strings.studyPlans.ai_button}
-        </Link>
+        <div className={styles.heroActions}>
+          <Link href="/studyPlans/custom" className={styles.aiCreateButton}>
+            <Sparkles size={18} /> {strings.studyPlans.ai_button}
+          </Link>
+          <Link href="/studyPlans/manual" className={styles.aiCreateButton}>
+            <PenLine size={18} /> {manualLabel}
+          </Link>
+        </div>
       </div>
 
       <div className={styles.searchSection}>
@@ -361,7 +383,12 @@ export default function StudyPlans() {
               <div key={plan.id} className={styles.card}>
                 {isPersonalCopy && <button className={styles.deleteBtn} onClick={(e) => handleDeletePlan(e, plan.id)}>✕</button>}
                 <div className={styles.cardContent}>
-                  {plan.isCustom && <span className={styles.aiBadge}><Sparkles size={14} /> {strings.studyPlans.card.ai_badge}</span>}
+                  {plan.isCustom && !plan.isManual && (
+                    <span className={styles.aiBadge}><Sparkles size={14} /> {strings.studyPlans.card.ai_badge}</span>
+                  )}
+                  {plan.isCustom && plan.isManual && (
+                    <span className={styles.aiBadge}><PenLine size={14} /> {manualBadgeLabel}</span>
+                  )}
                   {isSharedPlan && <span className={styles.sharedBadge}><Share2 size={14} /> {strings.studyPlans.card.shared_badge}</span>}
 
                   <h3 className={styles.cardTitle}>{plan.title}</h3>

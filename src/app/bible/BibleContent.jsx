@@ -2059,8 +2059,24 @@ const handleTashkeelChoice = useCallback((enabled) => {
           KEYS.COMPLETED_CHAPTERS,
           c
         );
+
+        // Keep the source used by study-plan auto-completion in sync across
+        // devices. Without this, a signed-in user could complete chapters but
+        // see 0% after the next Firestore reload.
+        if (user) {
+          try {
+            await updateDoc(
+              doc(firestore, 'users', user.uid),
+              {
+                completedChapters: c
+              }
+            );
+          } catch (error) {
+            console.error('Completed chapters sync failed:', error);
+          }
+        }
       },
-      []
+      [user]
     );
 
 
@@ -3185,6 +3201,29 @@ const handleTashkeelChoice = useCallback((enabled) => {
         key,
         all
       );
+
+      // Chapter completion is also the normal way a plan day is completed.
+      // Previously this only updated local storage, so signed-in users would
+      // later read the stale Firestore value (often 0%) on the plans page.
+      if (user) {
+        try {
+          const fieldPath =
+            planType === 'custom'
+              ? `customPlans.${planId}`
+              : `completedPlans.${planId}`;
+
+          await updateDoc(
+            doc(firestore, 'users', user.uid),
+            {
+              [fieldPath]: all[planId]
+            }
+          );
+        } catch (error) {
+          // The local copy remains authoritative while offline and will be
+          // retried the next time the chapter is toggled.
+          console.error('Study plan progress sync failed:', error);
+        }
+      }
 
 
       if (

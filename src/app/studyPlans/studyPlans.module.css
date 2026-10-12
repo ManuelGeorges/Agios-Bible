@@ -19,7 +19,12 @@
   color: var(--color-text-primary);
   text-align: right;
 }
-
+.heroActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 .aiCreateButton {
   background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   color: white !important;

@@ -1,0 +1,217 @@
+.container {
+  min-height: 100vh;
+  padding: 24px 16px 80px;
+  display: flex;
+  justify-content: center;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 720px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
+  padding: 28px 20px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.iconCircle {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-bg-end);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+.mainTitle {
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+  color: var(--color-text-primary);
+}
+
+.subtitle {
+  margin: 0;
+  opacity: 0.75;
+  color: var(--color-text-primary);
+}
+
+.field {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-end);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.input:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.daysList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dayCard {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.dayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.dayTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-text-primary);
+}
+
+.dayActions {
+  display: flex;
+  gap: 4px;
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.iconBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.danger:not(:disabled):hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.entryRow {
+  display: grid;
+  grid-template-columns: 1fr 110px 110px 36px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.bookSelect {
+  min-width: 0;
+}
+
+.chapterInput {
+  min-width: 0;
+}
+
+.addEntryBtn,
+.addDayBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.addEntryBtn {
+  margin-top: 4px;
+}
+
+.addDayBtn {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 24px;
+  padding: 14px;
+  font-weight: 700;
+}
+
+.addEntryBtn:disabled,
+.addDayBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dayCounter {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 14px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #fff;
+  background: var(--color-primary, #4f46e5);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* الموبايل: السفر في سطر، والأصحاحات في سطر تحته */
+@media (max-width: 560px) {
+  .entryRow {
+    grid-template-columns: 1fr 1fr 36px;
+  }
+  .bookSelect {
+    grid-column: 1 / -1;
+  }
+}
