@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc, increment, arrayUnion, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from '../lib/firebase';
@@ -9,11 +10,13 @@ import { getCairoDate, getCairoIsoString } from '../lib/dateUtils';
 import { Capacitor } from '@capacitor/core';
 import { StorageService, KEYS } from '../lib/storage';
 import { useLanguage } from '../app/context/LanguageContext';
+import StreakCelebration from './StreakCelebration/StreakCelebration';
 
 const auth = typeof window !== 'undefined' ? getAuth() : null;
 
 export default function UserTracker() {
-  const { strings, formatNumber, language } = useLanguage();
+  const { strings, language } = useLanguage();
+  const [streakCelebration, setStreakCelebration] = useState(null);
 
   useEffect(() => {
     const trackActivity = async (user) => {
@@ -44,7 +47,7 @@ export default function UserTracker() {
             });
             await StorageService.updateStreak(1);
             await StorageService.save('agios_last_active', today);
-            toast(strings.home.toasts.welcome_new, { icon: '✨' });
+            setStreakCelebration({ streak: 1, rewardPoints: 10 });
           } else {
             const userData = userSnap.data();
             const lastActive = userData.lastActiveDate || userData.lastLoginDate;
@@ -91,10 +94,6 @@ export default function UserTracker() {
                 toast(strings.shop?.use_freeze_toast || "تم استخدام تجميد الستريك لحمايتك! ❄️", { icon: '❄️' });
               }
 
-              if (bonusPoints > 0) {
-                toast.success(strings.home.toasts.streak_bonus.replace('{points}', formatNumber(bonusPoints)));
-              }
-
               if (streakMilestones[newStreak] && !userData.badges?.includes(streakMilestones[newStreak].id)) {
                 updates.badges = arrayUnion(streakMilestones[newStreak].id);
                 toast.success(strings.home.toasts.badge_unlocked.replace('{badgeName}', streakMilestones[newStreak].name), { icon: '🔥' });
@@ -103,10 +102,8 @@ export default function UserTracker() {
               await updateDoc(userRef, updates);
               await StorageService.updateStreak(newStreak);
               await StorageService.save('agios_last_active', today);
+              setStreakCelebration({ streak: newStreak, rewardPoints: 10 + bonusPoints });
 
-              if (!usedFreeze) {
-                toast(strings.home.toasts.good_morning.replace('{userName}', userName), { icon: '💰' });
-              }
             } else {
               await StorageService.save('agios_last_active', today);
             }
@@ -147,11 +144,10 @@ export default function UserTracker() {
               timestamp: getCairoIsoString()
             });
             await StorageService.save(KEYS.POINTS_HISTORY, history);
+            setStreakCelebration({ streak: newStreak, rewardPoints: 10 });
 
             if (usedFreeze) {
               toast(strings.shop?.use_freeze_toast || "تم استخدام تجميد الستريك لحمايتك! ❄️", { icon: '❄️' });
-            } else {
-              toast(strings.home.toasts.welcome_back.replace('{streak}', formatNumber(newStreak)), { icon: '✨' });
             }
           }
         }
@@ -183,9 +179,19 @@ export default function UserTracker() {
 
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, trackActivity);
-    if (!auth.currentUser) trackActivity(null);
     return () => unsubscribe();
   }, [strings, formatNumber, language]);
 
-  return null; 
+  return (
+    <AnimatePresence>
+      {streakCelebration && (
+        <StreakCelebration
+          key={`${streakCelebration.streak}-${streakCelebration.rewardPoints}`}
+          streak={streakCelebration.streak}
+          rewardPoints={streakCelebration.rewardPoints}
+          onClose={() => setStreakCelebration(null)}
+        />
+      )}
+    </AnimatePresence>
+  );
 }
