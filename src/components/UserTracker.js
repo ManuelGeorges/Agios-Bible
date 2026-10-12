@@ -180,7 +180,7 @@ export default function UserTracker() {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, trackActivity);
     return () => unsubscribe();
-  }, [strings, formatNumber, language]);
+  }, [strings, language]);
 
   return (
     <AnimatePresence>
