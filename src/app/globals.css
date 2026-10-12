@@ -19,7 +19,7 @@
   --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
-  color-scheme: light;
+  color-scheme: light dark;
 
   /* ==========================================================
      LIGHT — Clean Premium Blue
@@ -34,9 +34,6 @@
 
   --color-card-bg: rgba(255, 255, 255, 0.78);
   --color-card-solid: #ffffff;
-  --color-surface-raised: rgba(255, 255, 255, 0.92);
-  --color-surface-hover: rgba(37, 99, 235, 0.055);
-  --color-input-bg: rgba(255, 255, 255, 0.86);
 
   --color-border: rgba(15, 23, 42, 0.07);
   --color-border-strong: rgba(37, 99, 235, 0.16);
@@ -48,7 +45,6 @@
     0 8px 20px rgba(15, 23, 42, 0.035);
 
   --color-accent: #2563eb;
-  --color-accent-rgb: 37, 99, 235;
   --color-accent-light: #60a5fa;
   --color-accent-soft: rgba(37, 99, 235, 0.10);
 
@@ -85,102 +81,54 @@
    ============================================================ */
 
 [data-theme='dark'] {
-  color-scheme: dark;
+  --color-bg-start: #020617;
+  --color-bg-end: #0b1120;
 
-  --color-bg-start: #080b14;
-  --color-bg-end: #0d1220;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
 
-  --color-text-primary: #f3f5fc;
-  --color-text-secondary: #b4bfd2;
-  --color-text-muted: #7e8ba3;
+  --color-card-bg: rgba(15, 23, 42, 0.66);
+  --color-card-solid: #0f172a;
 
-  --color-card-bg: rgba(19, 25, 41, 0.82);
-  --color-card-solid: #131929;
-  --color-surface-raised: #192136;
-  --color-surface-hover: rgba(145, 158, 255, 0.09);
-  --color-input-bg: rgba(7, 11, 21, 0.72);
+  --color-border: rgba(148, 163, 184, 0.10);
+  --color-border-strong: rgba(56, 189, 248, 0.20);
 
-  --color-border: rgba(173, 187, 218, 0.11);
-  --color-border-strong: rgba(151, 162, 255, 0.32);
-
-  --glass-blur: 24px;
+  --glass-blur: 28px;
 
   --glass-shadow:
-    0 28px 72px rgba(0, 0, 0, 0.42),
-    0 10px 28px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    0 30px 80px rgba(0, 0, 0, 0.45),
+    0 10px 30px rgba(0, 0, 0, 0.22);
 
-  --color-accent: #9aa7ff;
-  --color-accent-rgb: 154, 167, 255;
-  --color-accent-light: #c0c8ff;
-  --color-accent-soft: rgba(154, 167, 255, 0.12);
+  --color-accent: #38bdf8;
+  --color-accent-light: #7dd3fc;
+  --color-accent-soft: rgba(56, 189, 248, 0.10);
 
   --btn-bg: linear-gradient(
     135deg,
-    #5868d8 0%,
-    #8491f4 50%,
-    #5a69cb 100%
+    #0284c7 0%,
+    #38bdf8 50%,
+    #2563eb 100%
   );
 
-  --btn-text: #fff;
-  --btn-hover: #c0c8ff;
+  --btn-text: #ffffff;
+  --btn-hover: #7dd3fc;
 
-  --color-accent-gold: #edc779;
+  --color-accent-gold: #f2c14e;
 
-  --color-shadow-medium: rgba(0, 0, 0, 0.48);
+  --color-shadow-medium: rgba(0, 0, 0, 0.45);
 
   --page-glow:
     radial-gradient(
-      circle at 12% 0%,
-      rgba(91, 105, 216, 0.18),
-      transparent 34%
+      circle at 10% 5%,
+      rgba(14, 165, 233, 0.12),
+      transparent 30%
     ),
     radial-gradient(
-      circle at 100% 78%,
-      rgba(94, 64, 153, 0.13),
-      transparent 33%
-    ),
-    radial-gradient(
-      circle at 48% 110%,
-      rgba(44, 76, 130, 0.09),
-      transparent 38%
+      circle at 90% 90%,
+      rgba(79, 70, 229, 0.10),
+      transparent 35%
     );
-}
-
-[data-theme='dark'] input:not([type='checkbox']):not([type='radio']),
-[data-theme='dark'] textarea,
-[data-theme='dark'] select,
-[data-theme='gold'] input:not([type='checkbox']):not([type='radio']),
-[data-theme='gold'] textarea,
-[data-theme='gold'] select {
-  color: var(--color-text-primary);
-  background-color: var(--color-input-bg);
-  border-color: var(--color-border);
-  color-scheme: dark;
-}
-
-[data-theme='dark'] input::placeholder,
-[data-theme='dark'] textarea::placeholder,
-[data-theme='gold'] input::placeholder,
-[data-theme='gold'] textarea::placeholder {
-  color: var(--color-text-muted);
-  opacity: 0.9;
-}
-
-[data-theme='dark'] input:focus,
-[data-theme='dark'] textarea:focus,
-[data-theme='dark'] select:focus,
-[data-theme='gold'] input:focus,
-[data-theme='gold'] textarea:focus,
-[data-theme='gold'] select:focus {
-  border-color: var(--color-border-strong);
-  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12);
-}
-
-[data-theme='dark'] option,
-[data-theme='gold'] option {
-  color: var(--color-text-primary);
-  background: var(--color-card-solid);
 }
 
 
@@ -189,7 +137,6 @@
    ============================================================ */
 
 [data-theme='gold'] {
-  color-scheme: dark;
   --color-bg-start: #030303;
   --color-bg-end: #0b0a08;
 
@@ -199,9 +146,6 @@
 
   --color-card-bg: rgba(10, 9, 7, 0.82);
   --color-card-solid: #080807;
-  --color-surface-raised: #15130e;
-  --color-surface-hover: rgba(212, 175, 55, 0.08);
-  --color-input-bg: rgba(8, 7, 5, 0.86);
 
   --color-border: rgba(212, 175, 55, 0.20);
   --color-border-strong: rgba(212, 175, 55, 0.42);
@@ -213,7 +157,6 @@
     0 0 50px rgba(212, 175, 55, 0.045);
 
   --color-accent: #d4af37;
-  --color-accent-rgb: 212, 175, 55;
   --color-accent-light: #f5d76e;
   --color-accent-soft: rgba(212, 175, 55, 0.10);
 
@@ -650,11 +593,6 @@ textarea {
 
   opacity:
     0.7;
-}
-
-[data-theme='dark'] .liquid-glass::before {
-  background: linear-gradient(135deg, rgba(203, 211, 255, 0.075), transparent 42%);
-  opacity: 0.62;
 }
 
 
