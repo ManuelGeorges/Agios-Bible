@@ -14,9 +14,5 @@ export const metadata = {
 };
 
 export default function MapsLayout({ children }) {
-  return (
-      <main>
-        <div>{children}</div>
-      </main>
-  );
+  return children;
 }

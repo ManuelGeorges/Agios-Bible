@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { allQuestions } from './questionsData';
+import englishQuestionsData from './questionsData_en.json';
+import frenchQuestionsData from './questionsData_fr.json';
+import allBookNames from '../data/bookNames.json';
 import styles from './competitions.module.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db, auth } from '../../lib/firebase'; 
@@ -33,20 +36,49 @@ const normalizeArabic = (text) => {
   return result;
 };
 
-const INDEXED_QUESTIONS = new Map();
-allQuestions.forEach(q => {
-  const normCat = normalizeArabic(q.category);
-  if (!INDEXED_QUESTIONS.has(normCat)) INDEXED_QUESTIONS.set(normCat, []);
+const normalizeBookKey = (text) => normalizeArabic(text)
+  .toLocaleLowerCase()
+  .replace(/^(?:انجيل|رساله)\s+/, '')
+  .replace(/[.,:;؟?!'’`-]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
 
-  INDEXED_QUESTIONS.get(normCat).push({
-    ...q,
-    normCorrectAnswer: normalizeArabic(q.correctAnswer),
-    options: q.options.map(opt => ({
-      original: opt,
-      normalized: normalizeArabic(opt)
-    }))
-  });
+const BOOK_ID_BY_NAME = new Map();
+Object.values(allBookNames).flat().forEach((book) => {
+  if (book?.name && book?.book_id) BOOK_ID_BY_NAME.set(normalizeBookKey(book.name), book.book_id);
 });
+
+// The quiz source uses numeric names for these books while the catalog uses words.
+BOOK_ID_BY_NAME.set(normalizeBookKey('1 تيموثاوس'), '1TI');
+BOOK_ID_BY_NAME.set(normalizeBookKey('2 تيموثاوس'), '2TI');
+BOOK_ID_BY_NAME.set(normalizeBookKey('تتمة أستير'), 'EST');
+BOOK_ID_BY_NAME.set(normalizeBookKey('تتمة دانيال'), 'DAN');
+
+const buildQuestionIndex = (questions) => {
+  const index = new Map();
+  questions.forEach((question) => {
+    const bookId = BOOK_ID_BY_NAME.get(normalizeBookKey(question.category));
+    if (!bookId) return;
+    if (!index.has(bookId)) index.set(bookId, []);
+
+    index.get(bookId).push({
+      ...question,
+      normCorrectAnswer: normalizeArabic(question.correctAnswer),
+      options: question.options.map((option) => ({
+        original: option,
+        normalized: normalizeArabic(option)
+      }))
+    });
+  });
+  return index;
+};
+
+const ARABIC_QUESTION_INDEX = buildQuestionIndex(allQuestions);
+const QUESTION_INDEX_BY_LANGUAGE = {
+  ar: ARABIC_QUESTION_INDEX,
+  en: buildQuestionIndex(englishQuestionsData.allQuestions),
+  fr: buildQuestionIndex(frenchQuestionsData.allQuestions)
+};
 
 export default function CompetitionsPage() {
   const { strings, language, bookNames: bookNamesData } = useLanguage();
@@ -204,11 +236,16 @@ export default function CompetitionsPage() {
     if (isPerfect && duration < 30) await unlockBadge('speed_demon');
   };
 
-  const loadQuestionsByCategory = useCallback((categoryName) => {
+  const loadQuestionsByCategory = useCallback((category) => {
     HapticService.light();
     startTransition(() => {
-      const cleanName = normalizeArabic(categoryName);
-      const filtered = INDEXED_QUESTIONS.get(cleanName) || [];
+      const categoryName = typeof category === 'string' ? category : category?.name;
+      const bookId = (typeof category === 'object' && category?.book_id)
+        || BOOK_ID_BY_NAME.get(normalizeBookKey(categoryName));
+      const localizedQuestions = QUESTION_INDEX_BY_LANGUAGE[language]?.get(bookId) || [];
+      const filtered = localizedQuestions.length
+        ? localizedQuestions
+        : ARABIC_QUESTION_INDEX.get(bookId) || [];
 
       if (filtered.length === 0) {
         alert(strings.competitions.error_no_questions);
@@ -217,7 +254,7 @@ export default function CompetitionsPage() {
 
       setQuestions(filtered);
       setQuizState({
-        category: categoryName,
+        category: categoryName || '',
         currentIndex: 0,
         score: 0,
         answered: false,
@@ -228,7 +265,7 @@ export default function CompetitionsPage() {
       });
       setUserAnswer('');
     });
-  }, [strings.competitions.error_no_questions]);
+  }, [language, strings.competitions.error_no_questions]);
 
   const nextQuestion = async () => {
     HapticService.light();
@@ -261,7 +298,8 @@ export default function CompetitionsPage() {
     setUserAnswer('');
   };
 
-  if (authLoading || bookNamesData.length === 0) return <div className={styles.loading}>{strings.common.loading}</div>;
+  if (!strings) return null;
+  if (authLoading || !bookNamesData?.length) return <div className={styles.loading}>{strings.common.loading}</div>;
 
   return (
     <div dir={language === 'ar' ? 'rtl' : 'ltr'} className={styles.mainContainer} style={{ opacity: isPending ? 0.7 : 1, transition: 'opacity 0.2s' }}>
@@ -285,7 +323,7 @@ export default function CompetitionsPage() {
                   className={styles.dropdownMenu}
                 >
                   {bookNamesData.map((book, i) => (
-                    <li key={i} className={styles.dropdownItem} onClick={() => { loadQuestionsByCategory(book.name); setIsCategoryOpen(false); }}>
+                    <li key={book.book_id || i} className={styles.dropdownItem} onClick={() => { loadQuestionsByCategory(book); setIsCategoryOpen(false); }}>
                       {book.name}
                     </li>
                   ))}
