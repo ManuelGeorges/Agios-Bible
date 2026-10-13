@@ -68,8 +68,8 @@ const BadgeUnlockModal = ({ badge, onClose }) => {
 
   if (!badge) return null;
 
-  const particles = Array.from({ length: 24 }, (_, index) => ({
-    angle: `${index * 15}deg`,
+  const particles = Array.from({ length: 8 }, (_, index) => ({
+    angle: `${index * 45}deg`,
     distance: `${82 + (index % 4) * 12}px`,
     color: ['#ffd166', '#66e3c4', '#8b7cff', '#ff78a8', '#ffffff'][index % 5],
     delay: `${(index % 6) * 0.025}s`,
@@ -82,17 +82,17 @@ const BadgeUnlockModal = ({ badge, onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: shouldReduceMotion ? 0.01 : 0.25 }}
+      transition={{ duration: shouldReduceMotion ? 0.01 : 0.16 }}
     >
       <motion.div
         role="dialog"
         aria-modal="true"
         aria-labelledby="badge-unlock-title"
         aria-describedby="badge-unlock-description"
-        initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.78, y: 42, opacity: 0, rotateX: -10 }}
-        animate={shouldReduceMotion ? { opacity: 1 } : { scale: 1, y: 0, opacity: 1, rotateX: 0 }}
-        exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.92, y: 20, opacity: 0 }}
-        transition={shouldReduceMotion ? { duration: 0.01 } : { type: 'spring', stiffness: 320, damping: 22, mass: 0.85 }}
+        initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.96, y: 12, opacity: 0 }}
+        animate={shouldReduceMotion ? { opacity: 1 } : { scale: 1, y: 0, opacity: 1 }}
+        exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.98, y: 8, opacity: 0 }}
+        transition={shouldReduceMotion ? { duration: 0.01 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className={styles.modal}
       >
         <div className={styles.topShine} />
@@ -100,16 +100,11 @@ const BadgeUnlockModal = ({ badge, onClose }) => {
           <X size={20} />
         </button>
 
-        <motion.div
-          className={styles.celebrationText}
-          initial={{ y: -14, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: shouldReduceMotion ? 0 : 0.16, duration: shouldReduceMotion ? 0.01 : 0.35 }}
-        >
+        <div className={styles.celebrationText}>
           <Sparkles size={18} />
           {strings.components.badges.congrats}
           <Sparkles size={18} />
-        </motion.div>
+        </div>
 
         <div className={styles.badgeDisplay}>
           <div className={styles.badgeStage}>
@@ -128,53 +123,31 @@ const BadgeUnlockModal = ({ badge, onClose }) => {
             ))}
             <motion.div
               className={styles.iconWrapper}
-              initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.15, rotate: -32, y: 24 }}
-              animate={shouldReduceMotion ? { opacity: 1 } : { scale: [0.15, 1.18, 0.92, 1], rotate: [-32, 8, -4, 0], y: [24, -8, 3, 0] }}
-              transition={shouldReduceMotion ? { duration: 0.01 } : { delay: 0.2, duration: 0.9, times: [0, 0.55, 0.78, 1], ease: 'easeOut' }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { scale: 0.84, y: 8 }}
+              animate={shouldReduceMotion ? { opacity: 1 } : { scale: 1, y: 0 }}
+              transition={shouldReduceMotion ? { duration: 0.01 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             >
               <div className={styles.glow} />
               <div className={styles.iconInner}><IconComponent size={54} strokeWidth={1.7} /></div>
             </motion.div>
           </div>
-          <motion.div
-            className={`${styles.rarityTag} ${styles[`rarity_${rarityClass}`]}`}
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: shouldReduceMotion ? 0 : 0.72, type: 'spring', stiffness: 450, damping: 18 }}
-          >
+          <div className={`${styles.rarityTag} ${styles[`rarity_${rarityClass}`]}`}>
             <Sparkles size={13} />
             {badge.rarity}
-          </motion.div>
-          <motion.h2
-            id="badge-unlock-title"
-            className={styles.badgeName}
-            initial={{ y: 12, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: shouldReduceMotion ? 0 : 0.78, duration: shouldReduceMotion ? 0.01 : 0.32 }}
-          >{badge.name}</motion.h2>
+          </div>
+          <h2 id="badge-unlock-title" className={styles.badgeName}>{badge.name}</h2>
         </div>
 
-        <motion.p
-          id="badge-unlock-description"
-          className={styles.description}
-          initial={{ y: 10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: shouldReduceMotion ? 0 : 0.88, duration: shouldReduceMotion ? 0.01 : 0.3 }}
-        >{badge.requirement}</motion.p>
+        <p id="badge-unlock-description" className={styles.description}>{badge.requirement}</p>
 
-        <motion.div
-          className={styles.actions}
-          initial={{ y: 14, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: shouldReduceMotion ? 0 : 0.98, duration: shouldReduceMotion ? 0.01 : 0.32 }}
-        >
+        <div className={styles.actions}>
           <button className={styles.primaryBtn} onClick={handleShare}>
             <Share2 size={20} /> {strings.components.badges.share_achievement}
           </button>
           <button className={styles.secondaryBtn} onClick={() => { router.push('/points'); onClose(); }}>
             {strings.components.badges.view_all} <ArrowRight size={20} />
           </button>
-        </motion.div>
+        </div>
       </motion.div>
     </motion.div>
   );

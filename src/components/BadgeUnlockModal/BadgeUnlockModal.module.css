@@ -3,13 +3,11 @@
   inset: 0;
   overflow-y: auto;
   background: radial-gradient(circle at 50% 42%, rgba(77, 51, 160, 0.38), transparent 38%), rgba(8, 10, 25, 0.84);
-  backdrop-filter: blur(14px) saturate(125%);
   z-index: 1000001;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom));
-  perspective: 1000px;
 }
 
 .modal {
@@ -39,7 +37,7 @@
   top: -165px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
-  filter: blur(28px);
+  opacity: .7;
 }
 
 .closeBtn {
@@ -77,14 +75,7 @@
   text-shadow: 0 2px 18px rgba(255, 202, 70, 0.28);
 }
 
-.celebrationText svg {
-  color: #ffd166;
-  animation: twinkle 1.6s ease-in-out infinite alternate;
-}
-
-.celebrationText svg:last-child {
-  animation-delay: 0.5s;
-}
+.celebrationText svg { color: #ffd166; }
 
 .badgeDisplay {
   margin: 7px 0 16px;
@@ -115,7 +106,7 @@
   width: 184px;
   height: 184px;
   background: radial-gradient(circle, rgba(255, 208, 91, 0.24), rgba(130, 89, 255, 0.14) 48%, transparent 72%);
-  animation: auraPulse 2.4s ease-in-out infinite;
+  opacity: .8;
 }
 
 .badgeStage::after {
@@ -123,7 +114,7 @@
   height: 148px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 0 26px rgba(255, 255, 255, 0.12), inset 0 0 25px rgba(255, 255, 255, 0.08);
-  animation: orbit 12s linear infinite;
+  opacity: .75;
 }
 
 .iconWrapper {
@@ -151,11 +142,9 @@
   background: linear-gradient(145deg, #4c38a6 0%, #7049d9 48%, #3b62bb 100%);
   border: 1px solid rgba(255, 255, 255, 0.52);
   color: #fff9db;
-  filter: drop-shadow(0 3px 0 rgba(30, 20, 70, 0.28));
 }
 
 .iconInner svg {
-  filter: drop-shadow(0 5px 9px rgba(12, 10, 35, 0.35));
 }
 
 .glow {
@@ -163,15 +152,10 @@
   inset: -14px;
   border-radius: 44px;
   background: conic-gradient(from 0deg, #ffcf6b, #ff77a8, #8a73ff, #5fe2ca, #ffcf6b);
-  filter: blur(25px);
+  filter: blur(10px);
   opacity: 0.52;
   z-index: -1;
-  animation: rotateGlow 7s infinite linear;
-}
-
-@keyframes rotateGlow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  opacity: .32;
 }
 
 .rays {
@@ -181,7 +165,7 @@
   border-radius: 50%;
   background: repeating-conic-gradient(from 0deg, rgba(255, 220, 125, 0.22) 0deg 3deg, transparent 3deg 18deg);
   mask-image: radial-gradient(circle, transparent 0 37%, #000 42% 66%, transparent 72%);
-  animation: raysTurn 24s linear infinite;
+  opacity: .65;
 }
 
 .particle {
@@ -205,23 +189,6 @@
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--particle-angle)) translateY(calc(var(--particle-distance) * -1)) scale(0.7) rotate(130deg); }
 }
 
-@keyframes auraPulse {
-  0%, 100% { transform: scale(0.88); opacity: 0.64; }
-  50% { transform: scale(1.12); opacity: 1; }
-}
-
-@keyframes orbit {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes raysTurn {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes twinkle {
-  from { opacity: 0.58; transform: scale(0.82) rotate(-10deg); }
-  to { opacity: 1; transform: scale(1.12) rotate(10deg); }
-}
 
 .badgeName {
   font-size: clamp(1.55rem, 6vw, 2rem);
@@ -328,7 +295,16 @@
   .rays { width: 184px; height: 184px; }
 }
 
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .overlay { background: rgba(8, 10, 25, .86); }
+  .topShine, .rays, .particle { display: none; }
+  .badgeStage::before { opacity: .5; }
+  .badgeStage::after { box-shadow: none; }
+  .glow { display: none; }
+  .modal { box-shadow: 0 16px 36px rgba(0, 0, 0, .4); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .celebrationText svg, .glow, .badgeStage::before, .badgeStage::after, .rays { animation: none; }
+  .glow, .badgeStage::before, .badgeStage::after, .rays { animation: none; }
   .closeBtn, .primaryBtn, .secondaryBtn { transition: none; }
 }

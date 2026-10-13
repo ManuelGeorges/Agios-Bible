@@ -7,7 +7,7 @@ import {
     Settings, Repeat, ListEnd, Volume2, Volume1, VolumeX, Highlighter,
     Moon, ArrowRight, Download, Trash2, Loader2, CheckCircle
 } from 'lucide-react';
-import { useAudio } from '../app/context/AudioContext';
+import { useAudio, useAudioProgress } from '../app/context/AudioContext';
 import styles from './GlobalAudioPlayer.module.css';
 import { useLanguage } from '../app/context/LanguageContext';
 import { Capacitor } from '@capacitor/core';
@@ -18,7 +18,7 @@ const SLEEP_OPTIONS = [15, 30, 60];
 export default function GlobalAudioPlayer() {
     const { strings, dir } = useLanguage();
     const {
-        isPlaying, currentTime, duration, playbackSpeed, isPanelOpen, trackTitle,
+        isPlaying, playbackSpeed, isPanelOpen, trackTitle,
         isRepeat, isAutoPlay, volume, isHighlightEnabled, sleepTimer, timeLeft,
         currentLocation, bookNames, isAudioLoading, isBuffering,
         downloadedChapters, downloadProgress,
@@ -27,6 +27,7 @@ export default function GlobalAudioPlayer() {
         startSleepTimer, cancelSleepTimer,
         downloadChapter, deleteDownload
     } = useAudio();
+    const { currentTime, duration } = useAudioProgress();
 
     const [showSettings, setShowSettings] = useState(false);
 

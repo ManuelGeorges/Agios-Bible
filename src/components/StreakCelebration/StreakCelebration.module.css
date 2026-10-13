@@ -7,8 +7,7 @@
   overflow-y: auto;
   padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
   background: radial-gradient(ellipse at 50% 44%, rgba(255, 91, 40, 0.24), transparent 42%), rgba(12, 10, 20, 0.86);
-  backdrop-filter: blur(15px) saturate(125%);
-  perspective: 1000px;
+  isolation: isolate;
 }
 
 .card {
@@ -36,7 +35,7 @@
   height: 230px;
   border-radius: 50%;
   background: rgba(255, 158, 65, 0.22);
-  filter: blur(34px);
+  opacity: .65;
 }
 
 .close {
@@ -71,8 +70,7 @@
   text-shadow: 0 2px 18px rgba(255, 155, 43, 0.32);
 }
 
-.eyebrow svg { color: #ffd166; animation: sparkle 1.25s ease-in-out infinite alternate; }
-.eyebrow svg:last-child { animation-delay: 0.45s; }
+.eyebrow svg { color: #ffd166; }
 
 .fireStage {
   position: relative;
@@ -95,8 +93,7 @@
   width: 194px;
   height: 194px;
   background: radial-gradient(circle, rgba(255, 216, 113, 0.42), rgba(255, 88, 35, 0.19) 42%, rgba(255, 56, 24, 0) 73%);
-  filter: blur(6px);
-  animation: firePulse 1.45s ease-in-out infinite alternate;
+  opacity: .8;
 }
 
 .fireRing {
@@ -104,7 +101,7 @@
   height: 155px;
   border: 1px solid rgba(255, 221, 159, 0.34);
   box-shadow: 0 0 22px rgba(255, 141, 55, 0.24), inset 0 0 22px rgba(255, 141, 55, 0.13);
-  animation: ringTurn 13s linear infinite;
+  opacity: .8;
 }
 
 .flameBadge {
@@ -131,12 +128,10 @@
   border: 1px solid rgba(255, 242, 209, 0.4);
   border-radius: 36px;
   background: linear-gradient(150deg, #8a2637 0%, #d54037 46%, #f77b37 100%);
-  filter: drop-shadow(0 5px 0 rgba(78, 18, 27, 0.32));
 }
 
 .flameInner svg {
-  filter: drop-shadow(0 0 10px rgba(255, 226, 142, 0.8));
-  animation: flameFlicker 0.72s ease-in-out infinite alternate;
+  filter: drop-shadow(0 2px 3px rgba(78, 18, 27, 0.25));
 }
 
 .fireLicks {
@@ -147,7 +142,6 @@
   align-items: end;
   gap: 3px;
   height: 65px;
-  filter: blur(1px);
 }
 
 .fireLicks span {
@@ -156,11 +150,11 @@
   border-radius: 90% 10% 70% 40%;
   background: linear-gradient(to top, rgba(255, 72, 32, 0), rgba(255, 113, 46, 0.78), rgba(255, 219, 112, 0.78));
   transform-origin: bottom;
-  animation: lick 0.65s ease-in-out infinite alternate;
+  opacity: .8;
 }
 
-.fireLicks span:nth-child(2) { height: 64px; animation-delay: -0.38s; }
-.fireLicks span:nth-child(3) { height: 43px; animation-delay: -0.2s; }
+.fireLicks span:nth-child(2) { height: 64px; }
+.fireLicks span:nth-child(3) { height: 43px; }
 
 .ember {
   position: absolute;
@@ -171,7 +165,7 @@
   height: 11px;
   border-radius: 3px 1px;
   background: var(--ember-color);
-  box-shadow: 0 0 12px var(--ember-color);
+  box-shadow: 0 0 5px var(--ember-color);
   opacity: 0;
   animation: emberBurst 1.12s cubic-bezier(0.1, 0.66, 0.22, 1) var(--ember-delay) both;
 }
@@ -267,12 +261,6 @@
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--ember-angle)) translateY(calc(var(--ember-distance) * -1)) scale(0.72) rotate(145deg); }
 }
 
-@keyframes firePulse { from { transform: scale(0.84); opacity: 0.68; } to { transform: scale(1.12); opacity: 1; } }
-@keyframes ringTurn { to { transform: rotate(360deg); } }
-@keyframes flameFlicker { from { transform: scale(0.94) rotate(-3deg); } to { transform: scale(1.05) rotate(3deg); } }
-@keyframes lick { from { transform: scaleY(0.72) rotate(-8deg); opacity: 0.5; } to { transform: scaleY(1.08) rotate(8deg); opacity: 0.95; } }
-@keyframes sparkle { from { opacity: 0.6; transform: scale(0.82) rotate(-9deg); } to { opacity: 1; transform: scale(1.12) rotate(9deg); } }
-
 @media (max-width: 480px) {
   .card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); padding: 24px 20px 18px; border-radius: 30px; }
   .fireStage { height: 174px; }
@@ -283,7 +271,17 @@
   .number { min-width: 66px; min-height: 66px; border-radius: 20px; }
 }
 
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .overlay { background: rgba(12, 10, 20, .84); }
+  .glowTop { display: none; }
+  .fireHalo { opacity: .55; }
+  .fireRing { box-shadow: none; }
+  .fireLicks { display: none; }
+  .ember { display: none; }
+  .card { box-shadow: 0 16px 36px rgba(0, 0, 0, .42), 0 0 0 1px rgba(255, 190, 77, .06); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .eyebrow svg, .fireHalo, .fireRing, .flameInner svg { animation: none; }
+  .fireHalo, .fireRing, .flameInner svg { animation: none; }
   .close, .continue { transition: none; }
 }

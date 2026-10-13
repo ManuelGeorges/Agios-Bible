@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, updateDoc, increment, arrayUnion, setDoc, serverTimestamp } from "firebase/firestore";
@@ -17,16 +17,20 @@ const auth = typeof window !== 'undefined' ? getAuth() : null;
 export default function UserTracker() {
   const { strings, language } = useLanguage();
   const [streakCelebration, setStreakCelebration] = useState(null);
+  const activityCopyRef = useRef({ strings, language });
+  activityCopyRef.current = { strings, language };
 
   useEffect(() => {
     const trackActivity = async (user) => {
       try {
+        const { strings: activeStrings, language: activeLanguage } = activityCopyRef.current;
         const today = getCairoDate();
+        let nativeStats = null;
 
         if (user) {
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
-          const userName = user.displayName || strings.common.default_first_name;
+          const userName = user.displayName || activeStrings.common.default_first_name;
 
           if (!userSnap.exists()) {
             await setDoc(userRef, {
@@ -45,11 +49,13 @@ export default function UserTracker() {
               completedChapters: {},
               completedPlans: {}
             });
+            nativeStats = { streak: 1, points: 10 };
+            setStreakCelebration({ streak: 1, rewardPoints: 10 });
             await StorageService.updateStreak(1);
             await StorageService.save('agios_last_active', today);
-            setStreakCelebration({ streak: 1, rewardPoints: 10 });
           } else {
             const userData = userSnap.data();
+            nativeStats = { streak: userData.streak || 0, points: userData.totalPoints || 0 };
             const lastActive = userData.lastActiveDate || userData.lastLoginDate;
 
             if (lastActive !== today) {
@@ -74,11 +80,11 @@ export default function UserTracker() {
               let bonusPoints = streakBonuses[newStreak] || 0;
 
               const streakMilestones = {
-                3: { id: 'streak_3', name: language === 'ar' ? 'المواظب المبتدئ (3 أيام)' : 'Beginner Diligent (3 days)' },
-                7: { id: 'streak_7', name: language === 'ar' ? 'المجتهد (أسبوع)' : 'Hardworking (Week)' },
-                15: { id: 'streak_15', name: language === 'ar' ? 'المثابر (15 يوم)' : 'Perserverant (15 days)' },
-                30: { id: 'streak_30', name: language === 'ar' ? 'الوفي (شهر)' : 'Loyal (Month)' },
-                90: { id: 'streak_90', name: language === 'ar' ? 'الأسطورة (3 شهور)' : 'Legend (3 months)' }
+                3: { id: 'streak_3', name: activeLanguage === 'ar' ? 'المواظب المبتدئ (3 أيام)' : 'Beginner Diligent (3 days)' },
+                7: { id: 'streak_7', name: activeLanguage === 'ar' ? 'المجتهد (أسبوع)' : 'Hardworking (Week)' },
+                15: { id: 'streak_15', name: activeLanguage === 'ar' ? 'المثابر (15 يوم)' : 'Perserverant (15 days)' },
+                30: { id: 'streak_30', name: activeLanguage === 'ar' ? 'الوفي (شهر)' : 'Loyal (Month)' },
+                90: { id: 'streak_90', name: activeLanguage === 'ar' ? 'الأسطورة (3 شهور)' : 'Legend (3 months)' }
               };
 
               let updates = {
@@ -91,18 +97,19 @@ export default function UserTracker() {
 
               if (usedFreeze) {
                 updates.streakFreezes = increment(-1);
-                toast(strings.shop?.use_freeze_toast || "تم استخدام تجميد الستريك لحمايتك! ❄️", { icon: '❄️' });
+                toast(activeStrings.shop?.use_freeze_toast || "تم استخدام تجميد الستريك لحمايتك! ❄️", { icon: '❄️' });
               }
 
               if (streakMilestones[newStreak] && !userData.badges?.includes(streakMilestones[newStreak].id)) {
                 updates.badges = arrayUnion(streakMilestones[newStreak].id);
-                toast.success(strings.home.toasts.badge_unlocked.replace('{badgeName}', streakMilestones[newStreak].name), { icon: '🔥' });
+                toast.success(activeStrings.home.toasts.badge_unlocked.replace('{badgeName}', streakMilestones[newStreak].name), { icon: '🔥' });
               }
 
               await updateDoc(userRef, updates);
+              nativeStats = { streak: newStreak, points: nativeStats.points + 10 + bonusPoints };
+              setStreakCelebration({ streak: newStreak, rewardPoints: 10 + bonusPoints });
               await StorageService.updateStreak(newStreak);
               await StorageService.save('agios_last_active', today);
-              setStreakCelebration({ streak: newStreak, rewardPoints: 10 + bonusPoints });
 
             } else {
               await StorageService.save('agios_last_active', today);
@@ -110,54 +117,62 @@ export default function UserTracker() {
           }
         } else {
           // المنطق المحلي للضيوف (Local First)
-          const localStats = await StorageService.getLocalStats();
-          const lastActive = await StorageService.get('agios_last_active');
+          const [localStreak, localFreezes, lastActive, localPoints] = await Promise.all([
+            StorageService.get(KEYS.STREAK),
+            StorageService.get(KEYS.STREAK_FREEZES),
+            StorageService.get(KEYS.LAST_ACTIVE),
+            StorageService.get(KEYS.POINTS)
+          ]);
+          nativeStats = { streak: localStreak || 0, points: localPoints || 0 };
 
           if (lastActive !== today) {
-            let newStreak = (localStats.streak || 0) + 1;
+            let newStreak = (localStreak || 0) + 1;
             let usedFreeze = false;
 
             if (lastActive) {
               const diffDays = calculateDiffDays(lastActive, today);
               if (diffDays > 1) {
                 // محاولة استخدام التجميد المحلي للضيف
-                const currentFreezes = localStats.streakFreezes || 0;
+                const currentFreezes = localFreezes || 0;
                 if (currentFreezes > 0) {
-                  newStreak = (localStats.streak || 0) + 1;
+                  newStreak = (localStreak || 0) + 1;
                   usedFreeze = true;
-                  await StorageService.save(KEYS.STREAK_FREEZES, currentFreezes - 1);
                 } else {
                   newStreak = 1;
                 }
               }
             }
 
-            await StorageService.updateStreak(newStreak);
-            await StorageService.save('agios_last_active', today);
-            await StorageService.addPoints(10);
-
-            const history = await StorageService.get(KEYS.POINTS_HISTORY) || [];
-            history.push({
-              type: 'dailyLogin',
-              points: 10,
-              reason: strings.points?.points_reasons?.daily_login || 'Daily login',
-              timestamp: getCairoIsoString()
-            });
-            await StorageService.save(KEYS.POINTS_HISTORY, history);
             setStreakCelebration({ streak: newStreak, rewardPoints: 10 });
+            nativeStats = { streak: newStreak, points: (localPoints || 0) + 10 };
+            const timestamp = getCairoIsoString();
+            const recordDailyPoints = async () => {
+              const history = await StorageService.get(KEYS.POINTS_HISTORY) || [];
+              history.push({
+                type: 'dailyLogin',
+                points: 10,
+                reason: activeStrings.points?.points_reasons?.daily_login || 'Daily login',
+                timestamp
+              });
+              await StorageService.save(KEYS.POINTS_HISTORY, history);
+            };
+            const persistenceTasks = [
+              StorageService.updateStreak(newStreak),
+              StorageService.save(KEYS.LAST_ACTIVE, today),
+              StorageService.addPoints(10),
+              recordDailyPoints()
+            ];
+            if (usedFreeze) persistenceTasks.push(StorageService.save(KEYS.STREAK_FREEZES, (localFreezes || 0) - 1));
+            await Promise.all(persistenceTasks);
 
             if (usedFreeze) {
-              toast(strings.shop?.use_freeze_toast || "تم استخدام تجميد الستريك لحمايتك! ❄️", { icon: '❄️' });
+              toast(activeStrings.shop?.use_freeze_toast || "تم استخدام تجميد الستريك لحمايتك! ❄️", { icon: '❄️' });
             }
           }
         }
 
         if (Capacitor.isNativePlatform() && window.AgiosScannerNative?.updateUserStats) {
-          const userData = user ? (await getDoc(doc(db, 'users', user.uid))).data() : null;
-          const currentStreak = userData ? userData.streak : (await StorageService.get(KEYS.STREAK));
-          const currentPoints = userData ? (userData.totalPoints || 0) : (await StorageService.getLocalStats()).points;
-
-          window.AgiosScannerNative.updateUserStats(currentStreak || 0, null, currentPoints || 0);
+          window.AgiosScannerNative.updateUserStats(nativeStats?.streak || 0, null, nativeStats?.points || 0);
         }
 
       } catch (error) {
@@ -180,7 +195,7 @@ export default function UserTracker() {
     if (!auth) return;
     const unsubscribe = onAuthStateChanged(auth, trackActivity);
     return () => unsubscribe();
-  }, [strings, language]);
+  }, []);
 
   return (
     <AnimatePresence>

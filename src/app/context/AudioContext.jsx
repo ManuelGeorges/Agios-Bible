@@ -10,6 +10,7 @@ import { useLanguage } from './LanguageContext';
 import { languageManager } from '../../services/languageManager';
 
 const AudioContext = createContext();
+const AudioProgressContext = createContext({ currentTime: 0, duration: 0 });
 
 const FOLDER_MAP = {
     ar: 'arabic',
@@ -753,8 +754,10 @@ export function AudioProvider({ children }) {
         setTimeLeft(null);
     }, []);
 
+    const progressValue = useMemo(() => ({ currentTime, duration }), [currentTime, duration]);
+
     const contextValue = useMemo(() => ({
-        audioUrl, isPlaying, currentTime, duration, playbackSpeed, isPanelOpen, trackTitle, currentVerseId,
+        audioUrl, isPlaying, playbackSpeed, isPanelOpen, trackTitle, currentVerseId,
         isRepeat, isAutoPlay, volume, isHighlightEnabled, sleepTimer, timeLeft, currentLocation, bookNames, isAutoNext, isAudioLoading,
         isBuffering,
         downloadedChapters, downloadProgress,
@@ -782,7 +785,7 @@ export function AudioProvider({ children }) {
         registerPeekNavigationCallback,
         goToChapter
     }), [
-        audioUrl, isPlaying, currentTime, duration, playbackSpeed, isPanelOpen, trackTitle, currentVerseId,
+        audioUrl, isPlaying, playbackSpeed, isPanelOpen, trackTitle, currentVerseId,
         isRepeat, isAutoPlay, volume, isHighlightEnabled, sleepTimer, timeLeft, currentLocation, bookNames, isAutoNext, isAudioLoading,
         isBuffering, downloadedChapters, downloadProgress,
         playTrack, togglePlay, goToChapter, processTimestamps, fetchAudioData, downloadChapter, deleteDownload,
@@ -791,23 +794,26 @@ export function AudioProvider({ children }) {
     ]);
 
     return (
-        <AudioContext.Provider value={contextValue}>
-            {children}
-            <audio
-                ref={audioRef}
-                preload="auto"
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => setIsBuffering(false)}
-                onCanPlay={() => setIsBuffering(false)}
-                onError={handleAudioError}
-                onEnded={handleEnded}
-            />
-        </AudioContext.Provider>
+            <AudioProgressContext.Provider value={progressValue}>
+                <AudioContext.Provider value={contextValue}>
+                    {children}
+                    <audio
+                        ref={audioRef}
+                        preload="auto"
+                        onTimeUpdate={handleTimeUpdate}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onWaiting={() => setIsBuffering(true)}
+                        onPlaying={() => setIsBuffering(false)}
+                        onCanPlay={() => setIsBuffering(false)}
+                        onError={handleAudioError}
+                        onEnded={handleEnded}
+                    />
+                </AudioContext.Provider>
+            </AudioProgressContext.Provider>
     );
 }
 
 export const useAudio = () => useContext(AudioContext);
+export const useAudioProgress = () => useContext(AudioProgressContext);

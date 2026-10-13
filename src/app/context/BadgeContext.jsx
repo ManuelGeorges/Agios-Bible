@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import BadgeUnlockModal from '../../components/BadgeUnlockModal/BadgeUnlockModal';
 import { AnimatePresence } from 'framer-motion';
 import { StorageService, KEYS } from '../../lib/storage';
@@ -93,8 +93,10 @@ export const BadgeProvider = ({ children }) => {
     setCurrentBadge(null);
   };
 
+  const contextValue = useMemo(() => ({ triggerBadgeUnlock }), [triggerBadgeUnlock]);
+
   return (
-    <BadgeContext.Provider value={{ triggerBadgeUnlock }}>
+    <BadgeContext.Provider value={contextValue}>
       {children}
       <AnimatePresence>
         {currentBadge && (
